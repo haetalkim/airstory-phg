@@ -6,64 +6,69 @@ import MyPage from "./components/MyPage";
 import { MapPin, Table, BarChart3, User } from "lucide-react";
 
 // Metric configurations with colors
+// Using a colorblind-friendly palette with similar blue/teal tones
+// Distinguishable by saturation and lightness rather than hue
 const METRIC_THEMES = {
   pm25: {
     label: 'PM 2.5',
     unit: 'µg/m³',
     key: 'pm25',
-    primary: '#3B82F6', // blue
-    light: '#DBEAFE',
-    gradient: 'from-blue-500 to-blue-700',
-    bg: 'bg-blue-600',
-    hover: 'hover:bg-blue-700',
-    text: 'text-blue-600',
-    border: 'border-blue-200'
+    primary: '#0EA5E9', // sky blue - medium saturation
+    light: '#E0F2FE',
+    gradient: 'from-sky-500 to-sky-700',
+    bg: 'bg-sky-600',
+    hover: 'hover:bg-sky-700',
+    text: 'text-sky-600',
+    border: 'border-sky-200'
   },
   co: {
     label: 'CO',
     unit: 'ppm',
     key: 'co',
-    primary: '#8B5CF6', // purple
-    light: '#EDE9FE',
-    gradient: 'from-purple-500 to-purple-700',
-    bg: 'bg-purple-600',
-    hover: 'hover:bg-purple-700',
-    text: 'text-purple-600',
-    border: 'border-purple-200'
+    primary: '#0284C7', // darker blue - higher saturation
+    light: '#BAE6FD',
+    gradient: 'from-sky-600 to-sky-800',
+    bg: 'bg-sky-700',
+    hover: 'hover:bg-sky-800',
+    text: 'text-sky-700',
+    border: 'border-sky-300'
   },
   temp: {
     label: 'Temperature',
-    unit: '°F',
+    unit: '°C',
     key: 'temp',
-    primary: '#EF4444', // red
-    light: '#FEE2E2',
-    gradient: 'from-red-500 to-red-700',
-    bg: 'bg-red-600',
-    hover: 'hover:bg-red-700',
-    text: 'text-red-600',
-    border: 'border-red-200'
+    primary: '#06B6D4', // cyan - medium saturation
+    light: '#CFFAFE',
+    gradient: 'from-cyan-500 to-cyan-700',
+    bg: 'bg-cyan-600',
+    hover: 'hover:bg-cyan-700',
+    text: 'text-cyan-600',
+    border: 'border-cyan-200'
   },
   humidity: {
     label: 'Humidity',
     unit: '%',
     key: 'humidity',
-    primary: '#10B981', // green
-    light: '#D1FAE5',
-    gradient: 'from-green-500 to-green-700',
-    bg: 'bg-green-600',
-    hover: 'hover:bg-green-700',
-    text: 'text-green-600',
-    border: 'border-green-200'
+    primary: '#0891B2', // teal - darker, more saturated
+    light: '#A5F3FC',
+    gradient: 'from-cyan-600 to-cyan-800',
+    bg: 'bg-cyan-700',
+    hover: 'hover:bg-cyan-800',
+    text: 'text-cyan-700',
+    border: 'border-cyan-300'
   }
 };
 
 export default function App() {
   const [activeSection, setActiveSection] = useState("heatmap");
   const [selectedMetric, setSelectedMetric] = useState("pm25");
+  const [isPublicMode, setIsPublicMode] = useState(true); // Public mode by default - no login required
   const [filters, setFilters] = useState({
     country: "US",
     state: "NY",
     school: "MTN12",
+    instructor: "Shim",
+    period: "P1",
     group: "G4",
     studentId: "STU003",
   });
@@ -90,7 +95,17 @@ export default function App() {
               className="flex items-center gap-3 focus:outline-none hover:opacity-80 transition-opacity"
               aria-label="Go to Heat Map"
             >
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+              <img 
+                src="/logo.svg" 
+                alt="AIR@TAMGU" 
+                className="h-12 w-auto"
+                onError={(e) => {
+                  // Fallback to text if image fails to load
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight" style={{display: 'none'}}>
                 AIR <span className="font-normal text-gray-400">@</span>
                 <span className="text-blue-600">TAMGU</span>
               </h1>
@@ -117,16 +132,18 @@ export default function App() {
               })}
             </div>
 
-            {/* User Info */}
-            <div className="flex items-center gap-4">
-              <div className="text-right hidden lg:block">
-                <p className="text-sm font-medium text-gray-900">{filters.studentId}</p>
-                <p className="text-xs text-gray-500">{filters.school} - Group {filters.group.replace('G', '')}</p>
+            {/* User Info - Only show if not in public mode */}
+            {!isPublicMode && (
+              <div className="flex items-center gap-4">
+                <div className="text-right hidden lg:block">
+                  <p className="text-sm font-medium text-gray-900">{filters.studentId}</p>
+                  <p className="text-xs text-gray-500">{filters.school} - Group {filters.group.replace('G', '')}</p>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-semibold">{filters.studentId.slice(3)}</span>
+                </div>
               </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-semibold">{filters.studentId.slice(3)}</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </nav>

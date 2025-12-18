@@ -6,6 +6,7 @@ const generateRawData = () => {
   const data = [];
   const locations = [
     { name: 'Upper Manhattan', lat: 40.8448, lng: -73.9388 },
+    { name: 'Washington Heights (168th St)', lat: 40.8400, lng: -73.9400 },
     { name: 'Central Park', lat: 40.7829, lng: -73.9654 },
     { name: 'Midtown East', lat: 40.7549, lng: -73.9680 },
     { name: 'Midtown West', lat: 40.7580, lng: -73.9855 },
@@ -13,8 +14,29 @@ const generateRawData = () => {
     { name: 'Greenwich Village', lat: 40.7336, lng: -74.0027 },
     { name: 'Lower Manhattan', lat: 40.7074, lng: -74.0113 },
     { name: 'East Village', lat: 40.7264, lng: -73.9818 },
-    { name: 'Columbia Area', lat: 40.8075, lng: -73.9626 }
+    { name: 'Columbia Area', lat: 40.8075, lng: -73.9626 },
+    { name: 'Harlem', lat: 40.8176, lng: -73.9482 },
+    { name: 'Inwood', lat: 40.8677, lng: -73.9250 }
   ];
+
+  // Available teams/groups and schools
+  // Hierarchy: School -> Class (Instructor) -> Period -> Group
+  const schools = ['MTN12', 'MTN15', 'BRK08', 'QNS05'];
+  const classes = ['Shim', 'Shin', 'Park'];
+  const periods = ['P1', 'P2', 'P3'];
+  const groupsPerPeriod = ['G1', 'G2', 'G3', 'G4', 'G5'];
+
+  // Map each school to its classes, each class to its periods, each period to its groups
+  const HIERARCHY = {};
+  schools.forEach(school => {
+    HIERARCHY[school] = {};
+    classes.forEach(instructor => {
+      HIERARCHY[school][instructor] = {};
+      periods.forEach(period => {
+        HIERARCHY[school][instructor][period] = [...groupsPerPeriod];
+      });
+    });
+  });
 
   // Photo data for Columbia location
   const columbiaPhotos = [
@@ -45,6 +67,18 @@ const generateRawData = () => {
     { name: 'Campus Path', baseMinutes: 18 * 60 + 5 }
   ];
 
+  // Washington Heights school-specific session templates
+  const washingtonHeightsSessionTemplates = [
+    { name: 'School Entrance', baseMinutes: 8 * 60 + 30 },
+    { name: 'Playground', baseMinutes: 11 * 60 + 45 },
+    { name: 'School Yard', baseMinutes: 14 * 60 + 15 },
+    { name: '168th St Corner', baseMinutes: 17 * 60 + 30 },
+    { name: 'Audubon Ave', baseMinutes: 16 * 60 },
+    { name: 'School Steps', baseMinutes: 10 * 60 + 15 },
+    { name: 'Front Gate', baseMinutes: 7 * 60 + 20 },
+    { name: 'Sidewalk Area', baseMinutes: 18 * 60 + 5 }
+  ];
+
   const noteSamples = [
     'Someone was smoking near the gate.',
     'Hardly any cars today.',
@@ -61,14 +95,15 @@ const generateRawData = () => {
     const mins = total % 60;
     return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
   };
-
+  
   const today = new Date();
   let sessionCounter = 0;
-
-  for (let i = 0; i < 30; i++) {
+  
+  // Generate more data points - spread over 45 days with more sessions
+  for (let i = 0; i < 45; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-
+    
     const sessionsToday = Math.floor(Math.random() * 3) + 1; // 1-3 sessions per day
     const usedTemplates = new Set();
 
@@ -80,15 +115,18 @@ const generateRawData = () => {
 
       usedTemplates.add(templateIdx);
       const template = sessionTemplates[templateIdx];
-      const sessionId = `SESSION-${String(sessionCounter + 1).padStart(3, '0')}`;
+    const sessionId = `SESSION-${String(sessionCounter + 1).padStart(3, '0')}`;
       const adjustedBase = template.baseMinutes + Math.floor(Math.random() * 31) - 15;
-
-      locations.forEach((location, locIdx) => {
-        // Use Columbia-specific session names for Columbia Area
+    
+    locations.forEach((location, locIdx) => {
+        // Use location-specific session names
         let sessionName = template.name;
         if (location.name === 'Columbia Area') {
           const columbiaTemplateIdx = Math.floor(Math.random() * columbiaSessionTemplates.length);
           sessionName = columbiaSessionTemplates[columbiaTemplateIdx].name;
+        } else if (location.name === 'Washington Heights (168th St)') {
+          const whTemplateIdx = Math.floor(Math.random() * washingtonHeightsSessionTemplates.length);
+          sessionName = washingtonHeightsSessionTemplates[whTemplateIdx].name;
         }
         const time = addMinutes(adjustedBase, locIdx * 3);
         const dateStr = date.toISOString().split('T')[0];
@@ -105,9 +143,15 @@ const generateRawData = () => {
             })
           : [];
         
-        data.push({
+        // Assign hierarchy to each data point
+        const school = schools[Math.floor(Math.random() * schools.length)];
+        const instructor = classes[Math.floor(Math.random() * classes.length)];
+        const period = periods[Math.floor(Math.random() * periods.length)];
+        const group = groupsPerPeriod[Math.floor(Math.random() * groupsPerPeriod.length)];
+        
+      data.push({
           id: `${date.getTime()}-${sessionId}-${locIdx}`,
-          date: date.toISOString().split('T')[0],
+        date: date.toISOString().split('T')[0],
           time,
           sessionId,
           sessionName: sessionName,
@@ -118,22 +162,42 @@ const generateRawData = () => {
           latitude: location.lat,
           longitude: location.lng,
           indoorOutdoor: Math.random() > 0.5 ? 'INDOOR' : 'OUTDOOR',
-          pm25: Math.floor(Math.random() * 25) + 3,
-          co: (Math.random() * 0.8 + 0.2).toFixed(2),
-          temp: Math.floor(Math.random() * 15) + 60,
-          humidity: Math.floor(Math.random() * 30) + 35,
+          school: school,
+          instructor: instructor,
+          period: period,
+          group: group,
+        pm25: Math.floor(Math.random() * 25) + 3,
+        co: (Math.random() * 0.8 + 0.2).toFixed(2),
+          temp: Math.floor(Math.random() * 15) + 15, // 15-30°C
+        humidity: Math.floor(Math.random() * 30) + 35,
           photos: photos
-        });
       });
-
-      sessionCounter++;
+    });
+    
+    sessionCounter++;
     }
   }
-
+  
   return data.sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time));
 };
 
 const INDOOR_OUTDOOR_OPTIONS = ['INDOOR', 'OUTDOOR'];
+
+const FIELD_FORMATTERS = {
+  pm25: (value) => Math.max(0, parseInt(value || 0, 10)),
+  temp: (value) => Math.round(value || 0),
+  humidity: (value) => Math.min(100, Math.max(0, Math.round(value || 0))),
+  co: (value) => parseFloat(value || 0).toFixed(2),
+  indoorOutdoor: (value) => value
+};
+
+// Available hierarchy options
+const HIERARCHY_OPTIONS = {
+  schools: ['MTN12', 'MTN15', 'BRK08', 'QNS05'],
+  instructors: ['Shim', 'Shin', 'Park'],
+  periods: ['P1', 'P2', 'P3'],
+  groups: ['G1', 'G2', 'G3', 'G4', 'G5']
+};
 
 const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes }) => {
   const [rawData, setRawData] = useState(generateRawData());
@@ -142,6 +206,13 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
   const [dateFilter, setDateFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
   const [sessionFilter, setSessionFilter] = useState('all');
+  
+  // Hierarchy Filters
+  const [selectedSchool, setSelectedSchool] = useState(filters.school || '');
+  const [selectedInstructor, setSelectedInstructor] = useState(filters.instructor || '');
+  const [selectedPeriod, setSelectedPeriod] = useState(filters.period || '');
+  const [selectedGroup, setSelectedGroup] = useState(filters.group || '');
+
   const [currentPage, setCurrentPage] = useState(1);
   const [editingSession, setEditingSession] = useState(null);
   const [editingNotes, setEditingNotes] = useState(null);
@@ -153,12 +224,17 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
   const [showHelpModal, setShowHelpModal] = useState(false);
   const itemsPerPage = 50;
 
-  // Get unique locations and sessions
+  // Get unique locations, sessions, groups, and schools
   const locations = [...new Set(rawData.map(d => d.location))];
   const sessions = [...new Set(rawData.map(d => d.sessionId))].map(id => {
     const session = rawData.find(d => d.sessionId === id);
     return { id, name: session.sessionName };
   });
+  
+  const allGroups = HIERARCHY_OPTIONS.groups;
+  const allSchools = HIERARCHY_OPTIONS.schools;
+  const allInstructors = HIERARCHY_OPTIONS.instructors;
+  const allPeriods = HIERARCHY_OPTIONS.periods;
 
   // Filter data
   let filteredData = rawData.filter(row => {
@@ -166,10 +242,19 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
       row.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       `${row.latitude}, ${row.longitude}`.includes(searchTerm) ||
       row.sessionName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      row.date.includes(searchTerm);
+      row.date.includes(searchTerm) ||
+      row.group.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.school.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.instructor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.period.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesLocation = locationFilter === 'all' || row.location === locationFilter;
     const matchesSession = sessionFilter === 'all' || row.sessionId === sessionFilter;
+    
+    const matchesSchool = !selectedSchool || row.school === selectedSchool;
+    const matchesInstructor = !selectedInstructor || row.instructor === selectedInstructor;
+    const matchesPeriod = !selectedPeriod || row.period === selectedPeriod;
+    const matchesGroup = !selectedGroup || row.group === selectedGroup;
     
     const matchesDate = () => {
       if (dateFilter === 'all') return true;
@@ -192,7 +277,8 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
       }
     };
     
-    return matchesSearch && matchesLocation && matchesSession && matchesDate();
+    return matchesSearch && matchesLocation && matchesSession && matchesDate() && 
+           matchesSchool && matchesInstructor && matchesPeriod && matchesGroup;
   });
 
   // Sort data
@@ -229,22 +315,34 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
 
   const handleExport = () => {
     // Create CSV content
-    const headers = ['Date', 'Time', 'Session ID', 'Session Name', 'Notes', 'Location', 'Latitude', 'Longitude', 'INDOOR/OUTDOOR', 'PM 2.5 (µg/m³)', 'CO (ppm)', 'Temperature (°F)', 'Humidity (%)'];
-    const rows = filteredData.map(row => [
+    const headers = ['Timestamp', 'Date', 'Time', 'Session ID', 'Session Name', 'School', 'Class (Instructor)', 'Period', 'Group', 'Location', 'Latitude', 'Longitude', 'INDOOR/OUTDOOR', 'PM 2.5 (µg/m³)', 'CO (ppm)', 'Temperature (°C)', 'Humidity (%)'];
+    
+    // Generate full second-by-second data for export
+    const rows = [];
+    filteredData.forEach(row => {
+      const detailed = generateDetailedData(row);
+      detailed.forEach(second => {
+        rows.push([
+          `${row.date} ${second.time}`,
       row.date,
-      row.time,
+          second.time,
       row.sessionId,
       row.sessionName,
-      row.sessionNotes,
+          row.school,
+          row.instructor,
+          row.period,
+          row.group,
       row.location,
-      row.latitude,
-      row.longitude,
-      row.indoorOutdoor,
-      row.pm25,
-      row.co,
-      row.temp,
-      row.humidity
-    ]);
+          row.latitude,
+          row.longitude,
+          row.indoorOutdoor,
+          second.pm25,
+          second.co,
+          second.temp,
+          second.humidity
+        ]);
+      });
+    });
     
     const csvContent = [
       headers.join(','),
@@ -371,50 +469,116 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Raw Data</h1>
           <p className="text-gray-600">Complete dataset with all measurements</p>
         </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowHelpModal(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+          >
+            <Info className="w-4 h-4" />
+            How to Use Raw Data
+          </button>
         <button 
           onClick={handleExport}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all"
         >
           <Download className="w-4 h-4" />
           Export CSV
         </button>
+        </div>
       </div>
 
-      {/* Help Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowHelpModal(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-        >
-          <Info className="w-4 h-4" />
-          How to Use Raw Data
-        </button>
-      </div>
-
-      {/* Metric Selector */}
+      {/* Team/Group Hierarchy Selectors */}
       <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Select Metric to Highlight</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Select Team Data</h2>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Info className="w-4 h-4" />
-            <span>Highlighted column shows selected metric</span>
+            <span>Select School, Class, Period, and Group to view specific data</span>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {Object.entries(metricThemes).map(([key, metric]) => (
-            <button 
-              key={key} 
-              onClick={() => setSelectedMetric(key)}
-              className={`py-3 px-4 rounded-xl text-sm font-medium transition-all ${
-                selectedMetric === key 
-                  ? `${metric.bg} text-white shadow-lg scale-105` 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* School Selector */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">School</label>
+            <select
+              value={selectedSchool}
+              onChange={(e) => {
+                setSelectedSchool(e.target.value);
+                setSelectedInstructor('');
+                setSelectedPeriod('');
+                setSelectedGroup('');
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             >
-              {metric.label}
-            </button>
-          ))}
+              <option value="">Select School</option>
+              {allSchools.map(s => <option key={s} value={s}>{s === filters.school ? `${s} (My School)` : s}</option>)}
+            </select>
+          </div>
+
+          {/* Class (Instructor) Selector */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Class (Instructor)</label>
+            <select
+              value={selectedInstructor}
+              disabled={!selectedSchool}
+              onChange={(e) => {
+                setSelectedInstructor(e.target.value);
+                setSelectedPeriod('');
+                setSelectedGroup('');
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
+            >
+              <option value="">Select Class</option>
+              {allInstructors.map(i => <option key={i} value={i}>{i === filters.instructor ? `${i} (My Class)` : i}</option>)}
+            </select>
+          </div>
+
+          {/* Period Selector */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Period</label>
+            <select
+              value={selectedPeriod}
+              disabled={!selectedInstructor}
+              onChange={(e) => {
+                setSelectedPeriod(e.target.value);
+                setSelectedGroup('');
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
+            >
+              <option value="">Select Period</option>
+              {allPeriods.map(p => <option key={p} value={p}>{p === filters.period ? `${p} (My Period)` : p}</option>)}
+            </select>
+          </div>
+
+          {/* Group Selector */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Group</label>
+            <select
+              value={selectedGroup}
+              disabled={!selectedPeriod}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
+            >
+              <option value="">Select Group</option>
+              {allGroups.map(g => <option key={g} value={g}>{g === filters.group ? `${g} (My Team)` : g}</option>)}
+            </select>
+          </div>
         </div>
+        {(selectedSchool || selectedInstructor || selectedPeriod || selectedGroup) && (
+          <div className="mt-4 flex justify-end">
+            <button 
+              onClick={() => {
+                setSelectedSchool('');
+                setSelectedInstructor('');
+                setSelectedPeriod('');
+                setSelectedGroup('');
+              }}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Reset Hierarchy
+            </button>
+        </div>
+        )}
       </div>
 
       {/* Filters and Search */}
@@ -429,7 +593,7 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by location, station, session, or date..."
+                placeholder="Search by location, session, date, school, or group..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -499,13 +663,17 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
             Showing <span className="font-semibold text-gray-900">{paginatedData.length}</span> of{' '}
             <span className="font-semibold text-gray-900">{filteredData.length}</span> records
           </p>
-          {(searchTerm || dateFilter !== 'all' || locationFilter !== 'all' || sessionFilter !== 'all') && (
+          {(searchTerm || dateFilter !== 'all' || locationFilter !== 'all' || sessionFilter !== 'all' || selectedSchool || selectedInstructor || selectedPeriod || selectedGroup) && (
             <button
               onClick={() => {
                 setSearchTerm('');
                 setDateFilter('all');
                 setLocationFilter('all');
                 setSessionFilter('all');
+                setSelectedSchool('');
+                setSelectedInstructor('');
+                setSelectedPeriod('');
+                setSelectedGroup('');
               }}
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
@@ -563,7 +731,46 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
                   INDOOR/OUTDOOR
                 </th>
                 <th 
-                  onClick={() => handleSort('pm25')}
+                  onClick={() => handleSort('school')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    School
+                    <SortIcon columnKey="school" />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('instructor')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    Class
+                    <SortIcon columnKey="instructor" />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('period')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    Period
+                    <SortIcon columnKey="period" />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('group')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    Group
+                    <SortIcon columnKey="group" />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => {
+                    setSelectedMetric('pm25');
+                    handleSort('pm25');
+                  }}
                   className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
                     selectedMetric === 'pm25' ? `${theme.bg} text-white hover:opacity-90` : 'text-gray-700'
                   }`}
@@ -574,7 +781,10 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
                   </div>
                 </th>
                 <th 
-                  onClick={() => handleSort('co')}
+                  onClick={() => {
+                    setSelectedMetric('co');
+                    handleSort('co');
+                  }}
                   className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
                     selectedMetric === 'co' ? `${theme.bg} text-white hover:opacity-90` : 'text-gray-700'
                   }`}
@@ -585,7 +795,10 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
                   </div>
                 </th>
                 <th 
-                  onClick={() => handleSort('temp')}
+                  onClick={() => {
+                    setSelectedMetric('temp');
+                    handleSort('temp');
+                  }}
                   className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
                     selectedMetric === 'temp' ? `${theme.bg} text-white hover:opacity-90` : 'text-gray-700'
                   }`}
@@ -596,7 +809,10 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
                   </div>
                 </th>
                 <th 
-                  onClick={() => handleSort('humidity')}
+                  onClick={() => {
+                    setSelectedMetric('humidity');
+                    handleSort('humidity');
+                  }}
                   className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
                     selectedMetric === 'humidity' ? `${theme.bg} text-white hover:opacity-90` : 'text-gray-700'
                   }`}
@@ -627,7 +843,7 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
                           <ChevronRight className={`w-4 h-4 text-gray-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.date}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.date}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{row.time}</td>
                   
                   {/* Session Name */}
@@ -680,6 +896,26 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
                         )}
                       </button>
                     )}
+                  </td>
+
+                  {/* School */}
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.school}</span>
+                  </td>
+
+                  {/* Class */}
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.instructor}</span>
+                  </td>
+
+                  {/* Period */}
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.period}</span>
+                  </td>
+
+                  {/* Group */}
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.group}</span>
                   </td>
 
                   {/* PM 2.5 */}
@@ -862,8 +1098,8 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
                                   <td className="px-2 py-1">{detail.co}</td>
                                   <td className="px-2 py-1">{detail.temp}</td>
                                   <td className="px-2 py-1">{detail.humidity}</td>
-                                </tr>
-                              ))}
+                </tr>
+              ))}
                             </tbody>
                           </table>
                         </div>

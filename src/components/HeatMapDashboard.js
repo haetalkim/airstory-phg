@@ -29,17 +29,60 @@ const getStatusLabel = (value, metric = 'pm25') => {
   return ranges[ranges.length - 1].label;
 };
 
-// Sample location data
-const LOCATIONS = [
-  { id: 1, name: 'Upper Manhattan', lat: 40.8448, lng: -73.9388, pm25: 8, co: 0.3, temp: 68, humidity: 42 },
-  { id: 2, name: 'Central Park', lat: 40.7829, lng: -73.9654, pm25: 12, co: 0.4, temp: 70, humidity: 45 },
-  { id: 3, name: 'Midtown East', lat: 40.7549, lng: -73.9680, pm25: 22, co: 0.8, temp: 72, humidity: 55 },
-  { id: 4, name: 'Midtown West', lat: 40.7580, lng: -73.9855, pm25: 20, co: 0.7, temp: 71, humidity: 52 },
-  { id: 5, name: 'Chelsea', lat: 40.7465, lng: -73.9972, pm25: 18, co: 0.6, temp: 70, humidity: 50 },
-  { id: 6, name: 'Greenwich Village', lat: 40.7336, lng: -74.0027, pm25: 15, co: 0.5, temp: 69, humidity: 48 },
-  { id: 7, name: 'Lower Manhattan', lat: 40.7074, lng: -74.0113, pm25: 10, co: 0.4, temp: 68, humidity: 43 },
-  { id: 8, name: 'East Village', lat: 40.7264, lng: -73.9818, pm25: 14, co: 0.5, temp: 69, humidity: 47 },
-];
+// Generate location data with timestamps for time-based filtering
+const generateLocationData = () => {
+  const baseLocations = [
+    { id: 1, name: 'Upper Manhattan', lat: 40.8448, lng: -73.9388, pm25: 8, co: 0.3, temp: 18, humidity: 42 },
+    { id: 2, name: 'Washington Heights (168th St)', lat: 40.8400, lng: -73.9400, pm25: 9, co: 0.35, temp: 17, humidity: 44 },
+    { id: 3, name: 'Central Park', lat: 40.7829, lng: -73.9654, pm25: 12, co: 0.4, temp: 20, humidity: 45 },
+    { id: 4, name: 'Midtown East', lat: 40.7549, lng: -73.9680, pm25: 22, co: 0.8, temp: 22, humidity: 55 },
+    { id: 5, name: 'Midtown West', lat: 40.7580, lng: -73.9855, pm25: 20, co: 0.7, temp: 21, humidity: 52 },
+    { id: 6, name: 'Chelsea', lat: 40.7465, lng: -73.9972, pm25: 18, co: 0.6, temp: 20, humidity: 50 },
+    { id: 7, name: 'Greenwich Village', lat: 40.7336, lng: -74.0027, pm25: 15, co: 0.5, temp: 19, humidity: 48 },
+    { id: 8, name: 'Lower Manhattan', lat: 40.7074, lng: -74.0113, pm25: 10, co: 0.4, temp: 18, humidity: 43 },
+    { id: 9, name: 'East Village', lat: 40.7264, lng: -73.9818, pm25: 14, co: 0.5, temp: 19, humidity: 47 },
+    { id: 10, name: 'Columbia Area', lat: 40.8075, lng: -73.9626, pm25: 11, co: 0.4, temp: 19, humidity: 46 },
+    { id: 11, name: 'Harlem', lat: 40.8176, lng: -73.9482, pm25: 13, co: 0.45, temp: 20, humidity: 47 },
+    { id: 12, name: 'Inwood', lat: 40.8677, lng: -73.9250, pm25: 7, co: 0.3, temp: 16, humidity: 41 },
+  ];
+
+  // Generate data points over time (last 3 months with variations)
+  const dataPoints = [];
+  const today = new Date();
+  
+  // Generate data for each location over the past 3 months
+  baseLocations.forEach(location => {
+    // Most recent data (today)
+    dataPoints.push({
+      ...location,
+      timestamp: new Date(today),
+      date: today.toISOString().split('T')[0]
+    });
+    
+    // Generate historical data points
+    for (let i = 1; i <= 90; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      
+      // Add some variation to simulate real data changes
+      const variation = (Math.random() - 0.5) * 0.2; // ±10% variation
+      dataPoints.push({
+        ...location,
+        id: `${location.id}-${i}`,
+        pm25: Math.max(3, Math.round(location.pm25 * (1 + variation))),
+        co: Math.max(0.1, parseFloat((location.co * (1 + variation)).toFixed(2))),
+        temp: Math.round(location.temp + (Math.random() - 0.5) * 4),
+        humidity: Math.max(30, Math.min(70, Math.round(location.humidity + (Math.random() - 0.5) * 10))),
+        timestamp: date,
+        date: date.toISOString().split('T')[0]
+      });
+    }
+  });
+  
+  return dataPoints;
+};
+
+const ALL_LOCATION_DATA = generateLocationData();
 
 // Silver/desaturated map styling
 const mapStyles = [
@@ -64,6 +107,17 @@ const heatmapGradient = [
   'rgba(255, 0, 0, 1)',
   'rgba(153, 0, 76, 1)',
   'rgba(126, 0, 35, 1)'
+];
+
+// Color-vision accessible palette (Viridis-like or specific colorblind safe colors)
+const accessibleGradient = [
+  'rgba(0, 255, 255, 0)',
+  'rgba(68, 1, 84, 1)',
+  'rgba(59, 82, 139, 1)',
+  'rgba(33, 145, 140, 1)',
+  'rgba(94, 201, 98, 1)',
+  'rgba(253, 231, 37, 1)',
+  'rgba(255, 255, 255, 1)'
 ];
 
 const StatusInfoModal = ({ isOpen, onClose, theme }) => {
@@ -129,23 +183,111 @@ const StatusInfoModal = ({ isOpen, onClose, theme }) => {
   );
 };
 
-const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilters, theme, metricThemes }) => {
+const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes }) => {
   const [showStatusInfo, setShowStatusInfo] = useState(false);
-  const [selectedSession, setSelectedSession] = useState('latest');
+  const [selectedTimeRange, setSelectedTimeRange] = useState('all-time');
+  const [displayMode, setDisplayMode] = useState('default'); // 'default' or 'accessible'
   const [map, setMap] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const screenshotRef = useRef(null);
 
-  const sessions = [
-    { id: 'latest', name: 'Latest Data' },
-    { id: 'session-001', name: 'Morning Route A' },
-    { id: 'session-002', name: 'Afternoon Route B' },
-    { id: 'session-003', name: 'After Rain' },
-    { id: 'session-004', name: 'Weekend Collection' }
-  ];
+  // Filter locations based on selected time range
+  const filteredLocations = useMemo(() => {
+    const now = new Date();
+    let cutoffDate = new Date(0); // Default to beginning of time
+    
+    switch(selectedTimeRange) {
+      case 'most-recent':
+        // Show only the most recent data point for each location
+        const locationGroups = {};
+        ALL_LOCATION_DATA.forEach(point => {
+          const key = point.name;
+          if (!locationGroups[key] || point.timestamp > locationGroups[key].timestamp) {
+            locationGroups[key] = point;
+          }
+        });
+        return Object.values(locationGroups);
+        
+      case 'past-week':
+        cutoffDate = new Date(now);
+        cutoffDate.setDate(cutoffDate.getDate() - 7);
+        break;
+        
+      case 'past-month':
+        cutoffDate = new Date(now);
+        cutoffDate.setMonth(cutoffDate.getMonth() - 1);
+        break;
+        
+      case 'past-3-months':
+        cutoffDate = new Date(now);
+        cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+        break;
+        
+      case 'all-time':
+        cutoffDate = new Date(0);
+        break;
+        
+      default:
+        cutoffDate = new Date(0);
+    }
+    
+    return ALL_LOCATION_DATA.filter(point => point.timestamp >= cutoffDate);
+  }, [selectedTimeRange]);
 
-  const locations = LOCATIONS;
+  // Calculate date range label
+  const dateRangeLabel = useMemo(() => {
+    if (filteredLocations.length === 0) return 'No data';
+    const dates = filteredLocations.map(loc => new Date(loc.timestamp));
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates));
+    
+    const formatDate = (date) => {
+      return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+    };
+    
+    if (formatDate(minDate) === formatDate(maxDate)) {
+      return formatDate(minDate);
+    }
+    return `${formatDate(minDate)} - ${formatDate(maxDate)}`;
+  }, [filteredLocations]);
+
+  // Aggregate filtered data by location (average values for heat map)
+  const locations = useMemo(() => {
+    const locationMap = {};
+    
+    filteredLocations.forEach(point => {
+      const key = point.name;
+      if (!locationMap[key]) {
+        locationMap[key] = {
+          ...point,
+          count: 1,
+          pm25Sum: point.pm25,
+          coSum: point.co,
+          tempSum: point.temp,
+          humiditySum: point.humidity
+        };
+      } else {
+        locationMap[key].count++;
+        locationMap[key].pm25Sum += point.pm25;
+        locationMap[key].coSum += point.co;
+        locationMap[key].tempSum += point.temp;
+        locationMap[key].humiditySum += point.humidity;
+      }
+    });
+    
+    // Calculate averages
+    return Object.values(locationMap).map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      lat: loc.lat,
+      lng: loc.lng,
+      pm25: Math.round(loc.pm25Sum / loc.count),
+      co: parseFloat((loc.coSum / loc.count).toFixed(2)),
+      temp: Math.round(loc.tempSum / loc.count),
+      humidity: Math.round(loc.humiditySum / loc.count)
+    }));
+  }, [filteredLocations]);
   const avgValue = Math.round(
     locations.reduce((sum, loc) => sum + loc[selectedMetric], 0) / locations.length
   );
@@ -181,8 +323,8 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
     radius: 40,
     opacity: 0.7,
     dissipating: true,
-    gradient: heatmapGradient
-  }), []);
+    gradient: displayMode === 'accessible' ? accessibleGradient : heatmapGradient
+  }), [displayMode]);
 
   const onMapLoad = useCallback((mapInstance) => {
     setMap(mapInstance);
@@ -202,7 +344,11 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
   const generateCode = useCallback(() => {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000);
-    return `${filters.school}-${filters.group}-${timestamp.toString(36).slice(-4).toUpperCase()}-${random}`;
+    const school = filters.school || 'PUBLIC';
+    const instructor = filters.instructor || 'GUEST';
+    const period = filters.period || 'N/A';
+    const group = filters.group || 'GUEST';
+    return `${school}-${instructor}-${period}-${group}-${timestamp.toString(36).slice(-4).toUpperCase()}-${random}`;
   }, [filters]);
 
   // Capture screenshot with overlays
@@ -254,8 +400,11 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
         hour12: true
       });
       
-      // Add group number
-      const groupNumber = filters.group || 'N/A';
+      // Add hierarchy info
+      const schoolInfo = filters.school || 'Public';
+      const classInfo = filters.instructor || 'Guest';
+      const periodInfo = filters.period || 'N/A';
+      const groupInfo = filters.group || 'Public';
       
       // Generate code
       const code = generateCode();
@@ -273,13 +422,13 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
       ctx.font = 'bold 18px Arial, sans-serif';
       ctx.fillText(timestamp, 140, labelY);
       
-      // Draw group number
+      // Draw hierarchy info
       ctx.fillStyle = '#6b7280';
       ctx.font = '16px Arial, sans-serif';
-      ctx.fillText('Group:', 30, valueY);
+      ctx.fillText('Team:', 30, valueY);
       ctx.fillStyle = '#1f2937';
       ctx.font = 'bold 18px Arial, sans-serif';
-      ctx.fillText(groupNumber, 100, valueY);
+      ctx.fillText(`${schoolInfo} - ${classInfo} - ${periodInfo} - ${groupInfo}`, 100, valueY);
       
       // Draw code (right aligned)
       ctx.fillStyle = '#6b7280';
@@ -351,16 +500,10 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-gray-900">Select Metric</h2>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-700">View Session:</label>
-            <select
-              value={selectedSession}
-              onChange={(e) => setSelectedSession(e.target.value)}
-              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {sessions.map(session => (
-                <option key={session.id} value={session.id}>{session.name}</option>
-              ))}
-            </select>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Date Range:</span>
+            <span className="text-xs font-medium text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+              {dateRangeLabel}
+            </span>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -387,6 +530,21 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Manhattan Air Quality Map</h2>
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">Mode</span>
+              <button 
+                onClick={() => setDisplayMode(prev => prev === 'default' ? 'accessible' : 'default')}
+                className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors duration-300 focus:outline-none ${
+                  displayMode === 'accessible' ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
+                <div
+                  className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${
+                    displayMode === 'accessible' ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
           
           {/* Google Maps Container */}
@@ -438,7 +596,7 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
                       Google Cloud Console
                     </a>
                   </p>
-                </div>
+                  </div>
               </div>
             )}
             
@@ -447,7 +605,7 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
               <p className="text-sm font-semibold text-gray-700 mb-3">Air Quality Gradient</p>
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-64 h-5 rounded overflow-hidden" style={{
-                  background: `linear-gradient(to right, ${heatmapGradient.slice(1).join(', ')})`
+                  background: `linear-gradient(to right, ${(displayMode === 'accessible' ? accessibleGradient : heatmapGradient).slice(1).join(', ')})`
                 }} />
               </div>
               <div className="flex justify-between text-xs text-gray-600 mb-2">
@@ -466,20 +624,22 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
         </div>
 
         {/* Stats Sidebar - 1 column */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* City Average */}
           <div 
-            className="bg-white rounded-2xl p-6 shadow-lg border-2 transition-all duration-300" 
+            className="bg-white rounded-xl p-4 shadow-md border-2 transition-all duration-300" 
             style={{ borderColor: theme.primary }}
           >
-            <p className="text-sm font-semibold text-gray-600 mb-2">CITY AVERAGE</p>
-            <div className="flex items-end gap-3 mb-4">
-              <span className="text-5xl font-bold" style={{ color: theme.primary }}>{avgValue}</span>
-              <span className="text-xl text-gray-600 mb-2">{metricThemes[selectedMetric].unit}</span>
+            <div className="flex justify-between items-start mb-1">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">City Average</p>
+              <div className="text-right">
+                <span className="text-3xl font-bold" style={{ color: theme.primary }}>{avgValue}</span>
+                <span className="text-xs text-gray-500 ml-1">{metricThemes[selectedMetric].unit}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
               <span
-                className="px-3 py-1 rounded-full text-sm font-semibold"
+                className="px-2 py-0.5 rounded-full text-xs font-bold"
                 style={{ backgroundColor: getColorForValue(avgValue), color: "#1F2937" }}
               >
                 {getStatusLabel(avgValue)}
@@ -489,50 +649,62 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, setFilte
                 className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                 title="View AQI criteria"
               >
-                <Info className="w-4 h-4 text-gray-500" />
+                <Info className="w-3.5 h-3.5 text-gray-400" />
               </button>
             </div>
           </div>
 
           {/* Best Location */}
           <div 
-            className="bg-gradient-to-br rounded-2xl p-6 shadow-lg border-2 transition-all duration-300"
+            className="bg-gradient-to-br rounded-xl p-4 shadow-md border-2 transition-all duration-300"
             style={{ 
               background: `linear-gradient(135deg, ${getColorForValue(bestLocation[selectedMetric])}30 0%, white 100%)`,
               borderColor: getColorForValue(bestLocation[selectedMetric])
             }}
           >
-            <p className="text-sm font-semibold text-gray-600 mb-2">BEST AREA</p>
-            <p className="text-4xl font-bold text-green-600 mb-1">{bestLocation[selectedMetric]}</p>
-            <p className="text-sm text-gray-700 font-medium">{bestLocation.name}</p>
-            <p className="text-xs text-gray-500 mt-1">{metricThemes[selectedMetric].unit}</p>
+            <div className="flex justify-between items-start mb-1">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Best Area</p>
+              <div className="text-right">
+                <span className="text-2xl font-bold text-green-600">{bestLocation[selectedMetric]}</span>
+                <span className="text-xs text-gray-500 ml-1">{metricThemes[selectedMetric].unit}</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-700 font-semibold truncate">{bestLocation.name}</p>
           </div>
 
           {/* Worst Location */}
           <div 
-            className="bg-gradient-to-br rounded-2xl p-6 shadow-lg border-2 transition-all duration-300"
+            className="bg-gradient-to-br rounded-xl p-4 shadow-md border-2 transition-all duration-300"
             style={{ 
               background: `linear-gradient(135deg, ${getColorForValue(worstLocation[selectedMetric])}30 0%, white 100%)`,
               borderColor: getColorForValue(worstLocation[selectedMetric])
             }}
           >
-            <p className="text-sm font-semibold text-gray-600 mb-2">NEEDS ATTENTION</p>
-            <p className="text-4xl font-bold text-orange-600 mb-1">{worstLocation[selectedMetric]}</p>
-            <p className="text-sm text-gray-700 font-medium">{worstLocation.name}</p>
-            <p className="text-xs text-gray-500 mt-1">{metricThemes[selectedMetric].unit}</p>
+            <div className="flex justify-between items-start mb-1">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Needs Attention</p>
+              <div className="text-right">
+                <span className="text-2xl font-bold text-orange-600">{worstLocation[selectedMetric]}</span>
+                <span className="text-xs text-gray-500 ml-1">{metricThemes[selectedMetric].unit}</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-700 font-semibold truncate">{worstLocation.name}</p>
           </div>
 
           {/* Active Stations */}
           <div 
-            className="bg-gradient-to-br rounded-2xl p-6 shadow-lg border-2 transition-all duration-300"
+            className="bg-gradient-to-br rounded-xl p-4 shadow-md border-2 transition-all duration-300"
             style={{ 
               background: `linear-gradient(135deg, ${theme.light} 0%, white 100%)`,
               borderColor: theme.primary
             }}
           >
-            <p className="text-sm font-semibold text-gray-600 mb-2">ACTIVE STATIONS</p>
-            <p className="text-4xl font-bold" style={{ color: theme.primary }}>{locations.length}</p>
-            <p className="text-sm text-gray-700 font-medium">Monitoring locations</p>
+            <div className="flex justify-between items-start mb-1">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Active Stations</p>
+              <div className="text-right">
+                <span className="text-2xl font-bold" style={{ color: theme.primary }}>{locations.length}</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-700 font-semibold">Monitoring locations</p>
           </div>
         </div>
       </div>

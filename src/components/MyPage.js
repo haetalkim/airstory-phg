@@ -46,7 +46,7 @@ const MyPage = ({ filters, setFilters, theme }) => {
                 {filters.studentId.slice(3)}
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">{filters.studentId}</h2>
-              <p className="text-sm text-gray-600">{filters.school} - Group {filters.group.replace('G', '')}</p>
+              <p className="text-sm text-gray-600">{filters.school} - {filters.instructor} - {filters.period} - Group {filters.group.replace('G', '')}</p>
             </div>
 
             <div className="space-y-3 py-4 border-t border-gray-200">
@@ -61,6 +61,14 @@ const MyPage = ({ filters, setFilters, theme }) => {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">School Code</span>
                 <span className="font-medium text-gray-900">{filters.school}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Class (Instructor)</span>
+                <span className="font-medium text-gray-900">{filters.instructor}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Period</span>
+                <span className="font-medium text-gray-900">{filters.period}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Group</span>
@@ -258,6 +266,26 @@ const MyPage = ({ filters, setFilters, theme }) => {
                   type="text"
                   value={tempFilters.school}
                   onChange={(e) => setTempFilters({ ...tempFilters, school: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Class (Instructor)</label>
+                <input
+                  type="text"
+                  value={tempFilters.instructor}
+                  onChange={(e) => setTempFilters({ ...tempFilters, instructor: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Period</label>
+                <input
+                  type="text"
+                  value={tempFilters.period}
+                  onChange={(e) => setTempFilters({ ...tempFilters, period: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>

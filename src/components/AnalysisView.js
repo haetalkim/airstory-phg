@@ -6,7 +6,7 @@ const generateWeekData = (metric) => {
   const baseData = {
     pm25: [10, 12, 15, 20, 17, 13, 11],
     co: [0.4, 0.5, 0.6, 0.8, 0.7, 0.5, 0.3],
-    temp: [68, 70, 72, 71, 69, 67, 68],
+    temp: [18, 20, 22, 21, 19, 17, 18], // Celsius
     humidity: [45, 42, 50, 55, 48, 40, 38]
   };
   
@@ -668,6 +668,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 style={{ fontSize: '13px' }} 
                 tickLine={false}
                 axisLine={false}
+                label={{ value: metricThemes[selectedMetric].unit, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' } }}
               />
               <Tooltip 
                 contentStyle={{ 
@@ -708,6 +709,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 style={{ fontSize: '13px' }} 
                 tickLine={false}
                 axisLine={false}
+                label={{ value: metricThemes[selectedMetric].unit, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' } }}
               />
               <Tooltip 
                 contentStyle={{ 
@@ -753,6 +755,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
               style={{ fontSize: '13px' }} 
               tickLine={false}
               axisLine={false}
+              label={{ value: metricThemes[selectedMetric].unit, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' } }}
             />
             <Tooltip 
               contentStyle={{ 
