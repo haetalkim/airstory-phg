@@ -1,329 +1,264 @@
 import React, { useState } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingDown, TrendingUp, Calendar, MapPin, Wind, Activity, Shield, Users, CheckCircle, ArrowRight } from 'lucide-react';
+import { 
+  Wind, 
+  ArrowRight, 
+  BookOpen, 
+  Users, 
+  Beaker, 
+  GraduationCap, 
+  CheckCircle, 
+  XCircle, 
+  Leaf,
+  Shield,
+  Activity,
+  CloudSun
+} from 'lucide-react';
 
-const LandingPage = ({ selectedMetric, setSelectedMetric, reflection, setReflection }) => {
-  const [showReflection, setShowReflection] = useState(false);
-
-  // Sample data for the week
-  const weekData = [
-    { day: 'Mon', date: 'Nov 4', pm25: 12, co: 0.4, temp: 68, humidity: 45 },
-    { day: 'Tue', date: 'Nov 5', pm25: 8, co: 0.3, temp: 70, humidity: 42 },
-    { day: 'Wed', date: 'Nov 6', pm25: 15, co: 0.5, temp: 72, humidity: 50 },
-    { day: 'Thu', date: 'Nov 7', pm25: 22, co: 0.7, temp: 71, humidity: 55 },
-    { day: 'Fri', date: 'Nov 8', pm25: 18, co: 0.6, temp: 69, humidity: 48 },
-    { day: 'Sat', date: 'Nov 9', pm25: 9, co: 0.3, temp: 67, humidity: 40 },
-    { day: 'Sun', date: 'Nov 10', pm25: 7, co: 0.2, temp: 68, humidity: 38 }
-  ];
-
-  const avgPM25 = Math.round(weekData.reduce((sum, d) => sum + d.pm25, 0) / weekData.length);
-  const lastWeekAvg = 9;
-  const trend = avgPM25 - lastWeekAvg;
-  const overallAQI = avgPM25 <= 12 ? 'Good' : avgPM25 <= 35 ? 'Moderate' : 'Unhealthy';
-  const overallColor = avgPM25 <= 12 ? '#A7E8B1' : avgPM25 <= 35 ? '#FFF3B0' : '#FFD6A5';
-
-  const getMetricData = () => weekData.map((d) => ({ day: d.day, value: d[selectedMetric] }));
+const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+  const variants = {
+    primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-md active:scale-95 transition-all",
+    secondary: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 shadow-sm active:scale-95 transition-all",
+    success: "bg-green-600 text-white hover:bg-green-700 shadow-md active:scale-95 transition-all",
+    danger: "bg-red-50 text-red-700 hover:bg-red-100 border border-red-100 transition-all"
+  };
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left Column - Hero Content */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm font-medium mb-6">
-                <Activity className="w-4 h-4" />
-                Real-time Air Quality Monitoring
-              </div>
-              <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-                Breathe Easy with <span className="text-blue-200">Real Data</span>
-              </h1>
-              <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-                Monitor air quality in real-time, analyze trends, and make informed decisions for a healthier environment.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <button className="px-8 py-4 bg-white text-blue-700 font-semibold rounded-xl hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl flex items-center gap-2">
-                  Get Started Free
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-                <button className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/20 transition-all border border-white/20 flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
-                  View Demo
-                </button>
-              </div>
-              <div className="flex items-center gap-8 mt-12">
-                <div>
-                  <p className="text-3xl font-bold">250+</p>
-                  <p className="text-blue-200 text-sm">Active Stations</p>
-                </div>
-                <div>
-                  <p className="text-3xl font-bold">50K+</p>
-                  <p className="text-blue-200 text-sm">Daily Readings</p>
-                </div>
-                <div>
-                  <p className="text-3xl font-bold">98%</p>
-                  <p className="text-blue-200 text-sm">Accuracy</p>
-                </div>
-              </div>
-            </div>
+    <button className={`px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 ${variants[variant]} ${className}`} {...props}>
+      {children}
+    </button>
+  );
+};
 
-            {/* Right Column - Current Status Card */}
-            <div className="lg:mt-0">
-              <div className="bg-white rounded-3xl p-8 shadow-2xl">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Current Air Quality</p>
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-6xl font-bold text-gray-900">{avgPM25}</span>
-                      <span className="text-xl text-gray-500">µg/m³</span>
-                    </div>
-                  </div>
-                  <div className="text-6xl">
-                    {overallAQI === 'Good' ? '😊' : overallAQI === 'Moderate' ? '😐' : '😷'}
-                  </div>
-                </div>
+const LandingPage = ({ onLogin, filters }) => {
+  const [mode, setMode] = useState('student');
+  const [email, setEmail] = useState('jiin@tamgulab.com');
+  const [password, setPassword] = useState('helloworld');
+  const [showVerification, setShowVerification] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
-                <div className="flex items-center gap-3 mb-6">
-                  <span
-                    className="px-4 py-2 rounded-full text-base font-semibold"
-                    style={{ backgroundColor: overallColor, color: "#1F2937" }}
-                  >
-                    {overallAQI}
-                  </span>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    {trend < 0 ? (
-                      <>
-                        <TrendingDown className="w-5 h-5 text-green-600" />
-                        <span className="text-green-600 font-medium">{Math.abs(trend)} lower</span>
-                      </>
-                    ) : (
-                      <>
-                        <TrendingUp className="w-5 h-5 text-orange-600" />
-                        <span className="text-orange-600 font-medium">{trend} higher</span>
-                      </>
-                    )}
-                    <span>than last week</span>
-                  </div>
-                </div>
+  // Update email when mode changes
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    if (newMode === 'teacher') {
+      setEmail('shim@tamguadmin.edu');
+    } else {
+      setEmail('jiin@tamgulab.com');
+    }
+  };
 
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <MapPin className="w-4 h-4" />
-                      <span>New York, NY</span>
-                    </div>
-                    <span className="text-gray-400">Updated 3 min ago</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+  const handleLoginAttempt = () => {
+    if ((mode === 'student' && email === 'jiin@tamgulab.com' && password === 'helloworld') ||
+        (mode === 'teacher' && email === 'shim@tamguadmin.edu' && password === 'helloworld')) {
+      setShowVerification(true);
+    } else {
+      onLogin();
+    }
+  };
+
+  const confirmVerification = () => {
+    setShowVerification(false);
+    onLogin();
+  };
+
+  if (showHelp) {
+    return (
+      <div className="w-full max-w-md mx-auto bg-white rounded-3xl p-8 shadow-2xl text-center space-y-6 animate-in zoom-in-95 duration-200">
+        <div className="mx-auto w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
+          <Users size={40} />
         </div>
-      </section>
+        <div>
+          <h2 className="text-2xl font-black text-gray-900 mb-2">Needs Teacher Assistance</h2>
+          <p className="text-gray-600 font-medium">
+            Please ask your teacher to verify your account details or reset your password.
+          </p>
+        </div>
+        <Button variant="secondary" onClick={() => setShowHelp(false)} className="w-full">
+          Back to Login
+        </Button>
+      </div>
+    );
+  }
 
-      {/* Features Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose TAMGU Air?</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Comprehensive air quality monitoring with advanced analytics and educational resources
+  if (showVerification) {
+    return (
+      <div className="w-full max-w-md mx-auto bg-white rounded-3xl p-8 shadow-2xl text-center space-y-6 animate-in zoom-in-95 duration-200">
+        <div className="mx-auto w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+          {mode === 'student' ? <GraduationCap size={40} /> : <Users size={40} />}
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-gray-900 mb-2">Confirm User Info</h2>
+          <p className="text-gray-600 font-medium">Is this you?</p>
+        </div>
+        
+        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-left space-y-4">
+          <div>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{mode === 'student' ? 'Student Name' : 'Instructor Name'}</p>
+            <p className="text-lg font-bold text-gray-900">{mode === 'student' ? 'Jiin Kim' : 'Instructor Shim'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Access Level</p>
+            <p className="text-lg font-bold text-gray-900">{mode === 'student' ? 'Science 4B - Grade 4' : 'Campus Administrator'}</p>
+          </div>
+          {mode === 'student' && (
+            <div>
+               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Assigned Group</p>
+               <p className="text-lg font-bold text-blue-600 font-mono">Group {filters.group.replace('G', '')} ({filters.school}-{filters.instructor}-{filters.period})</p>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Button variant="danger" onClick={() => { setShowVerification(false); setShowHelp(true); }}>
+            <XCircle size={20} /> No
+          </Button>
+          <Button variant="success" onClick={confirmVerification}>
+            <CheckCircle size={20} /> Yes
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-6xl mx-auto px-4 py-12">
+      <div className="grid lg:grid-cols-2 gap-16 items-center">
+        
+        {/* Left Side: Info */}
+        <div className="space-y-8">
+          <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full font-bold text-sm border border-blue-100">
+            <Leaf size={16} className="text-green-500" />
+            <span>TAMGU LAB @TC</span>
+          </div>
+          
+          <div className="space-y-4 group">
+            <h1 className="text-6xl md:text-7xl font-black text-gray-900 tracking-tight leading-[1.05] cursor-default">
+              <span className="text-blue-600">A</span>
+              <span className="max-w-0 overflow-hidden inline-block group-hover:max-w-[300px] transition-all duration-700 ease-in-out">
+                <span className="text-gray-900">ir</span>
+              </span>
+              <span className="text-blue-600 ml-1">B</span>
+              <span className="max-w-0 overflow-hidden inline-block group-hover:max-w-[300px] transition-all duration-700 ease-in-out">
+                <span className="text-gray-900">io</span>
+              </span>
+              <span className="text-blue-600 ml-1">C</span>
+              <span className="max-w-0 overflow-hidden inline-block group-hover:max-w-[300px] transition-all duration-700 ease-in-out">
+                <span className="text-gray-900">ivic</span>
+              </span>
+            </h1>
+            <p className="text-xl text-gray-600 font-medium max-w-lg leading-relaxed">
+              Connecting biology, civic responsibility, and real-time air quality data in your classroom.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl border border-blue-100 hover:shadow-xl transition-all">
-              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <Activity className="w-7 h-7 text-blue-600" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm transition-transform hover:scale-105">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0">
+                <Beaker size={20}/>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Real-Time Monitoring</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Track PM 2.5, CO, temperature, and humidity levels with live updates every minute.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Instant alerts</span>
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Historical data</span>
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Multi-sensor network</span>
-                </li>
-              </ul>
+              <div>
+                <p className="font-bold text-gray-900 text-sm">Experiments</p>
+                <p className="text-xs text-gray-500 font-medium">Hands-on STEM</p>
+              </div>
             </div>
-
-            {/* Feature 2 */}
-            <div className="bg-gradient-to-br from-purple-50 to-white p-8 rounded-2xl border border-purple-100 hover:shadow-xl transition-all">
-              <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
-                <Users className="w-7 h-7 text-purple-600" />
+            <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm transition-transform hover:scale-105">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                <Activity size={20}/>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Community Driven</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Collaborate with schools and communities to improve local air quality together.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Group analytics</span>
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Share insights</span>
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Compare regions</span>
-                </li>
-              </ul>
+              <div>
+                <p className="font-bold text-gray-900 text-sm">Live Data</p>
+                <p className="text-xs text-gray-500 font-medium">Real sensors</p>
+              </div>
             </div>
+          </div>
 
-            {/* Feature 3 */}
-            <div className="bg-gradient-to-br from-green-50 to-white p-8 rounded-2xl border border-green-100 hover:shadow-xl transition-all">
-              <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-6">
-                <Shield className="w-7 h-7 text-green-600" />
+          {/* Educational "Did you know?" Section - Toned down */}
+          <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 transition-colors hover:bg-white group">
+            <div className="flex gap-4 items-center">
+              <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                <BookOpen size={20} />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Educational Resources</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Learn about air quality, health impacts, and how to make a positive environmental impact.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Daily facts</span>
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Reflections</span>
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Action tips</span>
-                </li>
-              </ul>
+              <div>
+                <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em] mb-0.5">Random Air Fact of the Day!</h4>
+                <p className="font-semibold text-gray-700 leading-snug">
+                  Trees act as natural air filters! One mature tree can absorb up to 48 lbs of CO₂ per year.
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Data Visualization Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Live Data Dashboard</h2>
-            <p className="text-xl text-gray-600">Visualize trends and patterns in air quality metrics</p>
-          </div>
-
-          {/* Metric Selector */}
-          <div className="flex justify-center gap-3 mb-12">
-            {[
-              { key: "pm25", label: "PM 2.5", icon: Wind },
-              { key: "co", label: "CO" },
-              { key: "temp", label: "Temperature" },
-              { key: "humidity", label: "Humidity" },
-            ].map((metric) => (
-              <button
-                key={metric.key}
-                onClick={() => setSelectedMetric(metric.key)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium transition-all ${
-                  selectedMetric === metric.key
-                    ? "bg-blue-600 text-white shadow-lg"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow"
-                }`}
+        {/* Right Side: Login */}
+        <div className="relative">
+          {/* Decorative Elements */}
+          <div className="absolute -top-12 -right-12 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-50 -z-10" />
+          <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-cyan-100 rounded-full blur-3xl opacity-50 -z-10" />
+          
+          <div className="bg-white rounded-[2.5rem] p-3 shadow-2xl border border-gray-100 relative overflow-hidden">
+            {/* Mode Switcher */}
+            <div className="grid grid-cols-2 p-1.5 bg-gray-100 rounded-[2rem] mb-8">
+              <button 
+                onClick={() => handleModeChange('student')}
+                className={`py-3.5 rounded-[1.75rem] font-bold text-sm transition-all duration-300 ${mode === 'student' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                {metric.icon && <metric.icon className="w-4 h-4" />}
-                {metric.label}
+                Student Access
               </button>
-            ))}
-          </div>
-
-          {/* Chart and Stats Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Chart - 2 columns */}
-            <div className="lg:col-span-2 bg-white rounded-2xl p-8 shadow-lg">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">7-Day Trend</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={getMetricData()}>
-                  <XAxis 
-                    dataKey="day" 
-                    stroke="#9CA3AF" 
-                    style={{ fontSize: '13px' }} 
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    stroke="#9CA3AF" 
-                    style={{ fontSize: '13px' }} 
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      background: 'white', 
-                      border: 'none', 
-                      borderRadius: '12px', 
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                      padding: '12px'
-                    }} 
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#3B82F6" 
-                    strokeWidth={3} 
-                    dot={{ fill: '#3B82F6', r: 6 }} 
-                    activeDot={{ r: 8 }} 
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <button 
+                onClick={() => handleModeChange('teacher')}
+                className={`py-3.5 rounded-[1.75rem] font-bold text-sm transition-all duration-300 ${mode === 'teacher' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Teacher Portal
+              </button>
             </div>
 
-            {/* Stats Cards */}
-            <div className="space-y-6">
-              <div className="bg-gradient-to-br from-green-50 to-white p-6 rounded-2xl border border-green-100">
-                <p className="text-sm text-gray-600 mb-1">Best Reading</p>
-                <p className="text-3xl font-bold text-green-600">7</p>
-                <p className="text-xs text-gray-500 mt-1">Sunday</p>
+            <div className="px-8 pb-10 space-y-6">
+              <div className="text-center">
+                <div className="mx-auto w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 text-blue-600 transform -rotate-6 group hover:rotate-0 transition-transform">
+                  {mode === 'student' ? <GraduationCap size={40} /> : <Users size={40} />}
+                </div>
+                <h3 className="text-2xl font-black text-gray-900">
+                  {mode === 'student' ? 'Student Login' : 'Instructor Login'}
+                </h3>
+                <p className="text-gray-500 font-medium mt-1">
+                  Enter your school credentials to begin.
+                </p>
               </div>
-              <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100">
-                <p className="text-sm text-gray-600 mb-1">Worst Reading</p>
-                <p className="text-3xl font-bold text-orange-600">22</p>
-                <p className="text-xs text-gray-500 mt-1">Thursday</p>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                  <input 
+                    type="email" 
+                    placeholder="name@school.edu" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Password</label>
+                  <input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium" 
+                  />
+                </div>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border border-blue-100">
-                <p className="text-sm text-gray-600 mb-1">Weekly Average</p>
-                <p className="text-3xl font-bold text-blue-600">{avgPM25}</p>
-                <p className="text-xs text-gray-500 mt-1">PM 2.5 µg/m³</p>
+
+              <Button onClick={handleLoginAttempt} className="w-full py-4 text-lg">
+                {mode === 'student' ? 'Join Lab Session' : 'Access Dashboard'} 
+                <ArrowRight size={22} className="ml-1" />
+              </Button>
+              
+              <div className="flex items-center justify-center gap-2 pt-4 opacity-50">
+                <Shield size={14} className="text-gray-400" />
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Secure School Login</span>
               </div>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Start Monitoring Today
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-            Join thousands of schools and communities making data-driven decisions for cleaner air.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <button className="px-8 py-4 bg-white text-blue-700 font-semibold rounded-xl hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl">
-              Create Free Account
-            </button>
-            <button className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/20 transition-all border border-white/20">
-              Schedule Demo
-            </button>
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
   );
 };

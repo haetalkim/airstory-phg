@@ -354,7 +354,15 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `air-quality-data-${new Date().toISOString().split('T')[0]}.csv`;
+    
+    // Construct filename: air-quality-data-YYYY-MM-DD-SCHOOL-CLASS-PERIOD-GROUP.csv
+    const dateStr = new Date().toISOString().split('T')[0];
+    const schoolStr = selectedSchool || filters.school || 'ALL';
+    const instructorStr = selectedInstructor || filters.instructor || 'ALL';
+    const periodStr = selectedPeriod || filters.period || 'ALL';
+    const groupStr = selectedGroup || filters.group || 'ALL';
+    
+    a.download = `air-quality-data-${dateStr}-${schoolStr}-${instructorStr}-${periodStr}-${groupStr}.csv`;
     a.click();
   };
 

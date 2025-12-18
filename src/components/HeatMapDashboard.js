@@ -50,22 +50,23 @@ const generateLocationData = () => {
   const dataPoints = [];
   const today = new Date();
   
+  const schools = ['MTN12', 'MTN15', 'BRK08', 'QNS05'];
+  const groups = ['G1', 'G2', 'G3', 'G4', 'G5'];
+
   // Generate data for each location over the past 3 months
   baseLocations.forEach(location => {
-    // Most recent data (today)
-    dataPoints.push({
-      ...location,
-      timestamp: new Date(today),
-      date: today.toISOString().split('T')[0]
-    });
-    
     // Generate historical data points
-    for (let i = 1; i <= 90; i++) {
+    for (let i = 0; i <= 90; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       
       // Add some variation to simulate real data changes
       const variation = (Math.random() - 0.5) * 0.2; // ±10% variation
+      
+      // Assign random school and group to each data point for statistical variety
+      const school = schools[Math.floor(Math.random() * schools.length)];
+      const group = groups[Math.floor(Math.random() * groups.length)];
+
       dataPoints.push({
         ...location,
         id: `${location.id}-${i}`,
@@ -74,7 +75,9 @@ const generateLocationData = () => {
         temp: Math.round(location.temp + (Math.random() - 0.5) * 4),
         humidity: Math.max(30, Math.min(70, Math.round(location.humidity + (Math.random() - 0.5) * 10))),
         timestamp: date,
-        date: date.toISOString().split('T')[0]
+        date: date.toISOString().split('T')[0],
+        school,
+        group
       });
     }
   });
@@ -288,9 +291,32 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
       humidity: Math.round(loc.humiditySum / loc.count)
     }));
   }, [filteredLocations]);
-  const avgValue = Math.round(
-    locations.reduce((sum, loc) => sum + loc[selectedMetric], 0) / locations.length
-  );
+
+  // Calculate Averages for Sidebar
+  const stats = useMemo(() => {
+    if (filteredLocations.length === 0) return { city: 0, school: 0, group: 0 };
+
+    const metric = selectedMetric;
+    
+    // City Average
+    const cityAvg = Math.round(
+      filteredLocations.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / filteredLocations.length
+    );
+
+    // School Average (based on current filters)
+    const schoolData = filteredLocations.filter(item => item.school === filters.school);
+    const schoolAvg = schoolData.length > 0 
+      ? Math.round(schoolData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / schoolData.length)
+      : cityAvg; // Fallback to city average if no school data
+
+    // Group Average (based on current filters)
+    const groupData = filteredLocations.filter(item => item.group === filters.group && item.school === filters.school);
+    const groupAvg = groupData.length > 0 
+      ? Math.round(groupData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / groupData.length)
+      : schoolAvg; // Fallback to school average
+
+    return { city: cityAvg, school: schoolAvg, group: groupAvg };
+  }, [filteredLocations, selectedMetric, filters]);
 
   const bestLocation = locations.reduce((best, loc) => 
     loc[selectedMetric] < best[selectedMetric] ? loc : best
@@ -525,9 +551,9 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
       </div>
 
       {/* Map and Stats Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         {/* Interactive Map - 2 columns */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg border border-gray-200 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Manhattan Air Quality Map</h2>
             <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1">
@@ -548,7 +574,7 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
           </div>
           
           {/* Google Maps Container */}
-          <div className="relative rounded-xl overflow-hidden border-2 border-gray-200" style={{ height: '600px' }}>
+          <div className="relative rounded-xl overflow-hidden border-2 border-gray-200 flex-1" style={{ minHeight: '600px' }}>
             {googleMapsApiKey ? (
               <LoadScript
                 googleMapsApiKey={googleMapsApiKey}
@@ -624,87 +650,106 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
         </div>
 
         {/* Stats Sidebar - 1 column */}
-        <div className="space-y-3">
+        <div className="flex flex-col gap-4 h-full">
           {/* City Average */}
           <div 
-            className="bg-white rounded-xl p-4 shadow-md border-2 transition-all duration-300" 
+            className="bg-white rounded-xl p-5 shadow-md border-2 transition-all duration-300 flex-1 flex flex-col justify-center" 
             style={{ borderColor: theme.primary }}
           >
-            <div className="flex justify-between items-start mb-1">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">City Average</p>
+            <div className="flex justify-between items-start mb-2">
+              <p className="text-sm font-black text-gray-500 uppercase tracking-widest">City Average</p>
               <div className="text-right">
-                <span className="text-3xl font-bold" style={{ color: theme.primary }}>{avgValue}</span>
-                <span className="text-xs text-gray-500 ml-1">{metricThemes[selectedMetric].unit}</span>
+                <span className="text-5xl font-black" style={{ color: theme.primary }}>{stats.city}</span>
+                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
               </div>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mt-1">
               <span
-                className="px-2 py-0.5 rounded-full text-xs font-bold"
-                style={{ backgroundColor: getColorForValue(avgValue), color: "#1F2937" }}
+                className="px-3 py-1 rounded-full text-xs font-black tracking-wide"
+                style={{ backgroundColor: getColorForValue(stats.city), color: "#1F2937" }}
               >
-                {getStatusLabel(avgValue)}
+                {getStatusLabel(stats.city)}
               </span>
               <button
                 onClick={() => setShowStatusInfo(true)}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                 title="View AQI criteria"
               >
-                <Info className="w-3.5 h-3.5 text-gray-400" />
+                <Info className="w-5 h-5 text-gray-400" />
               </button>
             </div>
           </div>
 
-          {/* Best Location */}
+          {/* School Average */}
           <div 
-            className="bg-gradient-to-br rounded-xl p-4 shadow-md border-2 transition-all duration-300"
+            className="bg-white rounded-xl p-5 shadow-md border-2 border-blue-100 flex-1 flex flex-col justify-center"
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-black text-gray-500 uppercase tracking-widest">School Average</p>
+                <p className="text-xs text-blue-500 font-black uppercase mt-0.5 tracking-tighter">{filters.school}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-4xl font-black text-blue-600">{stats.school}</span>
+                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Group Average */}
+          <div 
+            className="bg-white rounded-xl p-5 shadow-md border-2 border-indigo-100 flex-1 flex flex-col justify-center"
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Group Average</p>
+                <p className="text-xs text-indigo-500 font-black uppercase mt-0.5 tracking-tighter">Team {filters.group}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-4xl font-black text-indigo-600">{stats.group}</span>
+                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Best Area */}
+          <div 
+            className="bg-gradient-to-br rounded-xl p-5 shadow-md border-2 transition-all duration-300 flex-1 flex flex-col justify-center"
             style={{ 
               background: `linear-gradient(135deg, ${getColorForValue(bestLocation[selectedMetric])}30 0%, white 100%)`,
               borderColor: getColorForValue(bestLocation[selectedMetric])
             }}
           >
-            <div className="flex justify-between items-start mb-1">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Best Area</p>
-              <div className="text-right">
-                <span className="text-2xl font-bold text-green-600">{bestLocation[selectedMetric]}</span>
-                <span className="text-xs text-gray-500 ml-1">{metricThemes[selectedMetric].unit}</span>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Best Area</p>
+                <p className="text-xs text-green-600 font-black uppercase mt-0.5 tracking-tighter truncate max-w-[120px]">{bestLocation.name}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <span className="text-4xl font-black text-green-600">{bestLocation[selectedMetric]}</span>
+                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
               </div>
             </div>
-            <p className="text-xs text-gray-700 font-semibold truncate">{bestLocation.name}</p>
           </div>
 
-          {/* Worst Location */}
+          {/* Needs Attention */}
           <div 
-            className="bg-gradient-to-br rounded-xl p-4 shadow-md border-2 transition-all duration-300"
+            className="bg-gradient-to-br rounded-xl p-5 shadow-md border-2 transition-all duration-300 flex-1 flex flex-col justify-center"
             style={{ 
               background: `linear-gradient(135deg, ${getColorForValue(worstLocation[selectedMetric])}30 0%, white 100%)`,
               borderColor: getColorForValue(worstLocation[selectedMetric])
             }}
           >
-            <div className="flex justify-between items-start mb-1">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Needs Attention</p>
-              <div className="text-right">
-                <span className="text-2xl font-bold text-orange-600">{worstLocation[selectedMetric]}</span>
-                <span className="text-xs text-gray-500 ml-1">{metricThemes[selectedMetric].unit}</span>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Needs Attention</p>
+                <p className="text-xs text-orange-600 font-black uppercase mt-0.5 tracking-tighter truncate max-w-[120px]">{worstLocation.name}</p>
               </div>
-            </div>
-            <p className="text-xs text-gray-700 font-semibold truncate">{worstLocation.name}</p>
+              <div className="text-right shrink-0">
+                <span className="text-4xl font-black text-orange-600">{worstLocation[selectedMetric]}</span>
+                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+              </div>
           </div>
-
-          {/* Active Stations */}
-          <div 
-            className="bg-gradient-to-br rounded-xl p-4 shadow-md border-2 transition-all duration-300"
-            style={{ 
-              background: `linear-gradient(135deg, ${theme.light} 0%, white 100%)`,
-              borderColor: theme.primary
-            }}
-          >
-            <div className="flex justify-between items-start mb-1">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Active Stations</p>
-              <div className="text-right">
-                <span className="text-2xl font-bold" style={{ color: theme.primary }}>{locations.length}</span>
-              </div>
-            </div>
-            <p className="text-xs text-gray-700 font-semibold">Monitoring locations</p>
           </div>
         </div>
       </div>

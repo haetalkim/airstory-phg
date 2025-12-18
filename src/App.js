@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import LandingPage from "./components/LandingPage";
 import HeatMapDashboard from "./components/HeatMapDashboard";
 import RawDataView from "./components/RawDataView";
 import AnalysisView from "./components/AnalysisView";
 import MyPage from "./components/MyPage";
-import { MapPin, Table, BarChart3, User } from "lucide-react";
+import { MapPin, Table, BarChart3, User, LogOut } from "lucide-react";
 
 // Metric configurations with colors
 // Using a colorblind-friendly palette with similar blue/teal tones
@@ -60,9 +61,10 @@ const METRIC_THEMES = {
 };
 
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeSection, setActiveSection] = useState("heatmap");
   const [selectedMetric, setSelectedMetric] = useState("pm25");
-  const [isPublicMode, setIsPublicMode] = useState(true); // Public mode by default - no login required
+  const [isPublicMode, setIsPublicMode] = useState(false); // Public mode is off when we have a landing/login
   const [filters, setFilters] = useState({
     country: "US",
     state: "NY",
@@ -73,6 +75,16 @@ export default function App() {
     studentId: "STU003",
   });
 
+  // Handle auto-login for specific user if needed, or just let the landing page handle it
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+    setActiveSection("heatmap");
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
   const currentTheme = METRIC_THEMES[selectedMetric];
 
   const navItems = [
@@ -81,6 +93,25 @@ export default function App() {
     { id: 'analysis', label: 'Analysis', icon: BarChart3 },
     { id: 'mypage', label: 'My Page', icon: User }
   ];
+
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-100"
+           style={{
+             backgroundImage: `radial-gradient(#cbd5e1 1px, transparent 1px)`,
+             backgroundSize: '24px 24px'
+           }}
+      >
+        <div className="w-full h-1.5 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-600 sticky top-0 z-50" />
+        <main className="min-h-screen flex flex-col justify-center py-12">
+          <LandingPage onLogin={handleLogin} filters={filters} />
+        </main>
+        <footer className="py-8 text-center text-gray-400 text-sm font-bold uppercase tracking-widest">
+          <p>ABC • TAMGU LAB @TC</p>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -97,7 +128,7 @@ export default function App() {
             >
               <img 
                 src="/logo.svg" 
-                alt="AIR@TAMGU" 
+                alt="ABC" 
                 className="h-12 w-auto"
                 onError={(e) => {
                   // Fallback to text if image fails to load
@@ -106,8 +137,7 @@ export default function App() {
                 }}
               />
               <h1 className="text-2xl font-bold text-gray-900 tracking-tight" style={{display: 'none'}}>
-                AIR <span className="font-normal text-gray-400">@</span>
-                <span className="text-blue-600">TAMGU</span>
+                ABC
               </h1>
             </button>
 
@@ -130,6 +160,16 @@ export default function App() {
                   </button>
                 );
               })}
+              
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-red-600 hover:bg-red-50 transition-all ml-2"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="hidden lg:inline">Logout</span>
+              </button>
             </div>
 
             {/* User Info - Only show if not in public mode */}
@@ -139,7 +179,7 @@ export default function App() {
                   <p className="text-sm font-medium text-gray-900">{filters.studentId}</p>
                   <p className="text-xs text-gray-500">{filters.school} - Group {filters.group.replace('G', '')}</p>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center border-2 border-white shadow-md">
                   <span className="text-white text-sm font-semibold">{filters.studentId.slice(3)}</span>
                 </div>
               </div>
@@ -190,7 +230,7 @@ export default function App() {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-20">
         <div className="max-w-7xl mx-auto px-6 py-6 text-center text-sm text-gray-600">
-          <p>&copy; 2025 AIR@TAMGU. All rights reserved.</p>
+          <p>&copy; 2025 Project ABC. All rights reserved.</p>
         </div>
       </footer>
     </div>
