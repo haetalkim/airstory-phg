@@ -8,195 +8,7 @@ import {
   setImportedMeasurements,
 } from '../utils/importedData';
 
-// Generate sample data with sessions
-const generateRawData = () => {
-  const data = [];
-  const locations = [
-    { name: 'Upper Manhattan', lat: 40.8448, lng: -73.9388 },
-    { name: 'Washington Heights (168th St)', lat: 40.8400, lng: -73.9400 },
-    { name: 'Central Park', lat: 40.7829, lng: -73.9654 },
-    { name: 'Midtown East', lat: 40.7549, lng: -73.9680 },
-    { name: 'Midtown West', lat: 40.7580, lng: -73.9855 },
-    { name: 'Chelsea', lat: 40.7465, lng: -73.9972 },
-    { name: 'Greenwich Village', lat: 40.7336, lng: -74.0027 },
-    { name: 'Lower Manhattan', lat: 40.7074, lng: -74.0113 },
-    { name: 'East Village', lat: 40.7264, lng: -73.9818 },
-    { name: 'Columbia Area', lat: 40.8075, lng: -73.9626 },
-    { name: 'Harlem', lat: 40.8176, lng: -73.9482 },
-    { name: 'Inwood', lat: 40.8677, lng: -73.9250 }
-  ];
-
-  // Available teams/groups and schools
-  // Hierarchy: School -> Class (Instructor) -> Period -> Group
-  const schools = ['MTN12', 'MTN15', 'BRK08', 'QNS05'];
-  const classes = ['Shim', 'Shin', 'Park'];
-  const periods = ['P1', 'P2', 'P3'];
-  const groupsPerPeriod = ['G1', 'G2', 'G3', 'G4', 'G5'];
-
-  // Map each school to its classes, each class to its periods, each period to its groups
-  const HIERARCHY = {};
-  schools.forEach(school => {
-    HIERARCHY[school] = {};
-    classes.forEach(instructor => {
-      HIERARCHY[school][instructor] = {};
-      periods.forEach(period => {
-        HIERARCHY[school][instructor][period] = [...groupsPerPeriod];
-      });
-    });
-  });
-
-  // Photo data for Columbia location
-  const columbiaPhotos = [
-    { url: 'https://i.pinimg.com/736x/34/c5/9c/34c59c303c3b6c34e67163287422fe4c.jpg', timestamp: null },
-    { url: 'https://i.pinimg.com/1200x/06/67/37/066737e07b09cf50c9afef205189dcbf.jpg', timestamp: null }
-  ];
-
-  const sessionTemplates = [
-    { name: 'School Yard', baseMinutes: 8 * 60 + 30 },
-    { name: 'Corner Deli', baseMinutes: 11 * 60 + 45 },
-    { name: 'Gym Pickup', baseMinutes: 14 * 60 + 15 },
-    { name: 'Bowling Alley', baseMinutes: 17 * 60 + 30 },
-    { name: 'Morningside Park', baseMinutes: 16 * 60 },
-    { name: 'Rooftop Deck', baseMinutes: 10 * 60 + 15 },
-    { name: 'Bus Stop', baseMinutes: 7 * 60 + 20 },
-    { name: 'Skate Park', baseMinutes: 18 * 60 + 5 }
-  ];
-
-  // Columbia-specific session templates (campus-appropriate)
-  const columbiaSessionTemplates = [
-    { name: 'Campus Walk', baseMinutes: 8 * 60 + 30 },
-    { name: 'Library Steps', baseMinutes: 11 * 60 + 45 },
-    { name: 'Quad Area', baseMinutes: 14 * 60 + 15 },
-    { name: 'Campus Entrance', baseMinutes: 17 * 60 + 30 },
-    { name: 'Student Center', baseMinutes: 16 * 60 },
-    { name: 'Campus Plaza', baseMinutes: 10 * 60 + 15 },
-    { name: 'Main Gate', baseMinutes: 7 * 60 + 20 },
-    { name: 'Campus Path', baseMinutes: 18 * 60 + 5 }
-  ];
-
-  // Washington Heights school-specific session templates
-  const washingtonHeightsSessionTemplates = [
-    { name: 'School Entrance', baseMinutes: 8 * 60 + 30 },
-    { name: 'Playground', baseMinutes: 11 * 60 + 45 },
-    { name: 'School Yard', baseMinutes: 14 * 60 + 15 },
-    { name: '168th St Corner', baseMinutes: 17 * 60 + 30 },
-    { name: 'Audubon Ave', baseMinutes: 16 * 60 },
-    { name: 'School Steps', baseMinutes: 10 * 60 + 15 },
-    { name: 'Front Gate', baseMinutes: 7 * 60 + 20 },
-    { name: 'Sidewalk Area', baseMinutes: 18 * 60 + 5 }
-  ];
-
-  const noteSamples = [
-    'Someone was smoking near the gate.',
-    'Hardly any cars today.',
-    'Wind picked up while we were there.',
-    'Trash truck stopped right next to us.',
-    'Kids were playing soccer close by.',
-    'Construction noise but no dust.',
-    'Delivery scooters kept idling.'
-  ];
-
-  const addMinutes = (minutes, offset) => {
-    const total = Math.max(6 * 60, Math.min(21 * 60, minutes + offset));
-    const hrs = Math.floor(total / 60);
-    const mins = total % 60;
-    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-  };
-  
-  const today = new Date();
-  let sessionCounter = 0;
-  
-  // Generate more data points - spread over 45 days with more sessions
-  for (let i = 0; i < 45; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    
-    const sessionsToday = Math.floor(Math.random() * 3) + 1; // 1-3 sessions per day
-    const usedTemplates = new Set();
-
-    for (let s = 0; s < sessionsToday; s++) {
-      let templateIdx;
-      do {
-        templateIdx = Math.floor(Math.random() * sessionTemplates.length);
-      } while (usedTemplates.has(templateIdx) && usedTemplates.size < sessionTemplates.length);
-
-      usedTemplates.add(templateIdx);
-      const template = sessionTemplates[templateIdx];
-    const sessionId = `SESSION-${String(sessionCounter + 1).padStart(3, '0')}`;
-      const adjustedBase = template.baseMinutes + Math.floor(Math.random() * 31) - 15;
-    
-    locations.forEach((location, locIdx) => {
-        // Use location-specific session names
-        let sessionName = template.name;
-        if (location.name === 'Columbia Area') {
-          const columbiaTemplateIdx = Math.floor(Math.random() * columbiaSessionTemplates.length);
-          sessionName = columbiaSessionTemplates[columbiaTemplateIdx].name;
-        } else if (location.name === 'Washington Heights (168th St)') {
-          const whTemplateIdx = Math.floor(Math.random() * washingtonHeightsSessionTemplates.length);
-          sessionName = washingtonHeightsSessionTemplates[whTemplateIdx].name;
-        }
-        const time = addMinutes(adjustedBase, locIdx * 3);
-        const dateStr = date.toISOString().split('T')[0];
-        const photoTime = new Date(`${dateStr}T${time}`);
-        // Add photos for Columbia Area location
-        const photos = location.name === 'Columbia Area' 
-          ? columbiaPhotos.map((photo, idx) => {
-              const photoTimestamp = new Date(photoTime);
-              photoTimestamp.setSeconds(photoTimestamp.getSeconds() + idx * 30); // 30 seconds apart
-              return {
-                ...photo,
-                timestamp: photoTimestamp
-              };
-            })
-          : [];
-        
-        // Assign hierarchy to each data point
-        const school = schools[Math.floor(Math.random() * schools.length)];
-        const instructor = classes[Math.floor(Math.random() * classes.length)];
-        const period = periods[Math.floor(Math.random() * periods.length)];
-        const group = groupsPerPeriod[Math.floor(Math.random() * groupsPerPeriod.length)];
-        
-      data.push({
-          id: `${date.getTime()}-${sessionId}-${locIdx}`,
-        date: date.toISOString().split('T')[0],
-          time,
-          sessionId,
-          sessionName: sessionName,
-          sessionNotes: Math.random() < 0.35
-            ? noteSamples[Math.floor(Math.random() * noteSamples.length)]
-            : '',
-          location: location.name,
-          latitude: location.lat,
-          longitude: location.lng,
-          indoorOutdoor: Math.random() > 0.5 ? 'INDOOR' : 'OUTDOOR',
-          school: school,
-          instructor: instructor,
-          period: period,
-          group: group,
-        pm25: Math.floor(Math.random() * 25) + 3,
-        co: (Math.random() * 0.8 + 0.2).toFixed(2),
-          temp: Math.floor(Math.random() * 15) + 15, // 15-30°C
-        humidity: Math.floor(Math.random() * 30) + 35,
-          photos: photos
-      });
-    });
-    
-    sessionCounter++;
-    }
-  }
-  
-  return data.sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time));
-};
-
 const INDOOR_OUTDOOR_OPTIONS = ['INDOOR', 'OUTDOOR'];
-
-const FIELD_FORMATTERS = {
-  pm25: (value) => Math.max(0, parseInt(value || 0, 10)),
-  temp: (value) => Math.round(value || 0),
-  humidity: (value) => Math.min(100, Math.max(0, Math.round(value || 0))),
-  co: (value) => parseFloat(value || 0).toFixed(2),
-  indoorOutdoor: (value) => value
-};
 
 // Available hierarchy options
 const HIERARCHY_OPTIONS = {
@@ -223,9 +35,7 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
   const [selectedGroup, setSelectedGroup] = useState(filters.group || '');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingSession, setEditingSession] = useState(null);
   const [editingNotes, setEditingNotes] = useState(null);
-  const [expandedNotes, setExpandedNotes] = useState({});
   const [editingCell, setEditingCell] = useState({ rowId: null, field: null });
   const [editedCells, setEditedCells] = useState({});
   const [expandedRows, setExpandedRows] = useState({});
@@ -458,19 +268,6 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
     });
   };
 
-  const handleSessionNameEdit = (sessionId, newName) => {
-    const affectedRowIds = [];
-    setRawData(prev => prev.map(row => {
-      if (row.sessionId === sessionId) {
-        affectedRowIds.push(row.id);
-        return { ...row, sessionName: newName };
-      }
-      return row;
-    }));
-    markEdited(affectedRowIds, 'sessionName');
-    setEditingSession(null);
-  };
-
   const handleSessionNotesEdit = (rowId, newNotes) => {
     setRawData(prev => prev.map(row => 
       row.id === rowId 
@@ -479,13 +276,6 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
     ));
     markEdited([rowId], 'sessionNotes');
     setEditingNotes(null);
-  };
-
-  const toggleNotesExpanded = (rowId) => {
-    setExpandedNotes(prev => ({
-      ...prev,
-      [rowId]: !prev[rowId]
-    }));
   };
 
   const SortIcon = ({ columnKey }) => {
@@ -1171,7 +961,7 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
                       >
                         {row.sessionNotes ? (
                           <span className="flex items-center gap-2">
-                            <span className={expandedNotes[row.id] ? '' : 'truncate'}>
+                            <span className="truncate">
                               {row.sessionNotes}
                             </span>
                             <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>
@@ -1246,7 +1036,7 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
                                   >
                                     <img
                                       src={photo.url}
-                                      alt={`Photo ${photoIdx + 1}`}
+                                      alt={`Capture ${photoIdx + 1}`}
                                       className="w-full h-full object-cover"
                                       onError={(e) => {
                                         e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23ddd" width="80" height="80"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="10"%3EImage%3C/text%3E%3C/svg%3E';
@@ -1326,7 +1116,7 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
               <div className="relative">
                 <img
                   src={selectedPhoto.url}
-                  alt="Session photo"
+                  alt="Enlarged capture"
                   className="max-w-full max-h-[60vh] rounded-lg shadow-lg mb-4"
                   onError={(e) => {
                     e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not available%3C/text%3E%3C/svg%3E';

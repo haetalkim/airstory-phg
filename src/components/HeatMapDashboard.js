@@ -189,9 +189,9 @@ const StatusInfoModal = ({ isOpen, onClose, theme }) => {
 
 const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes, importedDataVersion }) => {
   const [showStatusInfo, setShowStatusInfo] = useState(false);
-  const [selectedTimeRange, setSelectedTimeRange] = useState('all-time');
+  const [selectedTimeRange] = useState('all-time');
   const [displayMode, setDisplayMode] = useState('default'); // 'default' or 'accessible'
-  const [map, setMap] = useState(null);
+  const [, setMap] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const screenshotRef = useRef(null);
@@ -294,10 +294,11 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
   }, [filteredLocations]);
 
   // Calculate Averages for Sidebar
-  const importedMeasurements = useMemo(() => {
-    void importedDataVersion;
-    return getImportedMeasurements();
-  }, [importedDataVersion]);
+  const importedMeasurements = useMemo(
+    () => getImportedMeasurements(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [importedDataVersion]
+  );
   const filteredImported = useMemo(() => {
     if (!importedMeasurements.length) return [];
     const now = new Date();

@@ -310,10 +310,16 @@ const MyPage = ({ workspaceId, userRole, filters, setFilters, theme }) => {
               <p>
                 Project ABC is a comprehensive air quality monitoring platform designed for schools and communities.
               </p>
-              <div className="flex gap-4 mt-4">
-                <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">Terms of Service</a>
-                <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">Privacy Policy</a>
-                <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">Contact</a>
+              <div className="flex flex-wrap gap-4 mt-4">
+                <button type="button" className="text-blue-600 hover:text-blue-700 font-medium bg-transparent border-0 p-0 cursor-pointer">
+                  Terms of Service
+                </button>
+                <button type="button" className="text-blue-600 hover:text-blue-700 font-medium bg-transparent border-0 p-0 cursor-pointer">
+                  Privacy Policy
+                </button>
+                <button type="button" className="text-blue-600 hover:text-blue-700 font-medium bg-transparent border-0 p-0 cursor-pointer">
+                  Contact
+                </button>
               </div>
             </div>
           </div>

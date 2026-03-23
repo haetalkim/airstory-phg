@@ -509,10 +509,12 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
 
-  const imported = useMemo(() => {
-    void importedDataVersion;
-    return getImportedMeasurements();
-  }, [importedDataVersion]);
+  const imported = useMemo(
+    () => getImportedMeasurements(),
+    // Re-fetch when CSV import updates this counter (parent state)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [importedDataVersion]
+  );
   const scopedData = useMemo(() => {
     const pool = imported.length ? imported : [];
     return pool.filter((row) => {

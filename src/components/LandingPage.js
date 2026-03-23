@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  Wind, 
   ArrowRight, 
   BookOpen, 
   Users, 
@@ -11,7 +10,6 @@ import {
   Leaf,
   Shield,
   Activity,
-  CloudSun
 } from 'lucide-react';
 
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
