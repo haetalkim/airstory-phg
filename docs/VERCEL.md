@@ -1,10 +1,21 @@
 # Vercel (frontend)
 
-## Root directory
+## Root directory (important)
 
-If this GitHub repo **is** the CRA app (root has `package.json` + `src/`), leave **Root Directory** empty or `.`.
+For the **`tamguingAIR`** GitHub repo:
 
-If your Vercel project points at a **parent monorepo** folder instead, set root to the subfolder that contains `package.json` (e.g. `air-quality-tracker`).
+| Root Directory in Vercel | What gets built | Login / logout? |
+|--------------------------|-----------------|-----------------|
+| **Empty** or **`.`** (default) | Repo root → `src/App.js` | **Yes** (LandingPage + API auth) |
+| **`air-quality-tracker`** | Nested legacy folder → old `Dashboard` UI | **No** — wrong app |
+
+**If you see heat map but no login screen and no Logout button**, Vercel is almost certainly using **`air-quality-tracker`** as the root. Fix it:
+
+1. Vercel → your project → **Settings** → **General**
+2. **Root Directory** → **clear the field** (leave empty) or set to `.`
+3. **Save** → **Deployments** → **Redeploy** the latest production build
+
+The nested `air-quality-tracker/` folder in this repo is a **legacy duplicate** (old `Dashboard` only). The real app is at the **repository root** (`package.json` + `src/` next to `backend/`).
 
 ## Environment variable
 
@@ -14,10 +25,10 @@ If your Vercel project points at a **parent monorepo** folder instead, set root 
 
 Redeploy after changing env vars.
 
+## Still skipping the login page?
+
+If the root directory is correct but you never see login: open the site in an **Incognito/Private** window. An old `localStorage` token can make the app think you’re already logged in.
+
 ## Keepsake copy of this UI
 
-A frozen copy of this app’s source lives at:
-
-`keepsake/integrated-frontend-snapshot/`
-
-See `keepsake/README.md`.
+`keepsake/integrated-frontend-snapshot/` — see `keepsake/README.md`.
