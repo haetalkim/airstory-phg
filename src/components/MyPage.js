@@ -1,18 +1,88 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { User, Settings, HelpCircle, Shield, LogOut, Edit2, Save, X } from 'lucide-react';
+import { getMe, getRoster } from '../api/auth';
 
-const MyPage = ({ filters, setFilters, theme }) => {
+const DEMO_STUDENT_TEMPLATE = [
+  { name: 'Jiin', period: 'P1', group: 'G1', id: 'STU003' },
+  { name: 'Ada', period: 'P1', group: 'G1', id: 'STU004' },
+  { name: 'Davin', period: 'P1', group: 'G1', id: 'STU005' },
+  { name: 'Stella', period: 'P1', group: 'G1', id: 'STU006' },
+  { name: 'Ida', period: 'P1', group: 'G2', id: 'STU007' },
+  { name: 'Lucy', period: 'P1', group: 'G2', id: 'STU008' },
+  { name: 'Yimei', period: 'P1', group: 'G2', id: 'STU009' },
+  { name: 'Jay', period: 'P1', group: 'G2', id: 'STU010' },
+  { name: 'Liz', period: 'P1', group: 'G3', id: 'STU011' },
+  { name: 'Min', period: 'P1', group: 'G3', id: 'STU012' },
+  { name: 'Bella', period: 'P1', group: 'G3', id: 'STU013' },
+  { name: 'Juun', period: 'P1', group: 'G3', id: 'STU014' },
+  { name: 'Julia', period: 'P1', group: 'G4', id: 'STU019' },
+  { name: 'Jennifer', period: 'P1', group: 'G4', id: 'STU020' },
+  { name: 'Niki', period: 'P1', group: 'G4', id: 'STU021' },
+  { name: 'Bea', period: 'P1', group: 'G4', id: 'STU022' },
+];
+
+const MyPage = ({ workspaceId, userRole, filters, setFilters, theme }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempFilters, setTempFilters] = useState({ ...filters });
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [instructor, setInstructor] = useState({ name: 'Shim', role: 'Instructor', id: 'INST001' });
+  const [me, setMe] = useState(null);
 
-  const groupMembers = [
-    { name: 'Jiin', role: 'Student', id: 'STU003' },
-    { name: 'Davin', role: 'Student', id: 'STU012' },
-    { name: 'Ada', role: 'Student', id: 'STU007' },
-    { name: 'Julia', role: 'Student', id: 'STU019' }
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRoster() {
+      if (!workspaceId) return;
+      try {
+        const [meData, rosterData] = await Promise.all([getMe(), getRoster(workspaceId)]);
+        if (cancelled) return;
+        setMe(meData);
+        const members = rosterData.members || [];
+        const teacher = members.find((m) => m.role === 'teacher' || m.role === 'owner');
+        const students = members.filter((m) => m.role === 'student');
+        if (teacher) {
+          setInstructor({
+            name: teacher.full_name,
+            role: 'Instructor',
+            id: teacher.student_code || teacher.email,
+          });
+        }
+        const apiStudents = students.map((s) => ({
+          name: s.full_name,
+          role: `${s.period || 'P?'} • ${s.group_code || 'G?'}`,
+          id: s.student_code || s.email,
+        }));
+        const seenNames = new Set(apiStudents.map((s) => s.name));
+        const merged = [
+          ...apiStudents,
+          ...DEMO_STUDENT_TEMPLATE
+            .filter((s) => !seenNames.has(s.name))
+            .map((s) => ({ name: s.name, role: `${s.period} • ${s.group}`, id: s.id })),
+        ];
+        setGroupMembers(
+          merged
+        );
+      } catch {
+        // keep existing static fallback when API unavailable
+      }
+    }
+    loadRoster();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
 
-  const instructor = { name: 'Shim', role: 'Instructor', id: 'INST001' };
+  const groupedStructure = useMemo(() => {
+    const map = {};
+    groupMembers.forEach((m) => {
+      const parts = String(m.role).split('•').map((p) => p.trim());
+      const period = parts[0] || 'P?';
+      const group = parts[1] || 'G?';
+      const key = `${period} ${group}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(m);
+    });
+    return map;
+  }, [groupMembers]);
 
   const handleSave = () => {
     setFilters(tempFilters);
@@ -103,6 +173,25 @@ const MyPage = ({ filters, setFilters, theme }) => {
               </button>
             </div>
           </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 mt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              {userRole === 'teacher' || userRole === 'owner' ? 'Teacher Guide' : 'Student Guide'}
+            </h3>
+            {(userRole === 'teacher' || userRole === 'owner') ? (
+              <ul className="text-sm text-gray-700 space-y-2">
+                <li>Start in Manage Classes to confirm period/group structure.</li>
+                <li>Use HeatMap for class-level overview, then Raw Data for detailed validation.</li>
+                <li>Review student annotation asterisks (*) before exporting reports.</li>
+              </ul>
+            ) : (
+              <ul className="text-sm text-gray-700 space-y-2">
+                <li>Start in HeatMap to understand current conditions.</li>
+                <li>Use Raw Data to review measurements and add responsible edit notes.</li>
+                <li>Use Analysis to summarize trends and add reflection insights.</li>
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Settings Sections */}
@@ -132,7 +221,7 @@ const MyPage = ({ filters, setFilters, theme }) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
                 <input
                   type="email"
-                  value="jiin@tamgu.edu"
+                  value={me?.user?.email || "jiin@tamgu.edu"}
                   disabled
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed"
                 />
@@ -153,7 +242,9 @@ const MyPage = ({ filters, setFilters, theme }) => {
               <div className={`w-10 h-10 ${theme.bg} rounded-lg flex items-center justify-center`}>
                 <User className="w-5 h-5 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900">Group Members</h3>
+              <h3 className="text-xl font-bold text-gray-900">
+                {(userRole === 'teacher' || userRole === 'owner') ? 'Class Members' : 'Group Members'}
+              </h3>
             </div>
 
             {/* Instructor */}
@@ -171,26 +262,35 @@ const MyPage = ({ filters, setFilters, theme }) => {
 
             {/* Students */}
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Students (Group {filters.group.replace('G', '')})</p>
-              <div className="space-y-2">
-                {groupMembers.map((member, idx) => (
-                  <div key={idx} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                    <div 
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-                      style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primary}CC 100%)` }}
-                    >
-                      {member.name.charAt(0)}
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Students by Period and Group
+              </p>
+              <div className="space-y-4">
+                {Object.keys(groupedStructure).map((bucket) => (
+                  <div key={bucket}>
+                    <p className="text-xs font-bold text-gray-500 mb-2">{bucket}</p>
+                    <div className="space-y-2">
+                      {groupedStructure[bucket].map((member, idx) => (
+                        <div key={`${bucket}-${idx}`} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div 
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                            style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primary}CC 100%)` }}
+                          >
+                            {member.name.charAt(0)}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{member.name}</p>
+                            <p className="text-sm text-gray-600">{member.role}</p>
+                          </div>
+                          <span className="text-xs text-gray-500 font-mono">{member.id}</span>
+                          {member.id === filters.studentId && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                              You
+                            </span>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{member.name}</p>
-                      <p className="text-sm text-gray-600">{member.role}</p>
-                    </div>
-                    <span className="text-xs text-gray-500 font-mono">{member.id}</span>
-                    {member.id === filters.studentId && (
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
-                        You
-                      </span>
-                    )}
                   </div>
                 ))}
               </div>

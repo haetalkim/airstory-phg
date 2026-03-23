@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Info, Download, Share2 } from 'lucide-react';
 import { GoogleMap, LoadScript, HeatmapLayer } from '@react-google-maps/api';
 import html2canvas from 'html2canvas';
+import { getImportedMeasurements } from '../utils/importedData';
 
 const AQI_RANGES = {
   pm25: [
@@ -186,7 +187,7 @@ const StatusInfoModal = ({ isOpen, onClose, theme }) => {
   );
 };
 
-const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes }) => {
+const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes, importedDataVersion }) => {
   const [showStatusInfo, setShowStatusInfo] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('all-time');
   const [displayMode, setDisplayMode] = useState('default'); // 'default' or 'accessible'
@@ -293,6 +294,30 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
   }, [filteredLocations]);
 
   // Calculate Averages for Sidebar
+  const importedMeasurements = useMemo(() => {
+    void importedDataVersion;
+    return getImportedMeasurements();
+  }, [importedDataVersion]);
+  const filteredImported = useMemo(() => {
+    if (!importedMeasurements.length) return [];
+    const now = new Date();
+    let cutoffDate = new Date(0);
+    if (selectedTimeRange === 'past-week') {
+      cutoffDate = new Date(now);
+      cutoffDate.setDate(cutoffDate.getDate() - 7);
+    } else if (selectedTimeRange === 'past-month') {
+      cutoffDate = new Date(now);
+      cutoffDate.setMonth(cutoffDate.getMonth() - 1);
+    } else if (selectedTimeRange === 'past-3-months') {
+      cutoffDate = new Date(now);
+      cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+    }
+    return importedMeasurements.filter((row) => {
+      const captured = new Date(`${row.date}T${row.time || '00:00'}`);
+      return captured >= cutoffDate;
+    });
+  }, [importedMeasurements, selectedTimeRange]);
+
   const stats = useMemo(() => {
     if (filteredLocations.length === 0) return { city: 0, school: 0, group: 0 };
 
@@ -303,20 +328,24 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
       filteredLocations.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / filteredLocations.length
     );
 
+    const sourceForSchoolAndGroup = filteredImported.length ? filteredImported : filteredLocations;
+
     // School Average (based on current filters)
-    const schoolData = filteredLocations.filter(item => item.school === filters.school);
+    const schoolData = sourceForSchoolAndGroup.filter(item => item.school === filters.school);
     const schoolAvg = schoolData.length > 0 
       ? Math.round(schoolData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / schoolData.length)
       : cityAvg; // Fallback to city average if no school data
 
     // Group Average (based on current filters)
-    const groupData = filteredLocations.filter(item => item.group === filters.group && item.school === filters.school);
+    const groupData = sourceForSchoolAndGroup.filter(
+      item => item.group === filters.group && item.school === filters.school
+    );
     const groupAvg = groupData.length > 0 
       ? Math.round(groupData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / groupData.length)
       : schoolAvg; // Fallback to school average
 
     return { city: cityAvg, school: schoolAvg, group: groupAvg };
-  }, [filteredLocations, selectedMetric, filters]);
+  }, [filteredLocations, filteredImported, selectedMetric, filters]);
 
   const bestLocation = locations.reduce((best, loc) => 
     loc[selectedMetric] < best[selectedMetric] ? loc : best

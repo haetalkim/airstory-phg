@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import LandingPage from "./components/LandingPage";
 import HeatMapDashboard from "./components/HeatMapDashboard";
 import RawDataView from "./components/RawDataView";
 import AnalysisView from "./components/AnalysisView";
 import MyPage from "./components/MyPage";
-import { MapPin, Table, BarChart3, User, LogOut } from "lucide-react";
+import ManageClasses from "./components/ManageClasses";
+import { MapPin, Table, BarChart3, User, LogOut, Users } from "lucide-react";
+import { login as loginApi, register as registerApi, getMe, logout as logoutApi } from "./api/auth";
+import { getStoredAuth } from "./api/http";
 
 // Metric configurations with colors
 // Using a colorblind-friendly palette with similar blue/teal tones
@@ -61,10 +64,15 @@ const METRIC_THEMES = {
 };
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(getStoredAuth()?.accessToken));
   const [activeSection, setActiveSection] = useState("heatmap");
   const [selectedMetric, setSelectedMetric] = useState("pm25");
-  const [isPublicMode, setIsPublicMode] = useState(false); // Public mode is off when we have a landing/login
+  const [isPublicMode] = useState(false); // Public mode is off when we have a landing/login
+  const [workspaceId, setWorkspaceId] = useState(getStoredAuth()?.user?.workspaceId || "");
+  const [userRole, setUserRole] = useState("student");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [importedDataVersion, setImportedDataVersion] = useState(0);
   const [filters, setFilters] = useState({
     country: "US",
     state: "NY",
@@ -76,23 +84,97 @@ export default function App() {
   });
 
   // Handle auto-login for specific user if needed, or just let the landing page handle it
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    setActiveSection("heatmap");
+  const handleLogin = async ({ email, password }) => {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const session = await loginApi(email, password);
+      const me = await getMe();
+      const membership = me?.memberships?.[0];
+      const profile = me?.profile;
+      setWorkspaceId(session?.user?.workspaceId || membership?.workspace_id || "");
+      setUserRole(membership?.role || "student");
+      setIsLoggedIn(true);
+      setActiveSection((membership?.role === "teacher" || membership?.role === "owner") ? "manageclasses" : "heatmap");
+      setFilters((prev) => ({
+        ...prev,
+        school: profile?.school_code ?? prev.school,
+        instructor: profile?.instructor ?? prev.instructor,
+        period: profile?.period ?? prev.period,
+        group: profile?.group_code ?? prev.group,
+        studentId: profile?.student_code || email.split("@")[0].toUpperCase(),
+      }));
+    } catch (error) {
+      setAuthError(error.message || "Login failed");
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
-  const handleLogout = () => {
+  const handleRegister = async ({ email, password, fullName, mode, period, group }) => {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const auth = getStoredAuth();
+      const session = await registerApi({
+        email,
+        password,
+        fullName,
+        workspaceName: mode === "student" ? "Demo Sensor Platform Workspace" : `${fullName || "User"} Workspace`,
+        role: mode === "teacher" ? "teacher" : "student",
+        schoolCode: filters.school,
+        instructor: filters.instructor,
+        period: period || filters.period,
+        groupCode: group || filters.group,
+        studentCode: email.split("@")[0].toUpperCase(),
+        joinWorkspaceId: auth?.user?.workspaceId || undefined,
+      });
+      const me = await getMe();
+      const membership = me?.memberships?.[0];
+      const profile = me?.profile;
+      setWorkspaceId(session?.user?.workspaceId || membership?.workspace_id || "");
+      setUserRole(membership?.role || "student");
+      setIsLoggedIn(true);
+      setActiveSection((membership?.role === "teacher" || membership?.role === "owner") ? "manageclasses" : "heatmap");
+      setFilters((prev) => ({
+        ...prev,
+        school: profile?.school_code ?? prev.school,
+        instructor: profile?.instructor ?? prev.instructor,
+        period: profile?.period ?? prev.period,
+        group: profile?.group_code ?? prev.group,
+        studentId: profile?.student_code || email.split("@")[0].toUpperCase(),
+      }));
+    } catch (error) {
+      setAuthError(error.message || "Sign up failed");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logoutApi();
     setIsLoggedIn(false);
+    setWorkspaceId("");
+    setUserRole("student");
   };
 
   const currentTheme = METRIC_THEMES[selectedMetric];
 
-  const navItems = [
-    { id: 'heatmap', label: 'Heat Map', icon: MapPin },
-    { id: 'rawdata', label: 'Raw Data', icon: Table },
-    { id: 'analysis', label: 'Analysis', icon: BarChart3 },
-    { id: 'mypage', label: 'My Page', icon: User }
-  ];
+  const isTeacher = userRole === "teacher" || userRole === "owner";
+  const navItems = isTeacher
+    ? [
+        { id: 'manageclasses', label: 'Manage Classes', icon: Users },
+        { id: 'heatmap', label: 'Heat Map', icon: MapPin },
+        { id: 'rawdata', label: 'Raw Data', icon: Table },
+        { id: 'analysis', label: 'Analysis', icon: BarChart3 },
+        { id: 'mypage', label: 'My Page', icon: User },
+      ]
+    : [
+        { id: 'heatmap', label: 'Heat Map', icon: MapPin },
+        { id: 'rawdata', label: 'Raw Data', icon: Table },
+        { id: 'analysis', label: 'Analysis', icon: BarChart3 },
+        { id: 'mypage', label: 'My Page', icon: User },
+      ];
 
   if (!isLoggedIn) {
     return (
@@ -104,7 +186,13 @@ export default function App() {
       >
         <div className="w-full h-1.5 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-600 sticky top-0 z-50" />
         <main className="min-h-screen flex flex-col justify-center py-12">
-          <LandingPage onLogin={handleLogin} filters={filters} />
+          <LandingPage
+            onLogin={handleLogin}
+            onRegister={handleRegister}
+            filters={filters}
+            authError={authError}
+            authLoading={authLoading}
+          />
         </main>
         <footer className="py-8 text-center text-gray-400 text-sm font-bold uppercase tracking-widest">
           <p>ABC • TAMGU LAB @TC</p>
@@ -176,11 +264,19 @@ export default function App() {
             {!isPublicMode && (
               <div className="flex items-center gap-4">
                 <div className="text-right hidden lg:block">
-                  <p className="text-sm font-medium text-gray-900">{filters.studentId}</p>
-                  <p className="text-xs text-gray-500">{filters.school} - Group {filters.group.replace('G', '')}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {isTeacher ? (filters.instructor || "Instructor") : filters.studentId}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {isTeacher
+                      ? `${filters.school} • Teacher Portal`
+                      : `${filters.school} - Group ${filters.group.replace('G', '')}`}
+                  </p>
                 </div>
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                  <span className="text-white text-sm font-semibold">{filters.studentId.slice(3)}</span>
+                  <span className="text-white text-sm font-semibold">
+                    {isTeacher ? "T" : filters.studentId.slice(3)}
+                  </span>
                 </div>
               </div>
             )}
@@ -198,15 +294,18 @@ export default function App() {
             setFilters={setFilters}
             theme={currentTheme}
             metricThemes={METRIC_THEMES}
+            importedDataVersion={importedDataVersion}
           />
         )}
         {activeSection === 'rawdata' && (
           <RawDataView
+            workspaceId={workspaceId}
             selectedMetric={selectedMetric}
             setSelectedMetric={setSelectedMetric}
             filters={filters}
             theme={currentTheme}
             metricThemes={METRIC_THEMES}
+            onImportedDataChanged={() => setImportedDataVersion((v) => v + 1)}
           />
         )}
         {activeSection === 'analysis' && (
@@ -216,14 +315,20 @@ export default function App() {
             filters={filters}
             theme={currentTheme}
             metricThemes={METRIC_THEMES}
+            importedDataVersion={importedDataVersion}
           />
         )}
         {activeSection === 'mypage' && (
           <MyPage
+            workspaceId={workspaceId}
+            userRole={userRole}
             filters={filters}
             setFilters={setFilters}
             theme={currentTheme}
           />
+        )}
+        {activeSection === 'manageclasses' && isTeacher && (
+          <ManageClasses workspaceId={workspaceId} theme={currentTheme} />
         )}
       </main>
 

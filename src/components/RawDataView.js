@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, Image as ImageIcon, X } from 'lucide-react';
+import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, Image as ImageIcon, X, Upload } from 'lucide-react';
+import { addMeasurementEdit, getMeasurements } from '../api/data';
+import {
+  clearImportedMeasurements,
+  getImportedMeasurements,
+  parseImportedCsv,
+  setImportedMeasurements,
+} from '../utils/importedData';
 
 // Generate sample data with sessions
 const generateRawData = () => {
@@ -199,8 +206,10 @@ const HIERARCHY_OPTIONS = {
   groups: ['G1', 'G2', 'G3', 'G4', 'G5']
 };
 
-const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes }) => {
-  const [rawData, setRawData] = useState(generateRawData());
+const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, theme, metricThemes, onImportedDataChanged }) => {
+  const [rawData, setRawData] = useState(getImportedMeasurements());
+  const [loadingBackend, setLoadingBackend] = useState(false);
+  const [importError, setImportError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
   const [dateFilter, setDateFilter] = useState('all');
@@ -223,6 +232,53 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const itemsPerPage = 50;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function loadFromBackend() {
+      if (!workspaceId) return;
+      setLoadingBackend(true);
+      try {
+        const result = await getMeasurements(workspaceId, { limit: 1000 });
+        if (cancelled) return;
+        const mapped = (result.measurements || []).map((m) => ({
+          id: m.id,
+          date: new Date(m.captured_at).toISOString().split('T')[0],
+          time: new Date(m.captured_at).toTimeString().slice(0, 5),
+          sessionId: m.session_id || m.session_code || 'SESSION',
+          sessionName: m.session_name || m.session_code || 'Session',
+          sessionNotes: m.session_notes || '',
+          location: m.location_name || 'Unknown',
+          latitude: m.latitude ?? 40.78,
+          longitude: m.longitude ?? -73.96,
+          indoorOutdoor: m.indoor_outdoor || 'OUTDOOR',
+          school: m.school_code || '',
+          instructor: m.instructor || '',
+          period: m.period || '',
+          group: m.group_code || '',
+          pm25: Number(m.edits?.pm25?.editedValue ?? m.pm25 ?? 0),
+          co: Number(m.edits?.co?.editedValue ?? m.co ?? 0).toFixed(2),
+          temp: Number(m.edits?.temp?.editedValue ?? m.temp ?? 0),
+          humidity: Number(m.edits?.humidity?.editedValue ?? m.humidity ?? 0),
+          photos: [],
+          edits: m.edits || {},
+        }));
+        if (mapped.length) {
+          setRawData(mapped);
+          setImportedMeasurements(mapped);
+          onImportedDataChanged?.();
+        }
+      } catch {
+        // Fall back to imported CSV data when backend is unavailable.
+      } finally {
+        if (!cancelled) setLoadingBackend(false);
+      }
+    }
+    loadFromBackend();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, onImportedDataChanged]);
 
   // Get unique locations, sessions, groups, and schools
   const locations = [...new Set(rawData.map(d => d.location))];
@@ -300,7 +356,7 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
   }
 
   // Pagination
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
   const paginatedData = filteredData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -364,6 +420,29 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
     
     a.download = `air-quality-data-${dateStr}-${schoolStr}-${instructorStr}-${periodStr}-${groupStr}.csv`;
     a.click();
+  };
+
+  const handleImportCsv = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const imported = parseImportedCsv(text);
+      setRawData(imported);
+      setImportError('');
+      setImportedMeasurements(imported);
+      onImportedDataChanged?.();
+    } catch (error) {
+      setImportError(error.message || 'Failed to import CSV.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const handleClearImportedData = () => {
+    clearImportedMeasurements();
+    setRawData([]);
+    onImportedDataChanged?.();
   };
 
   const markEdited = (rowIds, field) => {
@@ -437,6 +516,15 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
     );
 
     markEdited([rowId], field);
+    if (workspaceId && ['pm25', 'co', 'temp', 'humidity'].includes(field)) {
+      addMeasurementEdit(workspaceId, rowId, {
+        fieldName: field,
+        editedValue: Number(formattedValue),
+        editNote: 'Dashboard manual correction',
+      }).catch(() => {
+        // Keep UI responsive even if backend edit write fails.
+      });
+    }
 
     setEditingCell({ rowId: null, field: null });
   };
@@ -475,9 +563,24 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Raw Data</h1>
-          <p className="text-gray-600">Complete dataset with all measurements</p>
+          <p className="text-gray-600">
+            Complete dataset with all measurements {workspaceId ? '(backend/import)' : '(import CSV to begin)'}
+          </p>
+          {loadingBackend && <p className="text-xs text-gray-500 mt-1">Loading backend data...</p>}
+          {importError && <p className="text-xs text-red-600 mt-1">{importError}</p>}
         </div>
         <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all cursor-pointer">
+            <Upload className="w-4 h-4" />
+            Import CSV
+            <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportCsv} />
+          </label>
+          <button
+            onClick={handleClearImportedData}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
+          >
+            Clear Data
+          </button>
           <button
             onClick={() => setShowHelpModal(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
@@ -693,6 +796,12 @@ const RawDataView = ({ selectedMetric, setSelectedMetric, filters, theme, metric
 
       {/* Data Table */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        {filteredData.length === 0 && (
+          <div className="px-6 py-16 text-center border-b border-gray-200">
+            <p className="text-lg font-semibold text-gray-800">NO DATA IMPORTED</p>
+            <p className="text-sm text-gray-500 mt-2">Import a CSV from your app export, or connect backend data.</p>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b-2 border-gray-200">

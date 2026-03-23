@@ -29,35 +29,47 @@ const Button = ({ children, variant = 'primary', className = '', ...props }) => 
   );
 };
 
-const LandingPage = ({ onLogin, filters }) => {
+const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) => {
   const [mode, setMode] = useState('student');
-  const [email, setEmail] = useState('jiin@tamgulab.com');
-  const [password, setPassword] = useState('helloworld');
+  const [email, setEmail] = useState('jiin@tamgu.com');
+  const [password, setPassword] = useState('password');
+  const [fullName, setFullName] = useState('New User');
+  const [signupPeriod, setSignupPeriod] = useState(filters.period || 'P1');
+  const [signupGroup, setSignupGroup] = useState(filters.group || 'G1');
   const [showVerification, setShowVerification] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   // Update email when mode changes
   const handleModeChange = (newMode) => {
     setMode(newMode);
     if (newMode === 'teacher') {
-      setEmail('shim@tamguadmin.edu');
+      setEmail('shim@tamgu.com');
     } else {
-      setEmail('jiin@tamgulab.com');
+      setEmail('jiin@tamgu.com');
     }
   };
 
   const handleLoginAttempt = () => {
-    if ((mode === 'student' && email === 'jiin@tamgulab.com' && password === 'helloworld') ||
-        (mode === 'teacher' && email === 'shim@tamguadmin.edu' && password === 'helloworld')) {
+    if (!isSignUp && ((mode === 'student' && (email === 'jiin@tamgu.com' || email === 'julia@tamgu.com') && password === 'password') ||
+        (mode === 'teacher' && email === 'shim@tamgu.com' && password === 'password'))) {
       setShowVerification(true);
     } else {
-      onLogin();
+      if (isSignUp) {
+        onRegister({ email, password, fullName, mode, period: signupPeriod, group: signupGroup });
+      } else {
+        onLogin({ email, password, mode });
+      }
     }
   };
 
   const confirmVerification = () => {
     setShowVerification(false);
-    onLogin();
+    if (isSignUp) {
+      onRegister({ email, password, fullName, mode, period: signupPeriod, group: signupGroup });
+    } else {
+      onLogin({ email, password, mode });
+    }
   };
 
   if (showHelp) {
@@ -216,14 +228,51 @@ const LandingPage = ({ onLogin, filters }) => {
                   {mode === 'student' ? <GraduationCap size={40} /> : <Users size={40} />}
                 </div>
                 <h3 className="text-2xl font-black text-gray-900">
-                  {mode === 'student' ? 'Student Login' : 'Instructor Login'}
+                  {isSignUp ? 'Create Account' : (mode === 'student' ? 'Student Login' : 'Instructor Login')}
                 </h3>
                 <p className="text-gray-500 font-medium mt-1">
-                  Enter your school credentials to begin.
+                  {isSignUp ? 'Set up your account credentials.' : 'Enter your school credentials to begin.'}
                 </p>
               </div>
 
               <div className="space-y-4">
+                {isSignUp && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                      />
+                    </div>
+                    {mode === 'student' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Period</label>
+                          <select
+                            value={signupPeriod}
+                            onChange={(e) => setSignupPeriod(e.target.value)}
+                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                          >
+                            {['P1', 'P2', 'P3'].map((p) => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Group</label>
+                          <select
+                            value={signupGroup}
+                            onChange={(e) => setSignupGroup(e.target.value)}
+                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                          >
+                            {['G1', 'G2', 'G3', 'G4', 'G5'].map((g) => <option key={g} value={g}>{g}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
                   <input 
@@ -247,9 +296,22 @@ const LandingPage = ({ onLogin, filters }) => {
               </div>
 
               <Button onClick={handleLoginAttempt} className="w-full py-4 text-lg">
-                {mode === 'student' ? 'Join Lab Session' : 'Access Dashboard'} 
+                {isSignUp ? 'Create Account' : (mode === 'student' ? 'Join Lab Session' : 'Access Dashboard')} 
                 <ArrowRight size={22} className="ml-1" />
               </Button>
+              <button
+                type="button"
+                onClick={() => setIsSignUp((prev) => !prev)}
+                className="w-full text-sm text-blue-600 hover:text-blue-700 font-semibold"
+              >
+                {isSignUp ? 'Already have an account? Log in' : 'Need an account? Sign up'}
+              </button>
+              {authError && (
+                <p className="text-sm text-red-600 text-center font-medium">{authError}</p>
+              )}
+              {authLoading && (
+                <p className="text-sm text-gray-500 text-center font-medium">Signing in...</p>
+              )}
               
               <div className="flex items-center justify-center gap-2 pt-4 opacity-50">
                 <Shield size={14} className="text-gray-400" />

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, X } from 'lucide-react';
+import { getImportedMeasurements } from '../utils/importedData';
 
 const generateWeekData = (metric) => {
   const baseData = {
@@ -503,24 +504,75 @@ const TrendModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes }) =>
   );
 };
 
-const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes }) => {
+const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes, importedDataVersion }) => {
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
-  
-  // Generate data
-  const weekData = generateWeekData(selectedMetric);
-  const monthData = generateMonthData(selectedMetric);
-  
+
+  const imported = useMemo(() => {
+    void importedDataVersion;
+    return getImportedMeasurements();
+  }, [importedDataVersion]);
+  const scopedData = useMemo(() => {
+    const pool = imported.length ? imported : [];
+    return pool.filter((row) => {
+      if (filters.school && row.school && row.school !== filters.school) return false;
+      if (filters.instructor && row.instructor && row.instructor !== filters.instructor) return false;
+      if (filters.period && row.period && row.period !== filters.period) return false;
+      if (filters.group && row.group && row.group !== filters.group) return false;
+      return true;
+    });
+  }, [imported, filters]);
+
+  const monthData = useMemo(() => {
+    if (!scopedData.length) return generateMonthData(selectedMetric);
+    const byDate = {};
+    scopedData.forEach((row) => {
+      const key = row.date;
+      const value = Number(row[selectedMetric] ?? 0);
+      if (!byDate[key]) byDate[key] = { sum: 0, count: 0 };
+      byDate[key].sum += value;
+      byDate[key].count += 1;
+    });
+    return Object.entries(byDate)
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .map(([date, agg]) => ({ date, value: Number((agg.sum / agg.count).toFixed(2)) }));
+  }, [scopedData, selectedMetric]);
+
+  const weekData = useMemo(() => {
+    if (!monthData.length) return generateWeekData(selectedMetric);
+    return monthData.slice(-7).map((d) => ({
+      day: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' }),
+      value: d.value,
+    }));
+  }, [monthData, selectedMetric]);
+
   // Calculate statistics
-  const allValues = monthData.map(d => d.value);
+  const allValues = monthData.map(d => Number(d.value));
   const avgValue = Math.round(allValues.reduce((sum, val) => sum + val, 0) / allValues.length);
   const minValue = Math.min(...allValues);
   const maxValue = Math.max(...allValues);
-  const medianValue = allValues.sort((a, b) => a - b)[Math.floor(allValues.length / 2)];
+  const sortedValues = [...allValues].sort((a, b) => a - b);
+  const medianValue = sortedValues[Math.floor(sortedValues.length / 2)];
   const standardDeviation = Math.sqrt(
     allValues.reduce((sum, val) => sum + Math.pow(val - avgValue, 2), 0) / allValues.length
   ).toFixed(2);
+
+  const classAverage = useMemo(() => {
+    const schoolRows = imported.filter((row) => row.school === filters.school && row.period === filters.period);
+    if (!schoolRows.length) return avgValue + 2;
+    return Math.round(
+      schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length
+    );
+  }, [imported, filters.school, filters.period, selectedMetric, avgValue]);
+
+  const schoolAverage = useMemo(() => {
+    const schoolRows = imported.filter((row) => row.school === filters.school);
+    if (!schoolRows.length) return avgValue + 4;
+    return Math.round(
+      schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length
+    );
+  }, [imported, filters.school, selectedMetric, avgValue]);
 
   return (
     <div className="space-y-6">
@@ -860,7 +912,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-purple-600 mb-1">{avgValue + 2}</p>
+                <p className="text-4xl font-bold text-purple-600 mb-1">{classAverage}</p>
                 <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
               </div>
               <div className="space-y-2 text-sm">
@@ -874,7 +926,11 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">vs Class</span>
-                  <span className="font-semibold text-green-600">-2 better</span>
+                  <span className="font-semibold text-green-600">
+                    {avgValue <= classAverage
+                      ? `${Math.abs(avgValue - classAverage)} better`
+                      : `${Math.abs(avgValue - classAverage)} higher`}
+                  </span>
                 </div>
               </div>
             </div>
@@ -888,7 +944,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-blue-600 mb-1">{avgValue + 4}</p>
+                <p className="text-4xl font-bold text-blue-600 mb-1">{schoolAverage}</p>
                 <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
               </div>
               <div className="space-y-2 text-sm">
@@ -902,7 +958,11 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">vs School</span>
-                  <span className="font-semibold text-green-600">-4 better</span>
+                  <span className="font-semibold text-green-600">
+                    {avgValue <= schoolAverage
+                      ? `${Math.abs(avgValue - schoolAverage)} better`
+                      : `${Math.abs(avgValue - schoolAverage)} higher`}
+                  </span>
                 </div>
               </div>
             </div>
@@ -912,12 +972,11 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Group Comparison - Last 7 Days</h3>
             <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={weekData.map((d, i) => ({
+              <LineChart data={weekData.map((d) => ({
                 day: d.day,
                 'Your Group': d.value,
-                'Group 2': d.value + Math.floor(Math.random() * 6) - 3,
-                'Group 5': d.value + Math.floor(Math.random() * 6) - 3,
-                'Class Avg': d.value + 2
+                'Class Avg': classAverage,
+                'School Avg': schoolAverage
               }))}>
                 <XAxis 
                   dataKey="day" 
@@ -943,9 +1002,8 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 />
                 <Legend />
                 <Line type="monotone" dataKey="Your Group" stroke={theme.primary} strokeWidth={3} dot={{ fill: theme.primary, r: 5 }} />
-                <Line type="monotone" dataKey="Group 2" stroke="#8B5CF6" strokeWidth={2} dot={{ fill: '#8B5CF6', r: 4 }} />
-                <Line type="monotone" dataKey="Group 5" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 4 }} />
                 <Line type="monotone" dataKey="Class Avg" stroke="#9CA3AF" strokeWidth={2} strokeDasharray="5 5" dot={{ fill: '#9CA3AF', r: 4 }} />
+                <Line type="monotone" dataKey="School Avg" stroke="#3B82F6" strokeWidth={2} strokeDasharray="3 3" dot={{ fill: '#3B82F6', r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -957,7 +1015,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
               <ul className="space-y-2 text-sm text-gray-700">
                 <li className="flex items-start gap-2">
                   <span className="text-green-600 mt-0.5">✓</span>
-                  <span>Your group's readings are <strong>{Math.abs(avgValue - (avgValue + 2))} {metricThemes[selectedMetric].unit} better</strong> than class average</span>
+                  <span>Your group's readings differ by <strong>{Math.abs(avgValue - classAverage)} {metricThemes[selectedMetric].unit}</strong> from class average</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-600 mt-0.5">✓</span>
