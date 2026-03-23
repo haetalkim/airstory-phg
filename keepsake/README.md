@@ -24,9 +24,7 @@ See `keepsake-pre-backend/frontend-head/` for that UI.
 
 ## Canonical app location (what Vercel should build)
 
-The live app you edit day-to-day is:
-
-`air-quality-tracker/`  
+The live app you edit day-to-day is this repo’s root **`src/`**  
 → `src/App.js`, `src/components/*`, `src/api/*`
 
-Not the nested `air-quality-tracker/air-quality-tracker/` folder (legacy duplicate).
+There is also a **legacy nested** `air-quality-tracker/` folder inside this repo (older duplicate) — prefer the **top-level `src/`** for new work.
