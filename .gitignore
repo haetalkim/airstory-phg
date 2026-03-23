@@ -35,3 +35,10 @@ build/
 dist/
 *.tgz
 
+# Backend (same repo)
+backend/node_modules/
+backend/.env
+
+# Historical keepsake folders
+keepsake-pre-backend/**/node_modules/
+

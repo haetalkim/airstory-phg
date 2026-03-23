@@ -1,0 +1,37 @@
+# Render Blueprint — deploy Postgres + API in one flow
+# https://render.com/docs/blueprint-spec
+#
+# After first deploy: set FRONTEND_URL in the Web Service → Environment
+# (your Vercel URL, e.g. https://your-app.vercel.app — no trailing slash)
+
+databases:
+  - name: air-sensor-db
+    databaseName: air_sensor
+    user: air_sensor
+    plan: free
+
+services:
+  - type: web
+    name: air-sensor-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    # Runs before each deploy; migrations are idempotent (already-applied files are skipped)
+    preDeployCommand: npm run db:migrate
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: air-sensor-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      # Set this in the Render dashboard after you know your Vercel URL (required for CORS)
+      - key: FRONTEND_URL
+        sync: false
