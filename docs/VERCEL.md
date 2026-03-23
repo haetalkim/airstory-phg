@@ -17,6 +17,14 @@ For the **`tamguingAIR`** GitHub repo:
 
 The nested `air-quality-tracker/` folder in this repo is a **legacy duplicate** (old `Dashboard` only). The real app is at the **repository root** (`package.json` + `src/` next to `backend/`).
 
+## Blank white page on Vercel (deploy succeeds)
+
+If production is empty but the build is green, open DevTools → **Network** and check whether JS/CSS requests go to **`/tamguingAIR/static/...`** and return **404**.
+
+That happens when `package.json` uses a **GitHub Pages** `homepage` (absolute path `/tamguingAIR`). Vercel serves the app at the **site root** (`/`), so those asset URLs are wrong.
+
+This repo uses **`"homepage": "."`** so asset paths are **relative** and work on **both** Vercel (root) and GitHub Pages (`/tamguingAIR/`).
+
 ## Environment variable
 
 `REACT_APP_API_BASE_URL` = your API base, e.g.
