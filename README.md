@@ -10,6 +10,8 @@ Air quality classroom platform: React dashboard + Express/Postgres API.
 | `keepsake/integrated-frontend-snapshot/` | Frozen copy of `src/` + configs (restore / diff reference) |
 | `keepsake-pre-backend/` | Older UI snapshot before backend work |
 
-**Vercel:** build this repo root (CRA). See `docs/VERCEL.md`.
+**GitHub Pages (static frontend):** from this folder, run `npm run deploy` (builds then pushes `build/` to branch `gh-pages`). In the repo on GitHub: **Settings → Pages → Build and deployment → Branch** → select **`gh-pages`** and **`/ (root)`**, Save. Site: `https://haetalkim.github.io/tamguingAIR/` (use your username/repo if different). Set `REACT_APP_API_BASE_URL` in `.env` before deploy so the production build talks to your API.
+
+**Vercel:** optional; build this repo root (CRA). See `docs/VERCEL.md`.
 
 **Render:** `render.yaml` Blueprint — API + Postgres. See `docs/DEPLOY_RENDER.md`.
