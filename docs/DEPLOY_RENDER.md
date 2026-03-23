@@ -22,7 +22,7 @@ You will have **three URLs**:
      - Use `https`, **no** trailing slash.
 6. **Save** — Render redeploys.
 
-**Migrations:** `preDeployCommand` in `render.yaml` runs `npm run db:migrate` before each deploy (safe to repeat).
+**Migrations (free tier):** `preDeployCommand` is **not supported** on Render’s free web services. After the first successful API deploy, open the Web Service → **Shell** and run **`npm run db:migrate`** once (safe to repeat). Paid plans can use `preDeployCommand` in `render.yaml` if you add it back.
 
 **Optional demo data** (demo environments only): Web Service → **Shell**, run:
 

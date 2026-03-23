@@ -18,8 +18,8 @@ services:
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
-    # Runs before each deploy; migrations are idempotent (already-applied files are skipped)
-    preDeployCommand: npm run db:migrate
+    # preDeployCommand is not supported on Render free-tier web services — run
+    # migrations once manually: Web Service → Shell → `npm run db:migrate`
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
