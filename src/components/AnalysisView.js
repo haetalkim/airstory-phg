@@ -1000,8 +1000,10 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-purple-600 mb-1">{classAverage ?? '—'}</p>
-                <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
+                <p className="text-4xl font-bold text-purple-600 mb-1">{classAverage ?? 'NO DATA'}</p>
+                {classAverage != null && (
+                  <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
+                )}
               </div>
               <div className="space-y-2 text-sm">
                 <p className="text-xs text-gray-500">
@@ -1014,7 +1016,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                       ? avgValue <= classAverage
                         ? `${Math.abs(avgValue - classAverage)} lower`
                         : `${Math.abs(avgValue - classAverage)} higher`
-                      : '—'}
+                      : 'NO DATA'}
                   </span>
                 </div>
               </div>
@@ -1029,8 +1031,10 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-blue-600 mb-1">{schoolAverage ?? '—'}</p>
-                <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
+                <p className="text-4xl font-bold text-blue-600 mb-1">{schoolAverage ?? 'NO DATA'}</p>
+                {schoolAverage != null && (
+                  <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
+                )}
               </div>
               <div className="space-y-2 text-sm">
                 <p className="text-xs text-gray-500">
@@ -1043,7 +1047,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                       ? avgValue <= schoolAverage
                         ? `${Math.abs(avgValue - schoolAverage)} lower`
                         : `${Math.abs(avgValue - schoolAverage)} higher`
-                      : '—'}
+                      : 'NO DATA'}
                   </span>
                 </div>
               </div>

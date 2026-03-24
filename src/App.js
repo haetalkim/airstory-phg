@@ -304,6 +304,7 @@ export default function App() {
             selectedMetric={selectedMetric}
             setSelectedMetric={setSelectedMetric}
             filters={filters}
+            setFilters={setFilters}
             theme={currentTheme}
             metricThemes={METRIC_THEMES}
             onImportedDataChanged={() => setImportedDataVersion((v) => v + 1)}

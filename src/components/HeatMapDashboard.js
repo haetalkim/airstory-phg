@@ -377,38 +377,31 @@ const HeatMapDashboard = ({
   }, [importedMeasurements, selectedTimeRange]);
 
   const stats = useMemo(() => {
-    if (filteredLocations.length === 0 && !usingWorkspaceHeatmap) {
-      return { city: 0, school: 0, group: 0 };
+    if (!locations.length) {
+      return { city: null, school: null, group: null };
     }
 
     const metric = selectedMetric;
 
-    // City / map average: workspace heatmap = average of aggregated sites; demo = all points in range
-    const cityAvg = usingWorkspaceHeatmap
-      ? Math.round(
-          locations.reduce((sum, loc) => sum + parseFloat(loc[metric] ?? 0), 0) /
-            Math.max(locations.length, 1)
-        )
-      : Math.round(
-          filteredLocations.reduce((sum, item) => sum + parseFloat(item[metric]), 0) /
-            filteredLocations.length
-        );
+    const cityAvg = Math.round(
+      locations.reduce((sum, loc) => sum + parseFloat(loc[metric] ?? 0), 0) / Math.max(locations.length, 1)
+    );
 
     const sourceForSchoolAndGroup = filteredImported.length ? filteredImported : filteredLocations;
 
     // School Average (based on current filters)
     const schoolData = sourceForSchoolAndGroup.filter(item => item.school === filters.school);
-    const schoolAvg = schoolData.length > 0 
+    const schoolAvg = schoolData.length > 0
       ? Math.round(schoolData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / schoolData.length)
-      : cityAvg; // Fallback to city average if no school data
+      : null;
 
     // Group Average (based on current filters)
     const groupData = sourceForSchoolAndGroup.filter(
       item => item.group === filters.group && item.school === filters.school
     );
-    const groupAvg = groupData.length > 0 
+    const groupAvg = groupData.length > 0
       ? Math.round(groupData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / groupData.length)
-      : schoolAvg; // Fallback to school average
+      : null;
 
     return { city: cityAvg, school: schoolAvg, group: groupAvg };
   }, [
@@ -742,6 +735,17 @@ const HeatMapDashboard = ({
                   </div>
               </div>
             )}
+
+            {isLoaded && heatmapData.length === 0 && (
+              <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 pointer-events-none">
+                <div className="bg-white border border-gray-200 rounded-xl px-6 py-4 shadow-sm">
+                  <p className="text-lg font-bold text-gray-800 text-center">NO DATA</p>
+                  <p className="text-xs text-gray-500 text-center mt-1">
+                    No geotagged measurements for the current metric/filter.
+                  </p>
+                </div>
+              </div>
+            )}
             
             {/* Map Legend - Continuous Gradient */}
             <div className="absolute bottom-4 left-4 bg-white rounded-lg p-5 shadow-lg border border-gray-200 z-10 min-w-[280px]">
@@ -776,24 +780,36 @@ const HeatMapDashboard = ({
             <div className="flex justify-between items-start mb-2">
               <p className="text-sm font-black text-gray-500 uppercase tracking-widest">City Average</p>
               <div className="text-right">
-                <span className="text-5xl font-black" style={{ color: theme.primary }}>{stats.city}</span>
-                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+                <span className="text-5xl font-black" style={{ color: theme.primary }}>
+                  {stats.city ?? 'NO DATA'}
+                </span>
+                {stats.city != null && (
+                  <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span
-                className="px-3 py-1 rounded-full text-xs font-black tracking-wide"
-                style={{ backgroundColor: getColorForValue(stats.city), color: "#1F2937" }}
-              >
-                {getStatusLabel(stats.city)}
-              </span>
-              <button
-                onClick={() => setShowStatusInfo(true)}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                title="View AQI criteria"
-              >
-                <Info className="w-5 h-5 text-gray-400" />
-              </button>
+              {stats.city == null ? (
+                <span className="px-3 py-1 rounded-full text-xs font-black tracking-wide bg-gray-100 text-gray-500">
+                  NO DATA
+                </span>
+              ) : (
+                <>
+                  <span
+                    className="px-3 py-1 rounded-full text-xs font-black tracking-wide"
+                    style={{ backgroundColor: getColorForValue(stats.city), color: "#1F2937" }}
+                  >
+                    {getStatusLabel(stats.city)}
+                  </span>
+                  <button
+                    onClick={() => setShowStatusInfo(true)}
+                    className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                    title="View AQI criteria"
+                  >
+                    <Info className="w-5 h-5 text-gray-400" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -807,8 +823,10 @@ const HeatMapDashboard = ({
                 <p className="text-xs text-blue-500 font-black uppercase mt-0.5 tracking-tighter">{filters.school}</p>
               </div>
               <div className="text-right">
-                <span className="text-4xl font-black text-blue-600">{stats.school}</span>
-                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+                <span className="text-4xl font-black text-blue-600">{stats.school ?? 'NO DATA'}</span>
+                {stats.school != null && (
+                  <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+                )}
               </div>
             </div>
           </div>
@@ -823,8 +841,10 @@ const HeatMapDashboard = ({
                 <p className="text-xs text-indigo-500 font-black uppercase mt-0.5 tracking-tighter">Team {filters.group}</p>
               </div>
               <div className="text-right">
-                <span className="text-4xl font-black text-indigo-600">{stats.group}</span>
-                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+                <span className="text-4xl font-black text-indigo-600">{stats.group ?? 'NO DATA'}</span>
+                {stats.group != null && (
+                  <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+                )}
               </div>
             </div>
           </div>

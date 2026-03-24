@@ -18,7 +18,16 @@ const HIERARCHY_OPTIONS = {
   groups: ['G1', 'G2', 'G3', 'G4', 'G5']
 };
 
-const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, theme, metricThemes, onImportedDataChanged }) => {
+const RawDataView = ({
+  workspaceId,
+  selectedMetric,
+  setSelectedMetric,
+  filters,
+  setFilters,
+  theme,
+  metricThemes,
+  onImportedDataChanged,
+}) => {
   const [rawData, setRawData] = useState(getImportedMeasurements());
   const [loadingBackend, setLoadingBackend] = useState(false);
   const [importError, setImportError] = useState('');
@@ -404,10 +413,18 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
             <select
               value={selectedSchool}
               onChange={(e) => {
-                setSelectedSchool(e.target.value);
+                const nextSchool = e.target.value;
+                setSelectedSchool(nextSchool);
                 setSelectedInstructor('');
                 setSelectedPeriod('');
                 setSelectedGroup('');
+                setFilters?.((prev) => ({
+                  ...prev,
+                  school: nextSchool,
+                  instructor: '',
+                  period: '',
+                  group: '',
+                }));
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             >
@@ -423,9 +440,16 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
               value={selectedInstructor}
               disabled={!selectedSchool}
               onChange={(e) => {
-                setSelectedInstructor(e.target.value);
+                const nextInstructor = e.target.value;
+                setSelectedInstructor(nextInstructor);
                 setSelectedPeriod('');
                 setSelectedGroup('');
+                setFilters?.((prev) => ({
+                  ...prev,
+                  instructor: nextInstructor,
+                  period: '',
+                  group: '',
+                }));
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
@@ -441,8 +465,14 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
               value={selectedPeriod}
               disabled={!selectedInstructor}
               onChange={(e) => {
-                setSelectedPeriod(e.target.value);
+                const nextPeriod = e.target.value;
+                setSelectedPeriod(nextPeriod);
                 setSelectedGroup('');
+                setFilters?.((prev) => ({
+                  ...prev,
+                  period: nextPeriod,
+                  group: '',
+                }));
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
@@ -457,7 +487,11 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
             <select
               value={selectedGroup}
               disabled={!selectedPeriod}
-              onChange={(e) => setSelectedGroup(e.target.value)}
+              onChange={(e) => {
+                const nextGroup = e.target.value;
+                setSelectedGroup(nextGroup);
+                setFilters?.((prev) => ({ ...prev, group: nextGroup }));
+              }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
               <option value="">Select Group</option>
@@ -473,6 +507,13 @@ const RawDataView = ({ workspaceId, selectedMetric, setSelectedMetric, filters, 
                 setSelectedInstructor('');
                 setSelectedPeriod('');
                 setSelectedGroup('');
+                setFilters?.((prev) => ({
+                  ...prev,
+                  school: '',
+                  instructor: '',
+                  period: '',
+                  group: '',
+                }));
               }}
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
