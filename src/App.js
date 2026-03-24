@@ -64,12 +64,21 @@ const METRIC_THEMES = {
 };
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(getStoredAuth()?.accessToken));
+  const storedAuth = getStoredAuth();
+  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(storedAuth?.accessToken));
   const [activeSection, setActiveSection] = useState("heatmap");
   const [selectedMetric, setSelectedMetric] = useState("pm25");
   const [isPublicMode] = useState(false); // Public mode is off when we have a landing/login
-  const [workspaceId, setWorkspaceId] = useState(getStoredAuth()?.user?.workspaceId || "");
+  const [workspaceId, setWorkspaceId] = useState(storedAuth?.user?.workspaceId || "");
   const [userRole, setUserRole] = useState("student");
+  const [viewerProfile, setViewerProfile] = useState({
+    displayName: storedAuth?.user?.fullName || "",
+    school: "",
+    instructor: "",
+    period: "",
+    group: "",
+    studentId: "",
+  });
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [importedDataVersion, setImportedDataVersion] = useState(0);
@@ -100,6 +109,14 @@ export default function App() {
       const profile = me?.profile || null;
       setWorkspaceId(session?.user?.workspaceId || membership?.workspace_id || "");
       setUserRole(membership?.role || "student");
+      setViewerProfile({
+        displayName: me?.user?.full_name || session?.user?.fullName || "",
+        school: profile?.school_code || "",
+        instructor: profile?.instructor || "",
+        period: profile?.period || "",
+        group: profile?.group_code || "",
+        studentId: profile?.student_code || email.split("@")[0].toUpperCase(),
+      });
       setIsLoggedIn(true);
       setActiveSection((membership?.role === "teacher" || membership?.role === "owner") ? "manageclasses" : "heatmap");
       setFilters((prev) => ({
@@ -145,6 +162,14 @@ export default function App() {
       const profile = me?.profile || null;
       setWorkspaceId(session?.user?.workspaceId || membership?.workspace_id || "");
       setUserRole(membership?.role || "student");
+      setViewerProfile({
+        displayName: me?.user?.full_name || session?.user?.fullName || fullName || "",
+        school: profile?.school_code || "",
+        instructor: profile?.instructor || "",
+        period: profile?.period || "",
+        group: profile?.group_code || "",
+        studentId: profile?.student_code || email.split("@")[0].toUpperCase(),
+      });
       setIsLoggedIn(true);
       setActiveSection((membership?.role === "teacher" || membership?.role === "owner") ? "manageclasses" : "heatmap");
       setFilters((prev) => ({
@@ -171,6 +196,14 @@ export default function App() {
       setIsLoggedIn(false);
       setWorkspaceId("");
       setUserRole("student");
+      setViewerProfile({
+        displayName: "",
+        school: "",
+        instructor: "",
+        period: "",
+        group: "",
+        studentId: "",
+      });
       setActiveSection("heatmap");
       setAuthError("");
     }
@@ -283,17 +316,17 @@ export default function App() {
               <div className="flex items-center gap-4">
                 <div className="text-right hidden lg:block">
                   <p className="text-sm font-medium text-gray-900">
-                    {isTeacher ? (filters.instructor || "Instructor") : filters.studentId}
+                    {isTeacher ? (viewerProfile.instructor || "Instructor") : (viewerProfile.studentId || filters.studentId)}
                   </p>
                   <p className="text-xs text-gray-500">
                     {isTeacher
-                      ? `${filters.school} • Teacher Portal`
-                      : `${filters.school} - Group ${filters.group.replace('G', '')}`}
+                      ? `${viewerProfile.school || filters.school} • Teacher Portal`
+                      : `${viewerProfile.school || filters.school} - Group ${(viewerProfile.group || filters.group).replace('G', '')}`}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center border-2 border-white shadow-md">
                   <span className="text-white text-sm font-semibold">
-                    {isTeacher ? "T" : filters.studentId.slice(3)}
+                    {isTeacher ? "T" : (viewerProfile.studentId || filters.studentId || "STU000").slice(3)}
                   </span>
                 </div>
               </div>

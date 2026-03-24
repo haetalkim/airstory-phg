@@ -6,6 +6,7 @@ import {
   addMeasurementEditSchema,
   createMeasurementSchema,
   createSessionSchema,
+  importCsvMeasurementsSchema,
   updateMeasurementSchema,
 } from "./sensor.schemas.js";
 
@@ -149,6 +150,104 @@ router.get(
     `;
     const result = await pool.query(query, values);
     res.json({ measurements: result.rows });
+  }
+);
+
+router.post(
+  "/workspaces/:workspaceId/import/csv",
+  requireWorkspaceRole(["owner", "teacher", "student"]),
+  validate(importCsvMeasurementsSchema),
+  async (req, res, next) => {
+    const client = await pool.connect();
+    try {
+      const { workspaceId } = req.params;
+      const rows = req.validated.body.rows || [];
+      const sessionCache = new Map();
+
+      await client.query("BEGIN");
+
+      for (const row of rows) {
+        const sessionCode = row.sessionCode || "SESSION";
+        const sessionKey = [
+          sessionCode,
+          row.school || "",
+          row.instructor || "",
+          row.period || "",
+          row.group || "",
+          row.location || "",
+        ].join("|");
+
+        let sessionId = sessionCache.get(sessionKey);
+        if (!sessionId) {
+          const existing = await client.query(
+            `SELECT id
+             FROM sessions
+             WHERE workspace_id = $1
+               AND session_code = $2
+               AND COALESCE(school_code, '') = $3
+               AND COALESCE(instructor, '') = $4
+               AND COALESCE(period, '') = $5
+               AND COALESCE(group_code, '') = $6
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [workspaceId, sessionCode, row.school || "", row.instructor || "", row.period || "", row.group || ""]
+          );
+
+          if (existing.rowCount) {
+            sessionId = existing.rows[0].id;
+          } else {
+            const created = await client.query(
+              `INSERT INTO sessions (
+                workspace_id, created_by, session_code, name, notes, location_name,
+                school_code, instructor, period, group_code
+              ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+              RETURNING id`,
+              [
+                workspaceId,
+                req.user.userId,
+                sessionCode,
+                row.sessionName || "Imported Session",
+                row.sessionNotes || "",
+                row.location || "",
+                row.school || "",
+                row.instructor || "",
+                row.period || "",
+                row.group || "",
+              ]
+            );
+            sessionId = created.rows[0].id;
+          }
+          sessionCache.set(sessionKey, sessionId);
+        }
+
+        await client.query(
+          `INSERT INTO measurements (
+            workspace_id, session_id, captured_at, latitude, longitude, indoor_outdoor,
+            pm25, co, temp, humidity
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [
+            workspaceId,
+            sessionId,
+            row.capturedAt,
+            row.latitude ?? null,
+            row.longitude ?? null,
+            row.indoorOutdoor || null,
+            row.pm25,
+            row.co,
+            row.temp,
+            row.humidity,
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+      res.status(201).json({ importedCount: rows.length });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      next(err);
+    } finally {
+      client.release();
+    }
   }
 );
 

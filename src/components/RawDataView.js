@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, Image as ImageIcon, X, Upload } from 'lucide-react';
-import { addMeasurementEdit, getMeasurements } from '../api/data';
+import { addMeasurementEdit, getMeasurements, importCsvMeasurements } from '../api/data';
 import {
   clearImportedMeasurements,
   getImportedMeasurements,
   parseImportedCsv,
+  parseImportedCsvRaw,
   setImportedMeasurements,
 } from '../utils/importedData';
 
@@ -52,6 +53,69 @@ const RawDataView = ({
   const [showHelpModal, setShowHelpModal] = useState(false);
   const itemsPerPage = 50;
 
+  const groupRowsForDisplay = React.useCallback((rows) => {
+    const byChunk = new Map();
+    rows.forEach((row) => {
+      const captured = row.capturedAt ? new Date(row.capturedAt) : new Date(`${row.date}T${row.time || '00:00'}`);
+      if (Number.isNaN(captured.getTime())) return;
+      const minuteBucket = new Date(captured);
+      minuteBucket.setSeconds(0, 0);
+      const key = [
+        row.sessionId,
+        row.location,
+        row.latitude,
+        row.longitude,
+        row.school,
+        row.instructor,
+        row.period,
+        row.group,
+        row.indoorOutdoor,
+        minuteBucket.toISOString(),
+      ].join('|');
+
+      if (!byChunk.has(key)) {
+        byChunk.set(key, {
+          ...row,
+          id: `chunk-${row.id}`,
+          date: minuteBucket.toISOString().split('T')[0],
+          time: minuteBucket.toTimeString().slice(0, 5),
+          capturedAt: minuteBucket.toISOString(),
+          count: 0,
+          pm25Sum: 0,
+          coSum: 0,
+          tempSum: 0,
+          humiditySum: 0,
+          detailedData: [],
+        });
+      }
+      const agg = byChunk.get(key);
+      agg.count += 1;
+      agg.pm25Sum += Number(row.pm25) || 0;
+      agg.coSum += Number(row.co) || 0;
+      agg.tempSum += Number(row.temp) || 0;
+      agg.humiditySum += Number(row.humidity) || 0;
+      agg.detailedData.push({
+        id: row.id,
+        time: captured.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        pm25: Number(row.pm25) || 0,
+        co: Number((Number(row.co) || 0).toFixed(2)),
+        temp: Number(row.temp) || 0,
+        humidity: Number(row.humidity) || 0,
+      });
+    });
+
+    return Array.from(byChunk.values())
+      .map((agg) => ({
+        ...agg,
+        pm25: Math.round(agg.pm25Sum / Math.max(agg.count, 1)),
+        co: (agg.coSum / Math.max(agg.count, 1)).toFixed(2),
+        temp: Math.round(agg.tempSum / Math.max(agg.count, 1)),
+        humidity: Math.round(agg.humiditySum / Math.max(agg.count, 1)),
+        detailedData: agg.detailedData.sort((a, b) => a.time.localeCompare(b.time)),
+      }))
+      .sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt));
+  }, []);
+
   React.useEffect(() => {
     let cancelled = false;
     async function loadFromBackend() {
@@ -60,10 +124,10 @@ const RawDataView = ({
       try {
         const result = await getMeasurements(workspaceId, { limit: 1000 });
         if (cancelled) return;
-        const mapped = (result.measurements || []).map((m) => ({
+        const mappedRaw = (result.measurements || []).map((m) => ({
           id: m.id,
           date: new Date(m.captured_at).toISOString().split('T')[0],
-          time: new Date(m.captured_at).toTimeString().slice(0, 5),
+          time: new Date(m.captured_at).toTimeString().slice(0, 8),
           sessionId: m.session_id || m.session_code || 'SESSION',
           sessionName: m.session_name || m.session_code || 'Session',
           sessionNotes: m.session_notes || '',
@@ -81,7 +145,9 @@ const RawDataView = ({
           humidity: Number(m.edits?.humidity?.editedValue ?? m.humidity ?? 0),
           photos: [],
           edits: m.edits || {},
+          capturedAt: new Date(m.captured_at).toISOString(),
         }));
+        const mapped = groupRowsForDisplay(mappedRaw);
         if (mapped.length) {
           setRawData(mapped);
           setImportedMeasurements(mapped);
@@ -97,7 +163,7 @@ const RawDataView = ({
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, onImportedDataChanged]);
+  }, [workspaceId, onImportedDataChanged, groupRowsForDisplay]);
 
   // Get unique locations, sessions, groups, and schools
   const locations = [...new Set(rawData.map(d => d.location))];
@@ -246,7 +312,31 @@ const RawDataView = ({
     if (!file) return;
     try {
       const text = await file.text();
+      const rawRows = parseImportedCsvRaw(text);
       const imported = parseImportedCsv(text);
+      if (workspaceId && rawRows.length) {
+        await importCsvMeasurements(
+          workspaceId,
+          rawRows.map((r) => ({
+            capturedAt: r.capturedAt,
+            sessionCode: r.sessionId,
+            sessionName: r.sessionName,
+            sessionNotes: r.sessionNotes || '',
+            location: r.location || '',
+            school: r.school || '',
+            instructor: r.instructor || '',
+            period: r.period || '',
+            group: r.group || '',
+            indoorOutdoor: r.indoorOutdoor || 'OUTDOOR',
+            latitude: Number.isFinite(Number(r.latitude)) ? Number(r.latitude) : null,
+            longitude: Number.isFinite(Number(r.longitude)) ? Number(r.longitude) : null,
+            pm25: Number(r.pm25) || 0,
+            co: Number(r.co) || 0,
+            temp: Number(r.temp) || 0,
+            humidity: Number(r.humidity) || 0,
+          }))
+        );
+      }
       setRawData(imported);
       setImportError('');
       setImportedMeasurements(imported);

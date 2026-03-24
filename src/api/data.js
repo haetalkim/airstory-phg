@@ -17,3 +17,10 @@ export function getHeatmapPoints(workspaceId, metric = "pm25") {
   const q = new URLSearchParams({ metric });
   return apiRequest(`/workspaces/${workspaceId}/heatmap?${q.toString()}`);
 }
+
+export function importCsvMeasurements(workspaceId, rows = []) {
+  return apiRequest(`/workspaces/${workspaceId}/import/csv`, {
+    method: "POST",
+    body: JSON.stringify({ rows }),
+  });
+}

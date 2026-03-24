@@ -61,7 +61,7 @@ export function clearImportedMeasurements() {
   localStorage.removeItem(IMPORTED_MEASUREMENTS_KEY);
 }
 
-export function parseImportedCsv(csvText) {
+export function parseImportedCsvRaw(csvText) {
   const lines = String(csvText || "")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
@@ -126,6 +126,11 @@ export function parseImportedCsv(csvText) {
     throw new Error("No valid data rows found in CSV.");
   }
 
+  return rawRows.sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt));
+}
+
+export function parseImportedCsv(csvText) {
+  const rawRows = parseImportedCsvRaw(csvText);
   // Collapse second-level sensor rows into minute-level chunks that can be expanded in the table.
   const byChunk = new Map();
   rawRows.forEach((row) => {

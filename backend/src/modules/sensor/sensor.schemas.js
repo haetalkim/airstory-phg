@@ -60,3 +60,30 @@ export const addMeasurementEditSchema = z.object({
     editNote: z.string().max(300).optional().default(""),
   }),
 });
+
+const importRowSchema = z.object({
+  capturedAt: z.string().datetime(),
+  sessionCode: z.string().min(1).optional().default("SESSION"),
+  sessionName: z.string().min(1).optional().default("Imported Session"),
+  sessionNotes: z.string().optional().default(""),
+  location: z.string().optional().default("Imported Location"),
+  school: z.string().optional().default(""),
+  instructor: z.string().optional().default(""),
+  period: z.string().optional().default(""),
+  group: z.string().optional().default(""),
+  indoorOutdoor: z.enum(["INDOOR", "OUTDOOR"]).optional().default("OUTDOOR"),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
+  pm25: z.number(),
+  co: z.number(),
+  temp: z.number(),
+  humidity: z.number(),
+});
+
+export const importCsvMeasurementsSchema = z.object({
+  params: z.object({ workspaceId: z.string().uuid() }),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    rows: z.array(importRowSchema).min(1).max(10000),
+  }),
+});
