@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import LandingPage from "./components/LandingPage";
 import HeatMapDashboard from "./components/HeatMapDashboard";
 import RawDataView from "./components/RawDataView";
@@ -91,6 +91,56 @@ export default function App() {
     group: "",
     studentId: "",
   });
+
+  const syncFromMe = useCallback(async () => {
+    if (!isLoggedIn) return;
+    try {
+      const me = await getMe();
+      const membership = me?.memberships?.[0] || null;
+      const profile = me?.profile || null;
+      const nextRole = membership?.role || userRole || "student";
+      const isTeacherRole = nextRole === "teacher" || nextRole === "owner";
+      setUserRole(nextRole);
+      setViewerProfile((prev) => ({
+        ...prev,
+        displayName: me?.user?.full_name || prev.displayName,
+        school: profile?.school_code || "",
+        instructor: profile?.instructor || "",
+        period: profile?.period || "",
+        group: profile?.group_code || "",
+        studentId: profile?.student_code || prev.studentId,
+      }));
+      if (!isTeacherRole) {
+        setFilters((prev) => ({
+          ...prev,
+          school: profile?.school_code || "",
+          instructor: profile?.instructor || "",
+          period: profile?.period || "",
+          group: profile?.group_code || "",
+          studentId: profile?.student_code || prev.studentId,
+        }));
+      }
+    } catch {
+      // keep current session state when me endpoint is temporarily unavailable
+    }
+  }, [isLoggedIn, userRole]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return undefined;
+    syncFromMe();
+    const timer = setInterval(syncFromMe, 15000);
+    const onFocus = () => syncFromMe();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") syncFromMe();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [isLoggedIn, syncFromMe]);
 
   // Handle auto-login for specific user if needed, or just let the landing page handle it
   const handleLogin = async ({ email, password }) => {
@@ -386,6 +436,7 @@ export default function App() {
           <MyPage
             workspaceId={workspaceId}
             userRole={userRole}
+            viewerProfile={viewerProfile}
             filters={filters}
             setFilters={setFilters}
             theme={currentTheme}

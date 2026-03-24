@@ -63,6 +63,21 @@ export async function createJoinCode(workspaceId, body) {
   });
 }
 
+export async function getJoinCodeConfig(code) {
+  return apiRequest(`/auth/join-code/${encodeURIComponent(String(code || "").toUpperCase())}/config`);
+}
+
+export async function getClassStructure(workspaceId) {
+  return apiRequest(`/auth/workspaces/${workspaceId}/class-structure`);
+}
+
+export async function updateClassStructure(workspaceId, body) {
+  return apiRequest(`/auth/workspaces/${workspaceId}/class-structure`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function setJoinCodeActive(workspaceId, codeId, active) {
   return apiRequest(`/auth/workspaces/${workspaceId}/join-codes/${codeId}`, {
     method: "PATCH",

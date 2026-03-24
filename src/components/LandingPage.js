@@ -11,6 +11,7 @@ import {
   Shield,
   Activity,
 } from 'lucide-react';
+import { getJoinCodeConfig } from '../api/auth';
 
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
   const variants = {
@@ -54,6 +55,8 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
   const [isSignUp, setIsSignUp] = useState(false);
   const [signupStep, setSignupStep] = useState(1);
   const [formError, setFormError] = useState('');
+  const [joinConfig, setJoinConfig] = useState(null);
+  const [loadingJoinConfig, setLoadingJoinConfig] = useState(false);
   const randomAirFact = useMemo(
     () => AIR_FACTS[Math.floor(Math.random() * AIR_FACTS.length)],
     []
@@ -71,14 +74,28 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
     }
   };
 
-  const handleLoginAttempt = () => {
+  const handleLoginAttempt = async () => {
     if (isSignUp && mode === 'student' && signupStep === 1) {
       if (!/^[A-Z0-9]{5}$/.test(joinCode.trim().toUpperCase())) {
         setFormError('Join code must be exactly 5 letters/numbers.');
         return;
       }
-      setFormError('');
-      setSignupStep(2);
+      setLoadingJoinConfig(true);
+      try {
+        const config = await getJoinCodeConfig(joinCode.trim().toUpperCase());
+        const periods = config.periods || ['P1'];
+        const groups = config.groupsByPeriod?.[periods[0]] || ['G1', 'G2', 'G3', 'G4'];
+        setJoinConfig(config);
+        setSignupInstructor(config.instructor || signupInstructor);
+        setSignupPeriod(periods[0]);
+        setSignupGroup(groups[0] || 'G1');
+        setFormError('');
+        setSignupStep(2);
+      } catch (e) {
+        setFormError(e.message || 'Invalid join code.');
+      } finally {
+        setLoadingJoinConfig(false);
+      }
       return;
     }
     if (isSignUp && mode === 'student' && !joinCode.trim()) {
@@ -336,10 +353,15 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Period</label>
                                 <select
                                   value={signupPeriod}
-                                  onChange={(e) => setSignupPeriod(e.target.value)}
+                                  onChange={(e) => {
+                                    const nextPeriod = e.target.value;
+                                    setSignupPeriod(nextPeriod);
+                                    const groups = joinConfig?.groupsByPeriod?.[nextPeriod] || ['G1', 'G2', 'G3', 'G4'];
+                                    setSignupGroup(groups[0] || 'G1');
+                                  }}
                                   className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
                                 >
-                                  {['P1', 'P2', 'P3'].map((p) => <option key={p} value={p}>{p}</option>)}
+                                  {(joinConfig?.periods || ['P1']).map((p) => <option key={p} value={p}>{p}</option>)}
                                 </select>
                               </div>
                               <div className="space-y-2">
@@ -349,7 +371,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                                   onChange={(e) => setSignupGroup(e.target.value)}
                                   className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
                                 >
-                                  {['G1', 'G2', 'G3', 'G4', 'G5'].map((g) => <option key={g} value={g}>{g}</option>)}
+                                  {(joinConfig?.groupsByPeriod?.[signupPeriod] || ['G1', 'G2', 'G3', 'G4']).map((g) => <option key={g} value={g}>{g}</option>)}
                                 </select>
                               </div>
                             </div>
@@ -405,7 +427,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
 
               <Button onClick={handleLoginAttempt} className="w-full py-4 text-lg">
                 {isSignUp
-                  ? (mode === 'student' ? (signupStep === 1 ? 'Next' : 'Create Account') : 'Create Account')
+                  ? (mode === 'student' ? (signupStep === 1 ? (loadingJoinConfig ? 'Checking Code...' : 'Next') : 'Create Account') : 'Create Account')
                   : (mode === 'student' ? 'Join Lab Session' : 'Access Dashboard')} 
                 <ArrowRight size={22} className="ml-1" />
               </Button>
@@ -415,6 +437,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                   setFormError('');
                   setIsSignUp((prev) => !prev);
                   setSignupStep(1);
+                  setJoinConfig(null);
                 }}
                 className="w-full text-sm text-blue-600 hover:text-blue-700 font-semibold"
               >

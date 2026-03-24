@@ -7,15 +7,33 @@ import { requireAuth, requireWorkspaceRole, signAccessToken, signRefreshToken } 
 import { validate } from "../../middleware/validate.js";
 import {
   createJoinCodeSchema,
+  getJoinCodeConfigSchema,
   loginSchema,
   removeStudentSchema,
   registerSchema,
   resetStudentPasswordSchema,
   toggleJoinCodeSchema,
+  updateClassStructureSchema,
   updateStudentPlacementSchema,
 } from "./auth.schemas.js";
 
 const router = express.Router();
+
+function buildStructure(periodCount = 1, groupCount = 4) {
+  const periods = Array.from({ length: Number(periodCount) || 1 }, (_, i) => `P${i + 1}`);
+  const groups = Array.from({ length: Number(groupCount) || 4 }, (_, i) => `G${i + 1}`);
+  const groupsByPeriod = Object.fromEntries(periods.map((p) => [p, groups]));
+  return { periods, groupsByPeriod, periodCount: periods.length, groupCount: groups.length };
+}
+
+async function getWorkspaceStructure(workspaceId) {
+  const result = await pool.query(
+    `SELECT period_count, group_count FROM workspace_class_structures WHERE workspace_id = $1 LIMIT 1`,
+    [workspaceId]
+  );
+  if (!result.rowCount) return buildStructure(1, 4);
+  return buildStructure(result.rows[0].period_count, result.rows[0].group_count);
+}
 
 function makeAuthResponse(user, workspaceId) {
   const payload = { userId: user.id, email: user.email };
@@ -90,6 +108,21 @@ router.post("/register", validate(registerSchema), async (req, res, next) => {
         if (existingWorkspace.rowCount) {
           workspaceId = existingWorkspace.rows[0].id;
         }
+      }
+    }
+    let structure = buildStructure(1, 4);
+    if (workspaceId) {
+      structure = await getWorkspaceStructure(workspaceId);
+    }
+    if (role === "student") {
+      if (!structure.periods.includes(period)) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Invalid period for this class setup." });
+      }
+      const groups = structure.groupsByPeriod[period] || [];
+      if (!groups.includes(groupCode)) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Invalid group for selected period." });
       }
     }
     if (!workspaceId) {
@@ -224,6 +257,30 @@ router.get("/me", requireAuth, async (req, res) => {
   });
 });
 
+router.get(
+  "/join-code/:code/config",
+  validate(getJoinCodeConfigSchema),
+  async (req, res) => {
+    const { code } = req.params;
+    const result = await pool.query(
+      `SELECT workspace_id, school_code, instructor
+       FROM join_codes
+       WHERE UPPER(code) = UPPER($1) AND active = TRUE
+       LIMIT 1`,
+      [code.trim()]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: "Invalid or inactive join code" });
+    const workspaceId = result.rows[0].workspace_id;
+    const structure = await getWorkspaceStructure(workspaceId);
+    res.json({
+      workspaceId,
+      schoolCode: result.rows[0].school_code || "",
+      instructor: result.rows[0].instructor || "",
+      ...structure,
+    });
+  }
+);
+
 router.get("/workspaces/:workspaceId/roster", requireAuth, async (req, res) => {
   const { workspaceId } = req.params;
   const membership = await pool.query(
@@ -268,6 +325,41 @@ router.get(
       [workspaceId]
     );
     res.json({ joinCodes: result.rows });
+  }
+);
+
+router.get(
+  "/workspaces/:workspaceId/class-structure",
+  requireAuth,
+  requireWorkspaceRole(["owner", "teacher"]),
+  async (req, res) => {
+    const { workspaceId } = req.params;
+    const structure = await getWorkspaceStructure(workspaceId);
+    res.json(structure);
+  }
+);
+
+router.patch(
+  "/workspaces/:workspaceId/class-structure",
+  requireAuth,
+  requireWorkspaceRole(["owner", "teacher"]),
+  validate(updateClassStructureSchema),
+  async (req, res) => {
+    const { workspaceId } = req.params;
+    const { periodCount, groupCount } = req.validated.body;
+    await pool.query(
+      `INSERT INTO workspace_class_structures (workspace_id, period_count, group_count, updated_by, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (workspace_id)
+       DO UPDATE SET
+         period_count = EXCLUDED.period_count,
+         group_count = EXCLUDED.group_count,
+         updated_by = EXCLUDED.updated_by,
+         updated_at = NOW()`,
+      [workspaceId, periodCount, groupCount, req.user.userId]
+    );
+    const structure = await getWorkspaceStructure(workspaceId);
+    res.json(structure);
   }
 );
 

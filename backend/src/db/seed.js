@@ -16,20 +16,6 @@ async function run() {
       },
       { email: "jiin@tamgu.com", fullName: "Jiin", password: "password", role: "student", groupCode: "G1", period: "P1", studentCode: "STU003" },
       { email: "julia@tamgu.com", fullName: "Julia", password: "password", role: "student", groupCode: "G4", period: "P1", studentCode: "STU019" },
-      { email: "ada@tamgu.com", fullName: "Ada", password: "password", role: "student", groupCode: "G1", period: "P1", studentCode: "STU004" },
-      { email: "ida@tamgu.com", fullName: "Ida", password: "password", role: "student", groupCode: "G2", period: "P1", studentCode: "STU007" },
-      { email: "lucy@tamgu.com", fullName: "Lucy", password: "password", role: "student", groupCode: "G2", period: "P1", studentCode: "STU008" },
-      { email: "davin@tamgu.com", fullName: "Davin", password: "password", role: "student", groupCode: "G1", period: "P1", studentCode: "STU005" },
-      { email: "yimei@tamgu.com", fullName: "Yimei", password: "password", role: "student", groupCode: "G2", period: "P1", studentCode: "STU009" },
-      { email: "liz@tamgu.com", fullName: "Liz", password: "password", role: "student", groupCode: "G3", period: "P1", studentCode: "STU011" },
-      { email: "min@tamgu.com", fullName: "Min", password: "password", role: "student", groupCode: "G3", period: "P1", studentCode: "STU012" },
-      { email: "bella@tamgu.com", fullName: "Bella", password: "password", role: "student", groupCode: "G3", period: "P1", studentCode: "STU013" },
-      { email: "jay@tamgu.com", fullName: "Jay", password: "password", role: "student", groupCode: "G2", period: "P1", studentCode: "STU010" },
-      { email: "stella@tamgu.com", fullName: "Stella", password: "password", role: "student", groupCode: "G1", period: "P1", studentCode: "STU006" },
-      { email: "juun@tamgu.com", fullName: "Juun", password: "password", role: "student", groupCode: "G3", period: "P1", studentCode: "STU014" },
-      { email: "jennifer@tamgu.com", fullName: "Jennifer", password: "password", role: "student", groupCode: "G4", period: "P1", studentCode: "STU020" },
-      { email: "niki@tamgu.com", fullName: "Niki", password: "password", role: "student", groupCode: "G4", period: "P1", studentCode: "STU021" },
-      { email: "bea@tamgu.com", fullName: "Bea", password: "password", role: "student", groupCode: "G4", period: "P1", studentCode: "STU022" },
     ];
 
     const userIds = {};
@@ -67,6 +53,13 @@ async function run() {
       workspaceId = wsRes.rows[0].id;
     }
 
+    const keepUserIds = demoUsers.map((u) => userIds[u.email]).filter(Boolean);
+    await pool.query(
+      `DELETE FROM workspace_memberships
+       WHERE workspace_id = $1 AND user_id <> ALL($2::uuid[])`,
+      [workspaceId, keepUserIds]
+    );
+
     for (const user of demoUsers) {
       await pool.query(
         `INSERT INTO workspace_memberships (workspace_id, user_id, role)
@@ -85,20 +78,14 @@ async function run() {
       );
     }
 
-    const defaultJoinCodes = ["P1G1", "P1G2", "P1G3", "P1G4"];
-    for (const code of defaultJoinCodes) {
-      await pool.query(
-        `INSERT INTO join_codes (workspace_id, created_by, code, school_code, instructor, active)
-         VALUES ($1, $2, $3, $4, $5, TRUE)
-         ON CONFLICT (code) DO UPDATE SET
-           workspace_id = EXCLUDED.workspace_id,
-           created_by = EXCLUDED.created_by,
-           school_code = EXCLUDED.school_code,
-           instructor = EXCLUDED.instructor,
-           active = TRUE`,
-        [workspaceId, instructorId, code, "MTN12", "Shim"]
-      );
-    }
+    await pool.query(`DELETE FROM join_codes WHERE workspace_id = $1`, [workspaceId]);
+    await pool.query(
+      `INSERT INTO workspace_class_structures (workspace_id, period_count, group_count, updated_by, updated_at)
+       VALUES ($1, 1, 4, $2, NOW())
+       ON CONFLICT (workspace_id)
+       DO UPDATE SET period_count = EXCLUDED.period_count, group_count = EXCLUDED.group_count, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
+      [workspaceId, instructorId]
+    );
 
     await pool.query(
       `DELETE FROM measurement_edits WHERE workspace_id = $1`,
@@ -107,109 +94,7 @@ async function run() {
     await pool.query(`DELETE FROM measurements WHERE workspace_id = $1`, [workspaceId]);
     await pool.query(`DELETE FROM sessions WHERE workspace_id = $1`, [workspaceId]);
 
-    const sessions = [
-      {
-        sessionCode: "DEMO-G1-001",
-        name: "Campus Walk Group 1",
-        groupCode: "G1",
-        schoolCode: "MTN12",
-        instructor: "Demo Instructor",
-        period: "P1",
-        locationName: "North Campus",
-        notes: "Morning collection route",
-        createdBy: userIds["jiin@tamgu.com"],
-      },
-      {
-        sessionCode: "DEMO-G4-001",
-        name: "Campus Walk Group 4",
-        groupCode: "G4",
-        schoolCode: "MTN12",
-        instructor: "Shim",
-        period: "P2",
-        locationName: "South Campus",
-        notes: "Afternoon collection route",
-        createdBy: userIds["julia@tamgu.com"],
-      },
-    ];
-
-    const sessionIds = [];
-    for (const s of sessions) {
-      const sessionRes = await pool.query(
-        `INSERT INTO sessions (
-          workspace_id, created_by, session_code, name, notes, location_name,
-          school_code, instructor, period, group_code, started_at, ended_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10, NOW() - INTERVAL '7 days', NOW()
-        )
-        RETURNING id`,
-        [
-          workspaceId,
-          s.createdBy,
-          s.sessionCode,
-          s.name,
-          s.notes,
-          s.locationName,
-          s.schoolCode,
-          s.instructor,
-          s.period,
-          s.groupCode,
-        ]
-      );
-      sessionIds.push({ id: sessionRes.rows[0].id, groupCode: s.groupCode });
-    }
-
-    for (const s of sessionIds) {
-      for (let i = 0; i < 60; i += 1) {
-        const baseLat = s.groupCode === "G1" ? 40.744 : 40.758;
-        const baseLng = s.groupCode === "G1" ? -73.991 : -73.972;
-        const pm25 = s.groupCode === "G1" ? 8 + (i % 14) : 12 + (i % 18);
-        const co = s.groupCode === "G1" ? 0.3 + (i % 8) * 0.05 : 0.45 + (i % 10) * 0.05;
-        const temp = 20 + (i % 6);
-        const humidity = 42 + (i % 20);
-        const capturedAt = new Date(Date.now() - (60 - i) * 60 * 1000).toISOString();
-
-        await pool.query(
-          `INSERT INTO measurements (
-            workspace_id, session_id, captured_at, latitude, longitude, indoor_outdoor,
-            pm25, co, temp, humidity
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [
-            workspaceId,
-            s.id,
-            capturedAt,
-            baseLat + i * 0.00015,
-            baseLng + i * 0.00015,
-            i % 2 === 0 ? "OUTDOOR" : "INDOOR",
-            pm25,
-            Number(co.toFixed(2)),
-            temp,
-            humidity,
-          ]
-        );
-      }
-    }
-
-    const firstMeasurement = await pool.query(
-      `SELECT id, pm25 FROM measurements WHERE workspace_id = $1 ORDER BY captured_at DESC LIMIT 1`,
-      [workspaceId]
-    );
-    if (firstMeasurement.rowCount) {
-      await pool.query(
-        `INSERT INTO measurement_edits (
-          workspace_id, measurement_id, edited_by_user_id, field_name, original_value, edited_value, edit_note
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          workspaceId,
-          firstMeasurement.rows[0].id,
-          userIds["jiin@tamgu.com"],
-          "pm25",
-          Number(firstMeasurement.rows[0].pm25),
-          Number(firstMeasurement.rows[0].pm25) + 2,
-          "Adjusted after manual validation",
-        ]
-      );
-    }
+    // Start with no measurements/sessions so class can import fresh data.
 
     await pool.query("COMMIT");
     console.log("Seed complete.");

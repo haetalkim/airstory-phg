@@ -85,3 +85,22 @@ export const removeStudentSchema = z.object({
   }),
   query: z.object({}).passthrough(),
 });
+
+export const updateClassStructureSchema = z.object({
+  body: z.object({
+    periodCount: z.number().int().min(1).max(12),
+    groupCount: z.number().int().min(1).max(12),
+  }),
+  params: z.object({
+    workspaceId: z.string().uuid(),
+  }),
+  query: z.object({}).passthrough(),
+});
+
+export const getJoinCodeConfigSchema = z.object({
+  body: z.object({}).passthrough(),
+  params: z.object({
+    code: z.string().trim().toUpperCase().regex(joinCodePattern, "Code must be 5 letters/numbers."),
+  }),
+  query: z.object({}).passthrough(),
+});

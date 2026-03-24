@@ -2,26 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { User, Settings, HelpCircle, Shield, LogOut, Edit2, Save, X } from 'lucide-react';
 import { getMe, getRoster } from '../api/auth';
 
-const DEMO_STUDENT_TEMPLATE = [
-  { name: 'Jiin', period: 'P1', group: 'G1', id: 'STU003' },
-  { name: 'Ada', period: 'P1', group: 'G1', id: 'STU004' },
-  { name: 'Davin', period: 'P1', group: 'G1', id: 'STU005' },
-  { name: 'Stella', period: 'P1', group: 'G1', id: 'STU006' },
-  { name: 'Ida', period: 'P1', group: 'G2', id: 'STU007' },
-  { name: 'Lucy', period: 'P1', group: 'G2', id: 'STU008' },
-  { name: 'Yimei', period: 'P1', group: 'G2', id: 'STU009' },
-  { name: 'Jay', period: 'P1', group: 'G2', id: 'STU010' },
-  { name: 'Liz', period: 'P1', group: 'G3', id: 'STU011' },
-  { name: 'Min', period: 'P1', group: 'G3', id: 'STU012' },
-  { name: 'Bella', period: 'P1', group: 'G3', id: 'STU013' },
-  { name: 'Juun', period: 'P1', group: 'G3', id: 'STU014' },
-  { name: 'Julia', period: 'P1', group: 'G4', id: 'STU019' },
-  { name: 'Jennifer', period: 'P1', group: 'G4', id: 'STU020' },
-  { name: 'Niki', period: 'P1', group: 'G4', id: 'STU021' },
-  { name: 'Bea', period: 'P1', group: 'G4', id: 'STU022' },
-];
-
-const MyPage = ({ workspaceId, userRole, filters, setFilters, theme, onLogout }) => {
+const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, theme, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempFilters, setTempFilters] = useState({ ...filters });
   const [groupMembers, setGroupMembers] = useState([]);
@@ -51,16 +32,7 @@ const MyPage = ({ workspaceId, userRole, filters, setFilters, theme, onLogout })
           role: `${s.period || 'P?'} • ${s.group_code || 'G?'}`,
           id: s.student_code || s.email,
         }));
-        const seenNames = new Set(apiStudents.map((s) => s.name));
-        const merged = [
-          ...apiStudents,
-          ...DEMO_STUDENT_TEMPLATE
-            .filter((s) => !seenNames.has(s.name))
-            .map((s) => ({ name: s.name, role: `${s.period} • ${s.group}`, id: s.id })),
-        ];
-        setGroupMembers(
-          merged
-        );
+        setGroupMembers(apiStudents);
       } catch {
         // keep existing static fallback when API unavailable
       }
@@ -113,10 +85,12 @@ const MyPage = ({ workspaceId, userRole, filters, setFilters, theme, onLogout })
                 className="w-24 h-24 mx-auto rounded-full flex items-center justify-center text-3xl font-bold text-white mb-4"
                 style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primary}CC 100%)` }}
               >
-                {filters.studentId.slice(3)}
+                {(viewerProfile.studentId || filters.studentId || 'STU000').slice(3)}
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">{filters.studentId}</h2>
-              <p className="text-sm text-gray-600">{filters.school} - {filters.instructor} - {filters.period} - Group {filters.group.replace('G', '')}</p>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">{viewerProfile.studentId || filters.studentId}</h2>
+              <p className="text-sm text-gray-600">
+                {viewerProfile.school || filters.school} - {viewerProfile.instructor || filters.instructor} - {viewerProfile.period || filters.period} - Group {(viewerProfile.group || filters.group || '').replace('G', '')}
+              </p>
             </div>
 
             <div className="space-y-3 py-4 border-t border-gray-200">
@@ -130,19 +104,19 @@ const MyPage = ({ workspaceId, userRole, filters, setFilters, theme, onLogout })
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">School Code</span>
-                <span className="font-medium text-gray-900">{filters.school}</span>
+                <span className="font-medium text-gray-900">{viewerProfile.school || filters.school}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Class (Instructor)</span>
-                <span className="font-medium text-gray-900">{filters.instructor}</span>
+                <span className="font-medium text-gray-900">{viewerProfile.instructor || filters.instructor}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Period</span>
-                <span className="font-medium text-gray-900">{filters.period}</span>
+                <span className="font-medium text-gray-900">{viewerProfile.period || filters.period}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Group</span>
-                <span className="font-medium text-gray-900">{filters.group}</span>
+                <span className="font-medium text-gray-900">{viewerProfile.group || filters.group}</span>
               </div>
             </div>
 

@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { KeyRound, GraduationCap, LockKeyhole, Trash2, MoveRight, X } from 'lucide-react';
 import {
   createJoinCode,
+  getClassStructure,
   getJoinCodes,
   getRoster,
   removeStudent,
   resetStudentPassword,
   setJoinCodeActive,
+  updateClassStructure,
   updateStudentPlacement,
 } from '../api/auth';
 
@@ -23,6 +25,8 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
   const [draftPeriod, setDraftPeriod] = useState('P1');
   const [draftGroup, setDraftGroup] = useState('G1');
   const [busy, setBusy] = useState(false);
+  const [periodCount, setPeriodCount] = useState(1);
+  const [groupCount, setGroupCount] = useState(4);
 
   const generateRandomCode = () => {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -36,9 +40,15 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
   const load = async () => {
     if (!workspaceId) return;
     try {
-      const [roster, codes] = await Promise.all([getRoster(workspaceId), getJoinCodes(workspaceId)]);
+      const [roster, codes, structure] = await Promise.all([
+        getRoster(workspaceId),
+        getJoinCodes(workspaceId),
+        getClassStructure(workspaceId),
+      ]);
       setMembers(roster.members || []);
       setJoinCodes(codes.joinCodes || []);
+      setPeriodCount(structure.periodCount || 1);
+      setGroupCount(structure.groupCount || 4);
       setError('');
     } catch (e) {
       setError(e.message || 'Failed to load class management data.');
@@ -51,7 +61,15 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
   }, [workspaceId]);
 
   const groups = useMemo(() => {
+    const periods = Array.from({ length: periodCount || 1 }, (_, i) => `P${i + 1}`);
+    const groupsForPeriod = Array.from({ length: groupCount || 4 }, (_, i) => `G${i + 1}`);
     const map = {};
+    periods.forEach((period) => {
+      groupsForPeriod.forEach((group) => {
+        const key = `${period} ${group}`;
+        map[key] = { period, group, students: [] };
+      });
+    });
     members
       .filter((m) => m.role === 'student')
       .forEach((m) => {
@@ -62,7 +80,24 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
         map[key].students.push(m);
       });
     return Object.values(map).sort((a, b) => `${a.period}${a.group}`.localeCompare(`${b.period}${b.group}`));
-  }, [members]);
+  }, [members, periodCount, groupCount]);
+
+  const handleSaveClassStructure = async () => {
+    try {
+      setBusy(true);
+      const updated = await updateClassStructure(workspaceId, {
+        periodCount: Number(periodCount),
+        groupCount: Number(groupCount),
+      });
+      setPeriodCount(updated.periodCount || Number(periodCount));
+      setGroupCount(updated.groupCount || Number(groupCount));
+      setError('');
+    } catch (e) {
+      setError(e.message || 'Failed to update class structure.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleCreateCode = async () => {
     if (!newCode.trim()) return;
@@ -162,6 +197,51 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
         </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`w-10 h-10 ${theme.bg} rounded-lg flex items-center justify-center`}>
+            <GraduationCap className="w-5 h-5 text-white" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900">Class Structure</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Period Count</label>
+            <input
+              type="number"
+              min={1}
+              max={12}
+              value={periodCount}
+              onChange={(e) => setPeriodCount(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Groups per Period</label>
+            <input
+              type="number"
+              min={1}
+              max={12}
+              value={groupCount}
+              onChange={(e) => setGroupCount(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              disabled={busy}
+              onClick={handleSaveClassStructure}
+              className={`${theme.bg} ${theme.hover} text-white rounded-lg px-4 py-2 w-full disabled:opacity-60`}
+            >
+              Save Structure
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          Student sign-up period/group options follow this structure.
+        </p>
+      </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
         <div className="flex items-center gap-3 mb-4">
@@ -320,14 +400,14 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
                       onChange={(e) => setDraftPeriod(e.target.value)}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     >
-                      {['P1', 'P2', 'P3'].map((p) => <option key={p} value={p}>{p}</option>)}
+                      {Array.from({ length: periodCount || 1 }, (_, i) => `P${i + 1}`).map((p) => <option key={p} value={p}>{p}</option>)}
                     </select>
                     <select
                       value={draftGroup}
                       onChange={(e) => setDraftGroup(e.target.value)}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     >
-                      {['G1', 'G2', 'G3', 'G4', 'G5'].map((g) => <option key={g} value={g}>{g}</option>)}
+                      {Array.from({ length: groupCount || 4 }, (_, i) => `G${i + 1}`).map((g) => <option key={g} value={g}>{g}</option>)}
                     </select>
                   </div>
                   <button
