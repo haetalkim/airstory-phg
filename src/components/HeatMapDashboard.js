@@ -31,64 +31,6 @@ const getStatusLabel = (value, metric = 'pm25') => {
   return ranges[ranges.length - 1].label;
 };
 
-// Generate location data with timestamps for time-based filtering
-const generateLocationData = () => {
-  const baseLocations = [
-    { id: 1, name: 'Upper Manhattan', lat: 40.8448, lng: -73.9388, pm25: 8, co: 0.3, temp: 18, humidity: 42 },
-    { id: 2, name: 'Washington Heights (168th St)', lat: 40.8400, lng: -73.9400, pm25: 9, co: 0.35, temp: 17, humidity: 44 },
-    { id: 3, name: 'Central Park', lat: 40.7829, lng: -73.9654, pm25: 12, co: 0.4, temp: 20, humidity: 45 },
-    { id: 4, name: 'Midtown East', lat: 40.7549, lng: -73.9680, pm25: 22, co: 0.8, temp: 22, humidity: 55 },
-    { id: 5, name: 'Midtown West', lat: 40.7580, lng: -73.9855, pm25: 20, co: 0.7, temp: 21, humidity: 52 },
-    { id: 6, name: 'Chelsea', lat: 40.7465, lng: -73.9972, pm25: 18, co: 0.6, temp: 20, humidity: 50 },
-    { id: 7, name: 'Greenwich Village', lat: 40.7336, lng: -74.0027, pm25: 15, co: 0.5, temp: 19, humidity: 48 },
-    { id: 8, name: 'Lower Manhattan', lat: 40.7074, lng: -74.0113, pm25: 10, co: 0.4, temp: 18, humidity: 43 },
-    { id: 9, name: 'East Village', lat: 40.7264, lng: -73.9818, pm25: 14, co: 0.5, temp: 19, humidity: 47 },
-    { id: 10, name: 'Columbia Area', lat: 40.8075, lng: -73.9626, pm25: 11, co: 0.4, temp: 19, humidity: 46 },
-    { id: 11, name: 'Harlem', lat: 40.8176, lng: -73.9482, pm25: 13, co: 0.45, temp: 20, humidity: 47 },
-    { id: 12, name: 'Inwood', lat: 40.8677, lng: -73.9250, pm25: 7, co: 0.3, temp: 16, humidity: 41 },
-  ];
-
-  // Generate data points over time (last 3 months with variations)
-  const dataPoints = [];
-  const today = new Date();
-  
-  const schools = ['MTN12', 'MTN15', 'BRK08', 'QNS05'];
-  const groups = ['G1', 'G2', 'G3', 'G4', 'G5'];
-
-  // Generate data for each location over the past 3 months
-  baseLocations.forEach(location => {
-    // Generate historical data points
-    for (let i = 0; i <= 90; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      
-      // Add some variation to simulate real data changes
-      const variation = (Math.random() - 0.5) * 0.2; // ±10% variation
-      
-      // Assign random school and group to each data point for statistical variety
-      const school = schools[Math.floor(Math.random() * schools.length)];
-      const group = groups[Math.floor(Math.random() * groups.length)];
-
-      dataPoints.push({
-        ...location,
-        id: `${location.id}-${i}`,
-        pm25: Math.max(3, Math.round(location.pm25 * (1 + variation))),
-        co: Math.max(0.1, parseFloat((location.co * (1 + variation)).toFixed(2))),
-        temp: Math.round(location.temp + (Math.random() - 0.5) * 4),
-        humidity: Math.max(30, Math.min(70, Math.round(location.humidity + (Math.random() - 0.5) * 10))),
-        timestamp: date,
-        date: date.toISOString().split('T')[0],
-        school,
-        group
-      });
-    }
-  });
-  
-  return dataPoints;
-};
-
-const ALL_LOCATION_DATA = generateLocationData();
-
 // Stable references — new [] / {} each render makes LoadScript reload the Maps API (flicker / “bouncing”).
 const GOOGLE_MAP_LIBRARIES = Object.freeze(['visualization']);
 const MAP_CONTAINER_STYLE = Object.freeze({ width: '100%', height: '100%' });
@@ -210,6 +152,11 @@ const HeatMapDashboard = ({
   const screenshotRef = useRef(null);
   /** When set, map + heatmap use aggregated workspace measurements (real lat/lng from DB). */
   const [workspaceHeatmap, setWorkspaceHeatmap] = useState(null);
+  const importedMeasurements = useMemo(
+    () => getImportedMeasurements(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [importedDataVersion]
+  );
 
   useEffect(() => {
     if (!workspaceId) {
@@ -232,8 +179,39 @@ const HeatMapDashboard = ({
     };
   }, [workspaceId, selectedMetric]);
 
-  // Filter locations based on selected time range
+  const importedPoints = useMemo(() => {
+    return importedMeasurements
+      .filter((row) => {
+        if (filters.school && row.school && row.school !== filters.school) return false;
+        if (filters.instructor && row.instructor && row.instructor !== filters.instructor) return false;
+        if (filters.period && row.period && row.period !== filters.period) return false;
+        if (filters.group && row.group && row.group !== filters.group) return false;
+        return true;
+      })
+      .map((row) => {
+        const ts = row.capturedAt
+          ? new Date(row.capturedAt)
+          : new Date(`${row.date || '1970-01-01'}T${row.time || '00:00'}`);
+        return {
+          id: row.id,
+          name: row.location || 'Imported Location',
+          lat: Number(row.latitude),
+          lng: Number(row.longitude),
+          pm25: Number(row.pm25) || 0,
+          co: Number(row.co) || 0,
+          temp: Number(row.temp) || 0,
+          humidity: Number(row.humidity) || 0,
+          timestamp: ts,
+          school: row.school || '',
+          group: row.group || '',
+        };
+      })
+      .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && !Number.isNaN(p.timestamp.getTime()));
+  }, [importedMeasurements, filters]);
+
+  // Filter imported locations based on selected time range
   const filteredLocations = useMemo(() => {
+    if (!importedPoints.length) return [];
     const now = new Date();
     let cutoffDate = new Date(0); // Default to beginning of time
     
@@ -241,7 +219,7 @@ const HeatMapDashboard = ({
       case 'most-recent':
         // Show only the most recent data point for each location
         const locationGroups = {};
-        ALL_LOCATION_DATA.forEach(point => {
+        importedPoints.forEach(point => {
           const key = point.name;
           if (!locationGroups[key] || point.timestamp > locationGroups[key].timestamp) {
             locationGroups[key] = point;
@@ -272,8 +250,8 @@ const HeatMapDashboard = ({
         cutoffDate = new Date(0);
     }
     
-    return ALL_LOCATION_DATA.filter(point => point.timestamp >= cutoffDate);
-  }, [selectedTimeRange]);
+    return importedPoints.filter(point => point.timestamp >= cutoffDate);
+  }, [selectedTimeRange, importedPoints]);
 
   // Calculate date range label
   const dateRangeLabel = useMemo(() => {
@@ -351,11 +329,6 @@ const HeatMapDashboard = ({
   }, [filteredLocations, workspaceHeatmap, usingWorkspaceHeatmap, selectedMetric]);
 
   // Calculate Averages for Sidebar
-  const importedMeasurements = useMemo(
-    () => getImportedMeasurements(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [importedDataVersion]
-  );
   const filteredImported = useMemo(() => {
     if (!importedMeasurements.length) return [];
     const now = new Date();
@@ -427,8 +400,13 @@ const HeatMapDashboard = ({
       const lng = pts.reduce((s, p) => s + Number(p.longitude), 0) / pts.length;
       if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
     }
+    if (locations.length) {
+      const lat = locations.reduce((s, p) => s + Number(p.lat), 0) / locations.length;
+      const lng = locations.reduce((s, p) => s + Number(p.lng), 0) / locations.length;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    }
     return { lat: 40.758, lng: -73.9855 };
-  }, [workspaceHeatmap, workspaceId]);
+  }, [workspaceHeatmap, workspaceId, locations]);
 
   // Transform location data to WeightedLocation format for HeatmapLayer
   const heatmapData = useMemo(() => {

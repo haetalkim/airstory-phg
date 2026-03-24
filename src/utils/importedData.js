@@ -74,7 +74,7 @@ export function parseImportedCsv(csvText) {
 
   const rawHeaders = parseCsvLine(lines[0]);
   const headers = rawHeaders.map(normalizeHeader);
-  const rows = [];
+  const rawRows = [];
 
   for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
     const values = parseCsvLine(lines[lineIndex]);
@@ -95,7 +95,7 @@ export function parseImportedCsv(csvText) {
     const item = {
       id: `csv-${lineIndex}-${parsedDate.getTime()}`,
       date: parsedDate.toISOString().split("T")[0],
-      time: parsedDate.toTimeString().slice(0, 5),
+      time: parsedDate.toTimeString().slice(0, 8),
       sessionId: getMappedValue(record, ["sessionid", "sessioncode"], "SESSION"),
       sessionName: getMappedValue(record, ["sessionname", "session"], "Imported Session"),
       sessionNotes: getMappedValue(record, ["notes", "sessionnotes"], ""),
@@ -108,7 +108,7 @@ export function parseImportedCsv(csvText) {
       period: getMappedValue(record, ["period"], ""),
       group: getMappedValue(record, ["group", "groupcode"], ""),
       pm25: Number(getMappedValue(record, ["pm25"], "0")) || 0,
-      co: (Number(getMappedValue(record, ["co"], "0")) || 0).toFixed(2),
+      co: Number(getMappedValue(record, ["co"], "0")) || 0,
       temp: Number(getMappedValue(record, ["temperature", "temp"], "0")) || 0,
       humidity: Number(getMappedValue(record, ["humidity"], "0")) || 0,
       photos: [],
@@ -119,12 +119,109 @@ export function parseImportedCsv(csvText) {
 
     if (!Number.isFinite(item.latitude)) item.latitude = 40.758;
     if (!Number.isFinite(item.longitude)) item.longitude = -73.9855;
-    rows.push(item);
+    rawRows.push(item);
   }
 
-  if (!rows.length) {
+  if (!rawRows.length) {
     throw new Error("No valid data rows found in CSV.");
   }
+
+  // Collapse second-level sensor rows into minute-level chunks that can be expanded in the table.
+  const byChunk = new Map();
+  rawRows.forEach((row) => {
+    const captured = new Date(row.capturedAt);
+    const minuteBucket = new Date(captured);
+    minuteBucket.setSeconds(0, 0);
+    const minuteKey = minuteBucket.toISOString();
+
+    const key = [
+      row.sessionId,
+      row.location,
+      row.latitude,
+      row.longitude,
+      row.school,
+      row.instructor,
+      row.period,
+      row.group,
+      row.indoorOutdoor,
+      minuteKey,
+    ].join("|");
+
+    if (!byChunk.has(key)) {
+      byChunk.set(key, {
+        id: `csv-chunk-${row.id}`,
+        date: minuteBucket.toISOString().split("T")[0],
+        time: minuteBucket.toTimeString().slice(0, 5),
+        sessionId: row.sessionId,
+        sessionName: row.sessionName,
+        sessionNotes: row.sessionNotes,
+        location: row.location,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        indoorOutdoor: row.indoorOutdoor,
+        school: row.school,
+        instructor: row.instructor,
+        period: row.period,
+        group: row.group,
+        photos: row.photos || [],
+        edits: row.edits || {},
+        source: "csv",
+        capturedAt: minuteBucket.toISOString(),
+        count: 0,
+        pm25Sum: 0,
+        coSum: 0,
+        tempSum: 0,
+        humiditySum: 0,
+        detailedData: [],
+      });
+    }
+
+    const agg = byChunk.get(key);
+    agg.count += 1;
+    agg.pm25Sum += Number(row.pm25) || 0;
+    agg.coSum += Number(row.co) || 0;
+    agg.tempSum += Number(row.temp) || 0;
+    agg.humiditySum += Number(row.humidity) || 0;
+    agg.detailedData.push({
+      id: row.id,
+      time: captured.toLocaleTimeString("en-US", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+      pm25: Number(row.pm25) || 0,
+      co: Number((Number(row.co) || 0).toFixed(2)),
+      temp: Number(row.temp) || 0,
+      humidity: Number(row.humidity) || 0,
+    });
+  });
+
+  const rows = Array.from(byChunk.values()).map((agg) => ({
+    id: agg.id,
+    date: agg.date,
+    time: agg.time,
+    sessionId: agg.sessionId,
+    sessionName: agg.sessionName,
+    sessionNotes: agg.sessionNotes,
+    location: agg.location,
+    latitude: agg.latitude,
+    longitude: agg.longitude,
+    indoorOutdoor: agg.indoorOutdoor,
+    school: agg.school,
+    instructor: agg.instructor,
+    period: agg.period,
+    group: agg.group,
+    pm25: Math.round(agg.pm25Sum / Math.max(agg.count, 1)),
+    co: (agg.coSum / Math.max(agg.count, 1)).toFixed(2),
+    temp: Math.round(agg.tempSum / Math.max(agg.count, 1)),
+    humidity: Math.round(agg.humiditySum / Math.max(agg.count, 1)),
+    photos: agg.photos,
+    edits: agg.edits,
+    source: agg.source,
+    capturedAt: agg.capturedAt,
+    detailedData: agg.detailedData.sort((a, b) => a.time.localeCompare(b.time)),
+  }));
 
   return rows.sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt));
 }

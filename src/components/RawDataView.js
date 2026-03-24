@@ -332,6 +332,9 @@ const RawDataView = ({
 
   // Generate detailed second-by-second data for a row
   const generateDetailedData = (row) => {
+    if (Array.isArray(row.detailedData) && row.detailedData.length > 0) {
+      return row.detailedData;
+    }
     const detailed = [];
     const baseTime = new Date(`${row.date}T${row.time}`);
     // Generate 60 seconds of data (1 minute of readings)
