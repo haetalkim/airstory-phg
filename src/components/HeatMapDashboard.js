@@ -88,6 +88,10 @@ const generateLocationData = () => {
 
 const ALL_LOCATION_DATA = generateLocationData();
 
+// Stable references — new [] / {} each render makes LoadScript reload the Maps API (flicker / “bouncing”).
+const GOOGLE_MAP_LIBRARIES = Object.freeze(['visualization']);
+const MAP_CONTAINER_STYLE = Object.freeze({ width: '100%', height: '100%' });
+
 // Silver/desaturated map styling
 const mapStyles = [
   { "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }] },
@@ -392,9 +396,17 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
     setIsLoaded(false);
   }, []);
 
-  const onLoadScriptLoad = useCallback(() => {
-    setIsLoaded(true);
-  }, []);
+  const googleMapOptions = useMemo(
+    () => ({
+      styles: mapStyles,
+      disableDefaultUI: false,
+      zoomControl: true,
+      streetViewControl: false,
+      mapTypeControl: false,
+      fullscreenControl: true,
+    }),
+    []
+  );
 
   // Generate a code (e.g., session identifier)
   const generateCode = useCallback(() => {
@@ -608,21 +620,13 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
             {googleMapsApiKey ? (
               <LoadScript
                 googleMapsApiKey={googleMapsApiKey}
-                libraries={['visualization']}
-                onLoad={onLoadScriptLoad}
+                libraries={GOOGLE_MAP_LIBRARIES}
               >
                 <GoogleMap
-                  mapContainerStyle={{ width: '100%', height: '100%' }}
+                  mapContainerStyle={MAP_CONTAINER_STYLE}
                   center={mapCenter}
                   zoom={12}
-                  options={{
-                    styles: mapStyles,
-                    disableDefaultUI: false,
-                    zoomControl: true,
-                    streetViewControl: false,
-                    mapTypeControl: false,
-                    fullscreenControl: true,
-                  }}
+                  options={googleMapOptions}
                   onLoad={onMapLoad}
                   onUnmount={onMapUnmount}
                 >
