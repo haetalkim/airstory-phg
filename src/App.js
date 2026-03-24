@@ -88,6 +88,8 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [importedDataVersion, setImportedDataVersion] = useState(0);
+  /** Server profile placement snapshot; only when this changes do we overwrite student explorer filters (CSV / drill-down). */
+  const lastProfileHierarchySnapRef = useRef("");
   const [filters, setFilters] = useState({
     country: "US",
     state: "NY",
@@ -117,28 +119,32 @@ export default function App() {
         studentId: profile?.student_code || prev.studentId,
       }));
       if (!isTeacherRole) {
-        setFilters((prev) => {
-          const nextSchool = profile?.school_code || "";
-          const nextInstructor = profile?.instructor || "";
-          const nextPeriod = profile?.period || "";
-          const nextGroup = profile?.group_code || "";
-          const nextStudentId = profile?.student_code || prev.studentId;
-          const unchanged =
-            prev.school === nextSchool &&
-            prev.instructor === nextInstructor &&
-            prev.period === nextPeriod &&
-            prev.group === nextGroup &&
-            prev.studentId === nextStudentId;
-          if (unchanged) return prev;
-          return {
+        const profileSnap = [
+          profile?.school_code || "",
+          profile?.instructor || "",
+          profile?.period || "",
+          profile?.group_code || "",
+        ].join("|");
+        const snapSeen = lastProfileHierarchySnapRef.current;
+        const profileUnchangedOnServer =
+          snapSeen !== "" && profileSnap === snapSeen;
+        if (profileUnchangedOnServer) {
+          setFilters((prev) => {
+            const nextStudentId = profile?.student_code || prev.studentId;
+            if (prev.studentId === nextStudentId) return prev;
+            return { ...prev, studentId: nextStudentId };
+          });
+        } else {
+          lastProfileHierarchySnapRef.current = profileSnap;
+          setFilters((prev) => ({
             ...prev,
-            school: nextSchool,
-            instructor: nextInstructor,
-            period: nextPeriod,
-            group: nextGroup,
-            studentId: nextStudentId,
-          };
-        });
+            school: profile?.school_code || "",
+            instructor: profile?.instructor || "",
+            period: profile?.period || "",
+            group: profile?.group_code || "",
+            studentId: profile?.student_code || prev.studentId,
+          }));
+        }
       }
     } catch {
       // keep current session state when me endpoint is temporarily unavailable
@@ -236,12 +242,17 @@ export default function App() {
       });
       setIsLoggedIn(true);
       setActiveSection((membership?.role === "teacher" || membership?.role === "owner") ? "manageclasses" : "heatmap");
+      const school = profile?.school_code ?? "";
+      const instructor = profile?.instructor ?? "";
+      const period = profile?.period ?? "";
+      const group = profile?.group_code ?? "";
+      lastProfileHierarchySnapRef.current = [school, instructor, period, group].join("|");
       setFilters((prev) => ({
         ...prev,
-        school: profile?.school_code ?? prev.school,
-        instructor: profile?.instructor ?? prev.instructor,
-        period: profile?.period ?? prev.period,
-        group: profile?.group_code ?? prev.group,
+        school,
+        instructor,
+        period,
+        group,
         studentId: profile?.student_code || email.split("@")[0].toUpperCase(),
       }));
     } catch (error) {
@@ -293,12 +304,17 @@ export default function App() {
       });
       setIsLoggedIn(true);
       setActiveSection((membership?.role === "teacher" || membership?.role === "owner") ? "manageclasses" : "heatmap");
+      const rs = profile?.school_code ?? "";
+      const ri = profile?.instructor ?? "";
+      const rp = profile?.period ?? "";
+      const rg = profile?.group_code ?? "";
+      lastProfileHierarchySnapRef.current = [rs, ri, rp, rg].join("|");
       setFilters((prev) => ({
         ...prev,
-        school: profile?.school_code ?? prev.school,
-        instructor: profile?.instructor ?? prev.instructor,
-        period: profile?.period ?? prev.period,
-        group: profile?.group_code ?? prev.group,
+        school: rs,
+        instructor: ri,
+        period: rp,
+        group: rg,
         studentId: profile?.student_code || email.split("@")[0].toUpperCase(),
       }));
     } catch (error) {
@@ -314,6 +330,7 @@ export default function App() {
     } catch {
       // Ignore logout API errors and still clear local UI session.
     } finally {
+      lastProfileHierarchySnapRef.current = "";
       setIsLoggedIn(false);
       setWorkspaceId("");
       setUserRole("student");

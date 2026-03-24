@@ -55,6 +55,23 @@ export function isBlankHierarchyField(value) {
   return !String(value ?? "").trim();
 }
 
+/**
+ * If all imported rows share one school/period/group/etc., return it; otherwise '' (show all).
+ * Aligns Raw Data / global filters with the CSV so profile (e.g. G1) does not hide G4 upload.
+ */
+export function uniqueHierarchyFromImportedRows(rows) {
+  const out = { school: "", instructor: "", period: "", group: "" };
+  if (!Array.isArray(rows) || !rows.length) return out;
+  const keys = ["school", "instructor", "period", "group"];
+  for (const k of keys) {
+    const vals = [
+      ...new Set(rows.map((r) => String(r[k] ?? "").trim()).filter(Boolean)),
+    ];
+    out[k] = vals.length === 1 ? vals[0] : "";
+  }
+  return out;
+}
+
 export function setImportedMeasurements(data) {
   localStorage.setItem(IMPORTED_MEASUREMENTS_KEY, JSON.stringify(data || []));
 }

@@ -10,6 +10,7 @@ import {
   setImportedMeasurements,
   normalizeIndoorOutdoor,
   isBlankHierarchyField,
+  uniqueHierarchyFromImportedRows,
 } from '../utils/importedData';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 
@@ -311,6 +312,15 @@ const RawDataView = ({
       setLocationFilter('all');
       setSessionFilter('all');
       setSearchTerm('');
+
+      const inferred = uniqueHierarchyFromImportedRows(imported);
+      setFilters((prev) => ({
+        ...prev,
+        school: inferred.school,
+        instructor: inferred.instructor,
+        period: inferred.period,
+        group: inferred.group,
+      }));
 
       if (workspaceId && rawRows.length) {
         const payloadRows = rawRows.map((r) => ({
@@ -715,8 +725,22 @@ const RawDataView = ({
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
         {filteredData.length === 0 && (
           <div className="px-6 py-16 text-center border-b border-gray-200">
-            <p className="text-lg font-semibold text-gray-800">NO DATA IMPORTED</p>
-            <p className="text-sm text-gray-500 mt-2">Import a CSV from your app export, or connect backend data.</p>
+            {rawData.length > 0 ? (
+              <>
+                <p className="text-lg font-semibold text-gray-800">No rows match your filters</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Data is loaded ({rawData.length} chunk{rawData.length === 1 ? "" : "s"}). Use Reset Hierarchy / Clear
+                  Filters, or import matched your group in the CSV (e.g. G4 vs G1 in Team Data).
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold text-gray-800">NO DATA IMPORTED</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Import a CSV from your app export, or connect backend data.
+                </p>
+              </>
+            )}
           </div>
         )}
         <div className="overflow-x-auto">
