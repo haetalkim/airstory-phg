@@ -10,8 +10,8 @@ Air quality classroom platform: React dashboard + Express/Postgres API.
 | `keepsake/integrated-frontend-snapshot/` | Frozen copy of `src/` + configs (restore / diff reference) |
 | `keepsake-pre-backend/` | Older UI snapshot before backend work |
 
-**GitHub Pages (static frontend):** from this folder, run `npm run deploy` (builds, then pushes `build/` to branch `gh-pages`). Deploy uses `scripts/deploy-github-pages.sh` and sets **`CACHE_DIR`** outside the repo so Git doesn’t confuse the `gh-pages` clone with ignored `node_modules`. On GitHub: **Settings → Pages → Branch** → **`gh-pages`** / **`/ (root)`** → Save. Site: `https://haetalkim.github.io/tamguingAIR/` (adjust if your username/repo differ). Set `REACT_APP_API_BASE_URL` in `.env` before deploy.
+**Frontend (canonical): GitHub Pages** — from this folder, run `npm run deploy` (builds, then pushes `build/` to branch `gh-pages`). Uses `scripts/deploy-github-pages.sh` and **`CACHE_DIR`** outside the repo. GitHub: **Settings → Pages → Branch** → **`gh-pages`** / **`/ (root)`**. Set `REACT_APP_API_BASE_URL` in `.env` before deploy (baked into the static build).
 
-**Vercel:** optional; build this repo root (CRA). See `docs/VERCEL.md`.
+**Vercel:** not required if you only use Pages. If `git push` still triggers Vercel builds, disconnect the project in Vercel (see **`docs/VERCEL.md` → “GitHub Pages만 쓸 때”**).
 
 **Render:** `render.yaml` Blueprint — API + Postgres. See `docs/DEPLOY_RENDER.md`.

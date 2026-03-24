@@ -1,5 +1,21 @@
 # Vercel (frontend)
 
+## GitHub Pages만 쓸 때 — Vercel 자동 배포 끄기
+
+`git push` 할 때마다 Vercel이 배포되는 이유는 **Vercel 프로젝트가 이 GitHub 저장소와 연결**되어 있기 때문입니다. 저장소 안의 `vercel.json`을 지워도 **연결만 남아 있으면** 배포는 계속될 수 있습니다.
+
+1. [vercel.com](https://vercel.com) 로그인 → **air-quality-tracker** (또는 해당) 프로젝트 열기  
+2. **Settings → Git**  
+3. **Disconnect** (또는 **Remove Git Repository**) 로 GitHub 연결 해제  
+
+또는 프로젝트 전체 **Delete Project** 로 삭제해도 됩니다.
+
+선택: GitHub → **Settings → Applications** → **Vercel** 권한 정리.
+
+이후 프론트는 **`npm run deploy`** 로 **GitHub Pages (`gh-pages` 브랜치)** 만 쓰면 됩니다.
+
+---
+
 ## Root directory (important)
 
 For the **`tamguingAIR`** GitHub repo:
