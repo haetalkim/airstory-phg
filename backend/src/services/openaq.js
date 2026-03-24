@@ -118,6 +118,20 @@ async function fetchMeasurementsDailyAverages(apiKey, sensorId, datetimeFrom, da
   return out;
 }
 
+async function fetchLatestSensorMeasurement(apiKey, sensorId) {
+  const data = await openaqJson(`/sensors/${sensorId}/measurements`, apiKey, {
+    limit: 1,
+    page: 1,
+    sort: "desc",
+    order_by: "datetime",
+  });
+  const first = data?.results?.[0];
+  if (!first) return null;
+  const value = Number(first.value);
+  if (!Number.isFinite(value)) return null;
+  return value;
+}
+
 /**
  * @param {object} opts
  * @param {string} opts.apiKey
@@ -174,6 +188,64 @@ export async function fetchOpenAQDailyReference(opts) {
     metric,
     locationName: picked.locationName,
     sensorId: picked.sensorId,
+    points,
+  };
+}
+
+/**
+ * Nearby OpenAQ point samples for heat-map rendering in a city.
+ * Returns one latest value per matching location/sensor.
+ */
+export async function fetchOpenAQHeatmapPoints(opts) {
+  const { apiKey, lat, lng, metric: rawMetric, radius = 15000, limit = 25 } = opts;
+  const metric = normalizeMetric(rawMetric);
+  if (!apiKey) {
+    return { error: "no_api_key", message: "OPENAQ_API_KEY is not set on the server." };
+  }
+
+  const supported = ["pm25", "co", "temp", "humidity"];
+  if (!supported.includes(metric)) {
+    return {
+      error: "unsupported_metric",
+      message: `OpenAQ heatmap supports: ${supported.join(", ")}.`,
+    };
+  }
+
+  const coords = `${roundCoord(lat)},${roundCoord(lng)}`;
+  const locData = await openaqJson("/locations", apiKey, {
+    coordinates: coords,
+    radius,
+    limit,
+  });
+
+  const jobs = [];
+  for (const loc of locData.results || []) {
+    const sensor = (loc.sensors || []).find((s) => sensorMatchesMetric(s, metric));
+    const latNum = Number(loc.coordinates?.latitude);
+    const lngNum = Number(loc.coordinates?.longitude);
+    if (!sensor || !Number.isFinite(latNum) || !Number.isFinite(lngNum)) continue;
+    jobs.push(
+      fetchLatestSensorMeasurement(apiKey, sensor.id)
+        .then((value) => {
+          if (!Number.isFinite(value)) return null;
+          return {
+            latitude: roundCoord(latNum),
+            longitude: roundCoord(lngNum),
+            value: Math.round(value * 100) / 100,
+            point_count: 1,
+            location_name: loc.name || null,
+            sensor_id: sensor.id,
+          };
+        })
+        .catch(() => null)
+    );
+  }
+
+  const points = (await Promise.all(jobs)).filter(Boolean);
+  return {
+    source: "openaq",
+    metric,
+    cityCenter: { lat: roundCoord(lat), lng: roundCoord(lng) },
     points,
   };
 }

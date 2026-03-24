@@ -152,10 +152,17 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await logoutApi();
-    setIsLoggedIn(false);
-    setWorkspaceId("");
-    setUserRole("student");
+    try {
+      await logoutApi();
+    } catch {
+      // Ignore logout API errors and still clear local UI session.
+    } finally {
+      setIsLoggedIn(false);
+      setWorkspaceId("");
+      setUserRole("student");
+      setActiveSection("heatmap");
+      setAuthError("");
+    }
   };
 
   const currentTheme = METRIC_THEMES[selectedMetric];
@@ -327,6 +334,7 @@ export default function App() {
             filters={filters}
             setFilters={setFilters}
             theme={currentTheme}
+            onLogout={handleLogout}
           />
         )}
         {activeSection === 'manageclasses' && isTeacher && (

@@ -4,6 +4,7 @@ import { GoogleMap, LoadScript, HeatmapLayer } from '@react-google-maps/api';
 import html2canvas from 'html2canvas';
 import { getImportedMeasurements } from '../utils/importedData';
 import { getHeatmapPoints } from '../api/data';
+import { apiRequest } from '../api/http';
 
 const AQI_RANGES = {
   pm25: [
@@ -70,6 +71,14 @@ const accessibleGradient = [
   'rgba(253, 231, 37, 1)',
   'rgba(255, 255, 255, 1)'
 ];
+
+const SCHOOL_CITY_CENTER = {
+  MTN12: { city: 'Manhattan, NY', lat: 40.7831, lng: -73.9712, radius: 12000 },
+  MTN15: { city: 'Manhattan, NY', lat: 40.7831, lng: -73.9712, radius: 12000 },
+  BRK08: { city: 'Brooklyn, NY', lat: 40.6782, lng: -73.9442, radius: 12000 },
+  QNS05: { city: 'Queens, NY', lat: 40.7282, lng: -73.7949, radius: 12000 },
+  DEFAULT: { city: 'Manhattan, NY', lat: 40.7831, lng: -73.9712, radius: 12000 },
+};
 
 const StatusInfoModal = ({ isOpen, onClose, theme }) => {
   if (!isOpen) return null;
@@ -152,6 +161,7 @@ const HeatMapDashboard = ({
   const screenshotRef = useRef(null);
   /** When set, map + heatmap use aggregated workspace measurements (real lat/lng from DB). */
   const [workspaceHeatmap, setWorkspaceHeatmap] = useState(null);
+  const [openaqHeatmap, setOpenaqHeatmap] = useState(null);
   const importedMeasurements = useMemo(
     () => getImportedMeasurements(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,6 +188,35 @@ const HeatMapDashboard = ({
       cancelled = true;
     };
   }, [workspaceId, selectedMetric]);
+
+  const cityConfig = useMemo(
+    () => SCHOOL_CITY_CENTER[filters.school] || SCHOOL_CITY_CENTER.DEFAULT,
+    [filters.school]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = new URLSearchParams({
+          lat: String(cityConfig.lat),
+          lng: String(cityConfig.lng),
+          metric: selectedMetric,
+          radius: String(cityConfig.radius),
+          limit: '25',
+        });
+        const data = await apiRequest(`/analytics/openaq/heatmap?${q.toString()}`);
+        if (cancelled) return;
+        setOpenaqHeatmap({ points: data.points || [] });
+      } catch {
+        if (cancelled) return;
+        setOpenaqHeatmap(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cityConfig, selectedMetric]);
 
   const importedPoints = useMemo(() => {
     return importedMeasurements
@@ -272,9 +311,28 @@ const HeatMapDashboard = ({
 
   const usingWorkspaceHeatmap =
     Boolean(workspaceId && workspaceHeatmap?.points && workspaceHeatmap.points.length > 0);
+  const usingOpenAQHeatmap = Boolean(openaqHeatmap?.points?.length);
 
   // Aggregate filtered data by location (demo) — or use real workspace buckets from API
   const locations = useMemo(() => {
+    if (usingOpenAQHeatmap) {
+      return (openaqHeatmap?.points || []).map((p, i) => {
+        const v = Number(p.value);
+        const row = {
+          id: `openaq-${i}`,
+          name: p.location_name || `OpenAQ Site ${i + 1}`,
+          lat: Number(p.latitude),
+          lng: Number(p.longitude),
+          pm25: 0,
+          co: 0,
+          temp: 0,
+          humidity: 0,
+        };
+        row[selectedMetric] = Number.isFinite(v) ? v : 0;
+        return row;
+      });
+    }
+
     const pts = workspaceHeatmap?.points;
     if (usingWorkspaceHeatmap) {
       return pts.map((p, i) => {
@@ -326,7 +384,7 @@ const HeatMapDashboard = ({
       temp: Math.round(loc.tempSum / loc.count),
       humidity: Math.round(loc.humiditySum / loc.count),
     }));
-  }, [filteredLocations, workspaceHeatmap, usingWorkspaceHeatmap, selectedMetric]);
+  }, [filteredLocations, workspaceHeatmap, usingWorkspaceHeatmap, selectedMetric, usingOpenAQHeatmap, openaqHeatmap]);
 
   // Calculate Averages for Sidebar
   const filteredImported = useMemo(() => {
@@ -360,7 +418,8 @@ const HeatMapDashboard = ({
       locations.reduce((sum, loc) => sum + parseFloat(loc[metric] ?? 0), 0) / Math.max(locations.length, 1)
     );
 
-    const sourceForSchoolAndGroup = filteredImported.length ? filteredImported : filteredLocations;
+    // School/group cards should always come from your class CSV/workspace records, never OpenAQ city feed.
+    const sourceForSchoolAndGroup = filteredImported;
 
     // School Average (based on current filters)
     const schoolData = sourceForSchoolAndGroup.filter(item => item.school === filters.school);
@@ -394,6 +453,11 @@ const HeatMapDashboard = ({
     : null;
 
   const mapCenter = useMemo(() => {
+    if (usingOpenAQHeatmap && openaqHeatmap?.points?.length) {
+      const lat = openaqHeatmap.points.reduce((s, p) => s + Number(p.latitude), 0) / openaqHeatmap.points.length;
+      const lng = openaqHeatmap.points.reduce((s, p) => s + Number(p.longitude), 0) / openaqHeatmap.points.length;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    }
     const pts = workspaceHeatmap?.points;
     if (workspaceId && pts?.length) {
       const lat = pts.reduce((s, p) => s + Number(p.latitude), 0) / pts.length;
@@ -406,7 +470,7 @@ const HeatMapDashboard = ({
       if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
     }
     return { lat: 40.758, lng: -73.9855 };
-  }, [workspaceHeatmap, workspaceId, locations]);
+  }, [workspaceHeatmap, workspaceId, locations, usingOpenAQHeatmap, openaqHeatmap]);
 
   // Transform location data to WeightedLocation format for HeatmapLayer
   const heatmapData = useMemo(() => {
@@ -585,7 +649,7 @@ const HeatMapDashboard = ({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Air Quality Heat Map</h1>
-          <p className="text-gray-600">Real-time air quality monitoring across Manhattan</p>
+          <p className="text-gray-600">OpenAQ city visualization for {cityConfig.city}</p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -643,13 +707,16 @@ const HeatMapDashboard = ({
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg border border-gray-200 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Manhattan Air Quality Map</h2>
-              {usingWorkspaceHeatmap && (
+              <h2 className="text-lg font-semibold text-gray-900">{cityConfig.city} Air Quality Map</h2>
+              {usingOpenAQHeatmap ? (
                 <p className="text-xs text-emerald-700 mt-1 font-medium">
-                  Heat map shows your workspace measurements (real GPS buckets). Demo NYC overlay is hidden while this data
-                  is available.
+                  Visualization source: OpenAQ city sensors near your school.
                 </p>
-              )}
+              ) : usingWorkspaceHeatmap ? (
+                <p className="text-xs text-emerald-700 mt-1 font-medium">
+                  OpenAQ is unavailable right now, so this is showing your workspace measurements.
+                </p>
+              ) : null}
             </div>
             <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1">
               <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">Mode</span>
@@ -757,7 +824,7 @@ const HeatMapDashboard = ({
             <div className="flex justify-between items-start mb-2">
               <p className="text-sm font-black text-gray-500 uppercase tracking-widest">City Average</p>
               <div className="text-right">
-                <span className="text-5xl font-black" style={{ color: theme.primary }}>
+                <span className="text-3xl font-semibold" style={{ color: theme.primary }}>
                   {stats.city ?? 'NO DATA'}
                 </span>
                 {stats.city != null && (
@@ -800,7 +867,7 @@ const HeatMapDashboard = ({
                 <p className="text-xs text-blue-500 font-black uppercase mt-0.5 tracking-tighter">{filters.school}</p>
               </div>
               <div className="text-right">
-                <span className="text-4xl font-black text-blue-600">{stats.school ?? 'NO DATA'}</span>
+                <span className="text-2xl font-semibold text-blue-600">{stats.school ?? 'NO DATA'}</span>
                 {stats.school != null && (
                   <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
                 )}
@@ -818,7 +885,7 @@ const HeatMapDashboard = ({
                 <p className="text-xs text-indigo-500 font-black uppercase mt-0.5 tracking-tighter">Team {filters.group}</p>
               </div>
               <div className="text-right">
-                <span className="text-4xl font-black text-indigo-600">{stats.group ?? 'NO DATA'}</span>
+                <span className="text-2xl font-semibold text-indigo-600">{stats.group ?? 'NO DATA'}</span>
                 {stats.group != null && (
                   <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
                 )}
@@ -844,7 +911,7 @@ const HeatMapDashboard = ({
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-4xl font-black text-green-600">{bestLocation[selectedMetric]}</span>
+                    <span className="text-2xl font-semibold text-green-600">{bestLocation[selectedMetric]}</span>
                     <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
                   </div>
                 </div>
@@ -865,7 +932,7 @@ const HeatMapDashboard = ({
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-4xl font-black text-orange-600">{worstLocation[selectedMetric]}</span>
+                    <span className="text-2xl font-semibold text-orange-600">{worstLocation[selectedMetric]}</span>
                     <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
                   </div>
                 </div>

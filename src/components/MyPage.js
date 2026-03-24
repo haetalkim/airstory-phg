@@ -21,7 +21,7 @@ const DEMO_STUDENT_TEMPLATE = [
   { name: 'Bea', period: 'P1', group: 'G4', id: 'STU022' },
 ];
 
-const MyPage = ({ workspaceId, userRole, filters, setFilters, theme }) => {
+const MyPage = ({ workspaceId, userRole, filters, setFilters, theme, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempFilters, setTempFilters] = useState({ ...filters });
   const [groupMembers, setGroupMembers] = useState([]);
@@ -167,7 +167,10 @@ const MyPage = ({ workspaceId, userRole, filters, setFilters, theme }) => {
                 <Shield className="w-5 h-5 text-gray-400" />
                 <span className="text-sm font-medium">Privacy Settings</span>
               </button>
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
                 <LogOut className="w-5 h-5" />
                 <span className="text-sm font-medium">Sign Out</span>
               </button>

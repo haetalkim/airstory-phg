@@ -3,7 +3,7 @@ import { stringify } from "csv-stringify/sync";
 import { pool } from "../../db/pool.js";
 import { requireAuth, requireWorkspaceRole } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
-import { fetchOpenAQDailyReference } from "../../services/openaq.js";
+import { fetchOpenAQDailyReference, fetchOpenAQHeatmapPoints } from "../../services/openaq.js";
 
 const router = express.Router();
 
@@ -130,6 +130,35 @@ router.get("/analytics/openaq/daily", async (req, res, next) => {
       return res.status(400).json(result);
     }
 
+    return res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/analytics/openaq/heatmap", async (req, res, next) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const metric = req.query.metric || "pm25";
+    const radius = Number(req.query.radius || 15000);
+    const limit = Number(req.query.limit || 25);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({ error: "lat and lng query params are required" });
+    }
+
+    const result = await fetchOpenAQHeatmapPoints({
+      apiKey: env.openaqApiKey,
+      lat,
+      lng,
+      metric,
+      radius,
+      limit,
+    });
+
+    if (result.error === "no_api_key") return res.status(503).json(result);
+    if (result.error === "unsupported_metric") return res.status(400).json(result);
     return res.json(result);
   } catch (err) {
     next(err);

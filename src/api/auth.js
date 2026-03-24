@@ -52,11 +52,15 @@ export async function getRoster(workspaceId) {
 
 export async function logout() {
   const auth = getStoredAuth();
-  if (auth?.refreshToken) {
-    await apiRequest("/auth/logout", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken: auth.refreshToken }),
-    });
+  try {
+    if (auth?.refreshToken) {
+      await apiRequest("/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({ refreshToken: auth.refreshToken }),
+      });
+    }
+  } finally {
+    // Always clear local session, even when backend logout is unreachable.
+    setStoredAuth(null);
   }
-  setStoredAuth(null);
 }
