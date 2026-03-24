@@ -437,7 +437,6 @@ const HeatMapDashboard = ({
 
     return { city: cityAvg, school: schoolAvg, group: groupAvg };
   }, [
-    filteredLocations,
     filteredImported,
     selectedMetric,
     filters,
