@@ -11,7 +11,15 @@ function getDefaultApiBase() {
 
 function normalizeApiBase(raw) {
   const fallback = getDefaultApiBase();
-  const u = (raw || fallback).trim().replace(/\/+$/, "");
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  let u = (raw || fallback).trim().replace(/\/+$/, "");
+
+  // Guardrail: if a localhost API URL is baked into a deployed build, ignore it.
+  if (!isLocalhost && /localhost|127\.0\.0\.1/.test(u)) {
+    u = fallback;
+  }
   if (u.endsWith("/api")) return u;
   return `${u}/api`;
 }
