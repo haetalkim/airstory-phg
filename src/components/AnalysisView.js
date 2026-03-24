@@ -5,6 +5,9 @@ import { getImportedMeasurements } from '../utils/importedData';
 import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
 import { apiRequest } from '../api/http';
 
+/** Metrics we try to load from OpenAQ near the reference pin (when a sensor exists). */
+const OPENAQ_REFERENCE_METRICS = ['pm25', 'co', 'temp', 'humidity'];
+
 const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes, currentFilters }) => {
   const [comparisonType, setComparisonType] = useState('group'); // 'group', 'school', 'location', 'time'
   const [selectedGroups, setSelectedGroups] = useState(['G4', 'G5', 'G6']);
@@ -496,7 +499,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   }, [openaqPoints]);
 
   useEffect(() => {
-    if (!weekData.length || selectedMetric !== 'pm25') {
+    if (!weekData.length || !OPENAQ_REFERENCE_METRICS.includes(selectedMetric)) {
       setOpenaqPoints(null);
       setOpenaqMeta({ status: 'idle', message: '' });
       return;
@@ -515,10 +518,18 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
           lng: String(loc.lng),
           date_from: dateFrom,
           date_to: dateTo,
-          metric: 'pm25',
+          metric: selectedMetric,
         });
         const data = await apiRequest(`/analytics/openaq/daily?${q.toString()}`);
         if (cancelled) return;
+        if (data.error === 'no_sensor') {
+          setOpenaqPoints(null);
+          setOpenaqMeta({
+            status: 'error',
+            message: data.message || 'No OpenAQ sensor for this metric near the selected pin — using simulated reference.',
+          });
+          return;
+        }
         setOpenaqPoints(data.points || []);
         const label = data.locationName ? `OpenAQ @ ${data.locationName}` : 'OpenAQ';
         setOpenaqMeta({ status: 'ok', message: label });
@@ -536,13 +547,17 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
     };
   }, [weekData, referenceLocation, selectedMetric]);
 
-  /** Your week vs OpenAQ (PM2.5) when available, else simulated reference. */
+  /** Your week vs OpenAQ when a nearby sensor exists for this metric, else simulated reference. */
   const weekCompareData = useMemo(() => {
     if (!weekData.length) return [];
     const sim = getReferenceWeekSeries(referenceLocation, selectedMetric);
     return weekData.map((row, i) => {
       let reference;
-      if (selectedMetric === 'pm25' && openaqByDate && openaqByDate[row.date] != null) {
+      if (
+        OPENAQ_REFERENCE_METRICS.includes(selectedMetric) &&
+        openaqByDate &&
+        openaqByDate[row.date] != null
+      ) {
         reference = openaqByDate[row.date];
       } else {
         reference = sim[i]?.value ?? sim[sim.length - 1]?.value;
@@ -726,17 +741,17 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Your recent week vs reference location</h2>
               <p className="text-xs text-gray-500 mt-1">
-                <strong>Your data</strong> = filtered measurements. For <strong>PM2.5</strong>, the gray line uses{' '}
-                <strong>OpenAQ</strong> daily averages near the pin (when your API key is set on the server). Other metrics
-                use a <strong>simulated</strong> regional curve for discussion only.
+                <strong>Your data</strong> = filtered measurements. For <strong>PM2.5, CO, temperature, and humidity</strong>,
+                the gray line uses <strong>OpenAQ</strong> daily averages near the pin when a matching sensor exists (API key
+                on server). If OpenAQ has no sensor for that metric/area, you see a <strong>simulated</strong> regional curve.
               </p>
-              {selectedMetric === 'pm25' && openaqMeta.status === 'loading' && (
+              {OPENAQ_REFERENCE_METRICS.includes(selectedMetric) && openaqMeta.status === 'loading' && (
                 <p className="text-xs text-blue-600 mt-1">Loading OpenAQ reference…</p>
               )}
-              {selectedMetric === 'pm25' && openaqMeta.status === 'ok' && (
+              {OPENAQ_REFERENCE_METRICS.includes(selectedMetric) && openaqMeta.status === 'ok' && (
                 <p className="text-xs text-green-700 mt-1">{openaqMeta.message}</p>
               )}
-              {selectedMetric === 'pm25' && openaqMeta.status === 'error' && (
+              {OPENAQ_REFERENCE_METRICS.includes(selectedMetric) && openaqMeta.status === 'error' && (
                 <p className="text-xs text-amber-700 mt-1">{openaqMeta.message}</p>
               )}
             </div>
@@ -786,7 +801,9 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                   type="monotone"
                   dataKey="reference"
                   name={
-                    selectedMetric === 'pm25' && openaqMeta.status === 'ok' && openaqPoints?.length
+                    OPENAQ_REFERENCE_METRICS.includes(selectedMetric) &&
+                    openaqMeta.status === 'ok' &&
+                    openaqPoints?.length
                       ? 'Reference (OpenAQ)'
                       : 'Reference (simulated)'
                   }

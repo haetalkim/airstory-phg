@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Info, Download, Share2 } from 'lucide-react';
 import { GoogleMap, LoadScript, HeatmapLayer } from '@react-google-maps/api';
 import html2canvas from 'html2canvas';
 import { getImportedMeasurements } from '../utils/importedData';
+import { getHeatmapPoints } from '../api/data';
 
 const AQI_RANGES = {
   pm25: [
@@ -191,7 +192,15 @@ const StatusInfoModal = ({ isOpen, onClose, theme }) => {
   );
 };
 
-const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes, importedDataVersion }) => {
+const HeatMapDashboard = ({
+  workspaceId,
+  selectedMetric,
+  setSelectedMetric,
+  filters,
+  theme,
+  metricThemes,
+  importedDataVersion,
+}) => {
   const [showStatusInfo, setShowStatusInfo] = useState(false);
   const [selectedTimeRange] = useState('all-time');
   const [displayMode, setDisplayMode] = useState('default'); // 'default' or 'accessible'
@@ -199,6 +208,29 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const screenshotRef = useRef(null);
+  /** When set, map + heatmap use aggregated workspace measurements (real lat/lng from DB). */
+  const [workspaceHeatmap, setWorkspaceHeatmap] = useState(null);
+
+  useEffect(() => {
+    if (!workspaceId) {
+      setWorkspaceHeatmap(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getHeatmapPoints(workspaceId, selectedMetric);
+        if (cancelled) return;
+        setWorkspaceHeatmap({ points: data.points || [] });
+      } catch {
+        if (cancelled) return;
+        setWorkspaceHeatmap(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, selectedMetric]);
 
   // Filter locations based on selected time range
   const filteredLocations = useMemo(() => {
@@ -260,11 +292,33 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
     return `${formatDate(minDate)} - ${formatDate(maxDate)}`;
   }, [filteredLocations]);
 
-  // Aggregate filtered data by location (average values for heat map)
+  const usingWorkspaceHeatmap =
+    Boolean(workspaceId && workspaceHeatmap?.points && workspaceHeatmap.points.length > 0);
+
+  // Aggregate filtered data by location (demo) — or use real workspace buckets from API
   const locations = useMemo(() => {
+    const pts = workspaceHeatmap?.points;
+    if (usingWorkspaceHeatmap) {
+      return pts.map((p, i) => {
+        const v = Number(p.value);
+        const row = {
+          id: `ws-${i}`,
+          name: `Site ${i + 1} (${p.point_count} readings)`,
+          lat: Number(p.latitude),
+          lng: Number(p.longitude),
+          pm25: 0,
+          co: 0,
+          temp: 0,
+          humidity: 0,
+        };
+        row[selectedMetric] = Number.isFinite(v) ? v : 0;
+        return row;
+      });
+    }
+
     const locationMap = {};
-    
-    filteredLocations.forEach(point => {
+
+    filteredLocations.forEach((point) => {
       const key = point.name;
       if (!locationMap[key]) {
         locationMap[key] = {
@@ -273,7 +327,7 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
           pm25Sum: point.pm25,
           coSum: point.co,
           tempSum: point.temp,
-          humiditySum: point.humidity
+          humiditySum: point.humidity,
         };
       } else {
         locationMap[key].count++;
@@ -283,9 +337,8 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
         locationMap[key].humiditySum += point.humidity;
       }
     });
-    
-    // Calculate averages
-    return Object.values(locationMap).map(loc => ({
+
+    return Object.values(locationMap).map((loc) => ({
       id: loc.id,
       name: loc.name,
       lat: loc.lat,
@@ -293,9 +346,9 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
       pm25: Math.round(loc.pm25Sum / loc.count),
       co: parseFloat((loc.coSum / loc.count).toFixed(2)),
       temp: Math.round(loc.tempSum / loc.count),
-      humidity: Math.round(loc.humiditySum / loc.count)
+      humidity: Math.round(loc.humiditySum / loc.count),
     }));
-  }, [filteredLocations]);
+  }, [filteredLocations, workspaceHeatmap, usingWorkspaceHeatmap, selectedMetric]);
 
   // Calculate Averages for Sidebar
   const importedMeasurements = useMemo(
@@ -324,14 +377,22 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
   }, [importedMeasurements, selectedTimeRange]);
 
   const stats = useMemo(() => {
-    if (filteredLocations.length === 0) return { city: 0, school: 0, group: 0 };
+    if (filteredLocations.length === 0 && !usingWorkspaceHeatmap) {
+      return { city: 0, school: 0, group: 0 };
+    }
 
     const metric = selectedMetric;
-    
-    // City Average
-    const cityAvg = Math.round(
-      filteredLocations.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / filteredLocations.length
-    );
+
+    // City / map average: workspace heatmap = average of aggregated sites; demo = all points in range
+    const cityAvg = usingWorkspaceHeatmap
+      ? Math.round(
+          locations.reduce((sum, loc) => sum + parseFloat(loc[metric] ?? 0), 0) /
+            Math.max(locations.length, 1)
+        )
+      : Math.round(
+          filteredLocations.reduce((sum, item) => sum + parseFloat(item[metric]), 0) /
+            filteredLocations.length
+        );
 
     const sourceForSchoolAndGroup = filteredImported.length ? filteredImported : filteredLocations;
 
@@ -350,18 +411,32 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
       : schoolAvg; // Fallback to school average
 
     return { city: cityAvg, school: schoolAvg, group: groupAvg };
-  }, [filteredLocations, filteredImported, selectedMetric, filters]);
+  }, [
+    filteredLocations,
+    filteredImported,
+    selectedMetric,
+    filters,
+    usingWorkspaceHeatmap,
+    locations,
+  ]);
 
-  const bestLocation = locations.reduce((best, loc) => 
-    loc[selectedMetric] < best[selectedMetric] ? loc : best
-  );
-  
-  const worstLocation = locations.reduce((worst, loc) => 
-    loc[selectedMetric] > worst[selectedMetric] ? loc : worst
-  );
+  const bestLocation = locations.length
+    ? locations.reduce((best, loc) => (loc[selectedMetric] < best[selectedMetric] ? loc : best))
+    : null;
 
-  // Default center (Manhattan)
-  const mapCenter = useMemo(() => ({ lat: 40.7580, lng: -73.9855 }), []);
+  const worstLocation = locations.length
+    ? locations.reduce((worst, loc) => (loc[selectedMetric] > worst[selectedMetric] ? loc : worst))
+    : null;
+
+  const mapCenter = useMemo(() => {
+    const pts = workspaceHeatmap?.points;
+    if (workspaceId && pts?.length) {
+      const lat = pts.reduce((s, p) => s + Number(p.latitude), 0) / pts.length;
+      const lng = pts.reduce((s, p) => s + Number(p.longitude), 0) / pts.length;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    }
+    return { lat: 40.758, lng: -73.9855 };
+  }, [workspaceHeatmap, workspaceId]);
 
   // Transform location data to WeightedLocation format for HeatmapLayer
   const heatmapData = useMemo(() => {
@@ -597,7 +672,15 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
         {/* Interactive Map - 2 columns */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg border border-gray-200 flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Manhattan Air Quality Map</h2>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Manhattan Air Quality Map</h2>
+              {usingWorkspaceHeatmap && (
+                <p className="text-xs text-emerald-700 mt-1 font-medium">
+                  Heat map shows your workspace measurements (real GPS buckets). Demo NYC overlay is hidden while this data
+                  is available.
+                </p>
+              )}
+            </div>
             <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1">
               <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">Mode</span>
               <button 
@@ -746,44 +829,52 @@ const HeatMapDashboard = ({ selectedMetric, setSelectedMetric, filters, theme, m
             </div>
           </div>
 
-          {/* Best Area */}
-          <div 
-            className="bg-gradient-to-br rounded-xl p-5 shadow-md border-2 transition-all duration-300 flex-1 flex flex-col justify-center"
-            style={{ 
-              background: `linear-gradient(135deg, ${getColorForValue(bestLocation[selectedMetric])}30 0%, white 100%)`,
-              borderColor: getColorForValue(bestLocation[selectedMetric])
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Best Area</p>
-                <p className="text-xs text-green-600 font-black uppercase mt-0.5 tracking-tighter truncate max-w-[120px]">{bestLocation.name}</p>
+          {/* Best Area / Needs Attention — hidden if no location aggregates */}
+          {bestLocation && worstLocation && (
+            <>
+              <div
+                className="bg-gradient-to-br rounded-xl p-5 shadow-md border-2 transition-all duration-300 flex-1 flex flex-col justify-center"
+                style={{
+                  background: `linear-gradient(135deg, ${getColorForValue(bestLocation[selectedMetric])}30 0%, white 100%)`,
+                  borderColor: getColorForValue(bestLocation[selectedMetric]),
+                }}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Best Area</p>
+                    <p className="text-xs text-green-600 font-black uppercase mt-0.5 tracking-tighter truncate max-w-[120px]">
+                      {bestLocation.name}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-4xl font-black text-green-600">{bestLocation[selectedMetric]}</span>
+                    <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-right shrink-0">
-                <span className="text-4xl font-black text-green-600">{bestLocation[selectedMetric]}</span>
-                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Needs Attention */}
-          <div 
-            className="bg-gradient-to-br rounded-xl p-5 shadow-md border-2 transition-all duration-300 flex-1 flex flex-col justify-center"
-            style={{ 
-              background: `linear-gradient(135deg, ${getColorForValue(worstLocation[selectedMetric])}30 0%, white 100%)`,
-              borderColor: getColorForValue(worstLocation[selectedMetric])
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Needs Attention</p>
-                <p className="text-xs text-orange-600 font-black uppercase mt-0.5 tracking-tighter truncate max-w-[120px]">{worstLocation.name}</p>
+              <div
+                className="bg-gradient-to-br rounded-xl p-5 shadow-md border-2 transition-all duration-300 flex-1 flex flex-col justify-center"
+                style={{
+                  background: `linear-gradient(135deg, ${getColorForValue(worstLocation[selectedMetric])}30 0%, white 100%)`,
+                  borderColor: getColorForValue(worstLocation[selectedMetric]),
+                }}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Needs Attention</p>
+                    <p className="text-xs text-orange-600 font-black uppercase mt-0.5 tracking-tighter truncate max-w-[120px]">
+                      {worstLocation.name}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-4xl font-black text-orange-600">{worstLocation[selectedMetric]}</span>
+                    <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-right shrink-0">
-                <span className="text-4xl font-black text-orange-600">{worstLocation[selectedMetric]}</span>
-                <span className="text-sm font-bold text-gray-400 ml-1">{metricThemes[selectedMetric].unit}</span>
-              </div>
-          </div>
+            </>
+          )}
           </div>
         </div>
       </div>

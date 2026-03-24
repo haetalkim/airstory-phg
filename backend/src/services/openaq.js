@@ -27,18 +27,32 @@ async function openaqJson(path, apiKey, searchParams) {
 }
 
 function normalizeMetric(metric) {
-  const m = String(metric || "pm25").toLowerCase();
+  const m = String(metric || "pm25").toLowerCase().replace(/\s/g, "");
   if (m === "pm25" || m === "pm2.5") return "pm25";
+  if (m === "co") return "co";
+  if (m === "temp" || m === "temperature") return "temp";
+  if (m === "humidity" || m === "rh" || m === "relativehumidity") return "humidity";
   return m;
 }
 
-/** Match OpenAQ sensor parameter to our metric (pm25 only for real OpenAQ for now). */
+/** Match OpenAQ sensor parameter to our app metric (names vary by provider). */
 function sensorMatchesMetric(sensor, metric) {
-  const name = (sensor?.parameter?.name || "").toLowerCase();
-  if (metric === "pm25") return name === "pm25" || name === "pm2.5" || name.includes("pm2");
-  if (metric === "co") return name === "co";
-  if (metric === "temp") return name === "temp" || name === "temperature";
-  if (metric === "humidity") return name === "humidity" || name === "rh";
+  const name = (sensor?.parameter?.name || "").toLowerCase().replace(/\s/g, "");
+  if (metric === "pm25") {
+    return name === "pm25" || name === "pm2.5" || name.includes("pm2");
+  }
+  if (metric === "co") return name === "co" || name.startsWith("co");
+  if (metric === "temp") {
+    return name === "temp" || name === "temperature" || name === "t" || name.includes("temp");
+  }
+  if (metric === "humidity") {
+    return (
+      name === "humidity" ||
+      name === "rh" ||
+      name.includes("relativehumidity") ||
+      name.includes("relhumidity")
+    );
+  }
   return false;
 }
 
@@ -122,10 +136,11 @@ export async function fetchOpenAQDailyReference(opts) {
     return { error: "no_api_key", message: "OPENAQ_API_KEY is not set on the server." };
   }
 
-  if (!["pm25"].includes(metric)) {
+  const supported = ["pm25", "co", "temp", "humidity"];
+  if (!supported.includes(metric)) {
     return {
       error: "unsupported_metric",
-      message: "OpenAQ daily reference is implemented for pm25 (PM2.5) only. Use simulated reference for other metrics.",
+      message: `OpenAQ daily reference supports: ${supported.join(", ")}. Use simulated reference for other metrics.`,
     };
   }
 

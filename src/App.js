@@ -288,6 +288,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {activeSection === 'heatmap' && (
           <HeatMapDashboard
+            workspaceId={workspaceId}
             selectedMetric={selectedMetric}
             setSelectedMetric={setSelectedMetric}
             filters={filters}

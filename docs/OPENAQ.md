@@ -1,6 +1,6 @@
 # OpenAQ (reference line on Analysis)
 
-The **Analysis** page can show a **PM2.5** reference series from [OpenAQ](https://openaq.org/) (API v3). The **API key never goes in the frontend** — only the backend calls OpenAQ.
+The **Analysis** page can show a **reference series** from [OpenAQ](https://openaq.org/) (API v3) for **PM2.5, CO, temperature, and humidity** when a nearby OpenAQ sensor reports that parameter. The **API key never goes in the frontend** — only the backend calls OpenAQ.
 
 ## Local backend
 
@@ -23,5 +23,6 @@ The **Analysis** page can show a **PM2.5** reference series from [OpenAQ](https:
 
 ## Behavior
 
-- **PM2.5** only: OpenAQ is queried for daily averages near the selected reference pin.
-- **CO / temp / humidity**: still use the **simulated** reference curve in the UI.
+- For **pm25, co, temp, humidity**: the backend searches OpenAQ locations near the reference pin and, if it finds a matching sensor, returns **daily averages** for your chart date range.
+- If there is **no sensor** for that metric in the area (or OpenAQ has no data), the UI falls back to the **simulated** reference curve.
+- Coverage varies by city: many stations publish PM2.5; **temp / RH / CO** are less common on OpenAQ than on dedicated weather APIs.
