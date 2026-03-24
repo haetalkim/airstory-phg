@@ -111,19 +111,37 @@ export default function App() {
         studentId: profile?.student_code || prev.studentId,
       }));
       if (!isTeacherRole) {
-        setFilters((prev) => ({
-          ...prev,
-          school: profile?.school_code || "",
-          instructor: profile?.instructor || "",
-          period: profile?.period || "",
-          group: profile?.group_code || "",
-          studentId: profile?.student_code || prev.studentId,
-        }));
+        setFilters((prev) => {
+          const nextSchool = profile?.school_code || "";
+          const nextInstructor = profile?.instructor || "";
+          const nextPeriod = profile?.period || "";
+          const nextGroup = profile?.group_code || "";
+          const nextStudentId = profile?.student_code || prev.studentId;
+          const unchanged =
+            prev.school === nextSchool &&
+            prev.instructor === nextInstructor &&
+            prev.period === nextPeriod &&
+            prev.group === nextGroup &&
+            prev.studentId === nextStudentId;
+          if (unchanged) return prev;
+          return {
+            ...prev,
+            school: nextSchool,
+            instructor: nextInstructor,
+            period: nextPeriod,
+            group: nextGroup,
+            studentId: nextStudentId,
+          };
+        });
       }
     } catch {
       // keep current session state when me endpoint is temporarily unavailable
     }
   }, [isLoggedIn, userRole]);
+
+  const handleImportedDataChanged = useCallback(() => {
+    setImportedDataVersion((v) => v + 1);
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) return undefined;
@@ -189,6 +207,9 @@ export default function App() {
     setAuthLoading(true);
     try {
       const auth = getStoredAuth();
+      // Students always join via join code only; never reuse a stale workspace id from
+      // another session or the API may treat the signup inconsistently.
+      const joinWorkspaceId = mode === "teacher" ? auth?.user?.workspaceId || undefined : undefined;
       const session = await registerApi({
         email,
         password,
@@ -200,7 +221,7 @@ export default function App() {
         period: period || filters.period,
         groupCode: group || filters.group,
         studentCode: email.split("@")[0].toUpperCase(),
-        joinWorkspaceId: auth?.user?.workspaceId || undefined,
+        joinWorkspaceId,
         joinCode: joinCode || undefined,
       });
       let me = null;
@@ -419,7 +440,7 @@ export default function App() {
             setFilters={setFilters}
             theme={currentTheme}
             metricThemes={METRIC_THEMES}
-            onImportedDataChanged={() => setImportedDataVersion((v) => v + 1)}
+            onImportedDataChanged={handleImportedDataChanged}
           />
         )}
         {activeSection === 'analysis' && (

@@ -135,10 +135,21 @@ router.post("/register", validate(registerSchema), async (req, res, next) => {
       workspaceId = wsResult.rows[0].id;
     }
 
+    // Join-code and normal student signup must stay "student". Only the workspace creator
+    // (teacher registration) becomes owner. joinWorkspaceId is for explicit invite flows.
+    const membershipRole =
+      role === "student"
+        ? "student"
+        : joinWorkspaceId
+          ? role === "teacher"
+            ? "teacher"
+            : "student"
+          : "owner";
+
     await client.query(
       `INSERT INTO workspace_memberships (workspace_id, user_id, role)
        VALUES ($1, $2, $3)`,
-      [workspaceId, user.id, joinWorkspaceId ? role : "owner"]
+      [workspaceId, user.id, membershipRole]
     );
 
     await client.query(

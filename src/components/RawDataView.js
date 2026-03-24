@@ -381,33 +381,43 @@ const RawDataView = ({
       const text = await file.text();
       const rawRows = parseImportedCsvRaw(text);
       const imported = parseImportedCsv(text);
-      if (workspaceId && rawRows.length) {
-        await importCsvMeasurements(
-          workspaceId,
-          rawRows.map((r) => ({
-            capturedAt: r.capturedAt,
-            sessionCode: r.sessionId,
-            sessionName: r.sessionName,
-            sessionNotes: r.sessionNotes || '',
-            location: r.location || '',
-            school: r.school || '',
-            instructor: r.instructor || '',
-            period: r.period || '',
-            group: r.group || '',
-            indoorOutdoor: r.indoorOutdoor || 'OUTDOOR',
-            latitude: Number.isFinite(Number(r.latitude)) ? Number(r.latitude) : null,
-            longitude: Number.isFinite(Number(r.longitude)) ? Number(r.longitude) : null,
-            pm25: Number(r.pm25) || 0,
-            co: Number(r.co) || 0,
-            temp: Number(r.temp) || 0,
-            humidity: Number(r.humidity) || 0,
-          }))
-        );
-      }
+      // Always show imported data in UI immediately.
       setRawData(imported);
-      setImportError('');
       setImportedMeasurements(imported);
       onImportedDataChanged?.();
+      setImportError('');
+
+      if (workspaceId && rawRows.length) {
+        try {
+          await importCsvMeasurements(
+            workspaceId,
+            rawRows.map((r) => ({
+              capturedAt: r.capturedAt,
+              sessionCode: r.sessionId,
+              sessionName: r.sessionName,
+              sessionNotes: r.sessionNotes || '',
+              location: r.location || '',
+              school: r.school || '',
+              instructor: r.instructor || '',
+              period: r.period || '',
+              group: r.group || '',
+              indoorOutdoor: r.indoorOutdoor || 'OUTDOOR',
+              latitude: Number.isFinite(Number(r.latitude)) ? Number(r.latitude) : null,
+              longitude: Number.isFinite(Number(r.longitude)) ? Number(r.longitude) : null,
+              pm25: Number(r.pm25) || 0,
+              co: Number(r.co) || 0,
+              temp: Number(r.temp) || 0,
+              humidity: Number(r.humidity) || 0,
+            }))
+          );
+        } catch (persistError) {
+          setImportError(
+            persistError?.message
+              ? `Imported locally, but cloud save failed: ${persistError.message}`
+              : 'Imported locally, but cloud save failed.'
+          );
+        }
+      }
     } catch (error) {
       setImportError(error.message || 'Failed to import CSV.');
     } finally {
