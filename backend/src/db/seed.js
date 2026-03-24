@@ -85,6 +85,21 @@ async function run() {
       );
     }
 
+    const defaultJoinCodes = ["P1G1", "P1G2", "P1G3", "P1G4"];
+    for (const code of defaultJoinCodes) {
+      await pool.query(
+        `INSERT INTO join_codes (workspace_id, created_by, code, school_code, instructor, active)
+         VALUES ($1, $2, $3, $4, $5, TRUE)
+         ON CONFLICT (code) DO UPDATE SET
+           workspace_id = EXCLUDED.workspace_id,
+           created_by = EXCLUDED.created_by,
+           school_code = EXCLUDED.school_code,
+           instructor = EXCLUDED.instructor,
+           active = TRUE`,
+        [workspaceId, instructorId, code, "MTN12", "Shim"]
+      );
+    }
+
     await pool.query(
       `DELETE FROM measurement_edits WHERE workspace_id = $1`,
       [workspaceId]

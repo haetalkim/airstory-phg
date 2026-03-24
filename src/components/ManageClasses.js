@@ -17,6 +17,15 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
   const [resetPasswordDraft, setResetPasswordDraft] = useState({});
   const [error, setError] = useState('');
 
+  const generateRandomCode = () => {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const code = Array.from(
+      { length: 5 },
+      () => alphabet[Math.floor(Math.random() * alphabet.length)]
+    ).join('');
+    setNewCode(code);
+  };
+
   const load = async () => {
     if (!workspaceId) return;
     try {
@@ -50,6 +59,10 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
 
   const handleCreateCode = async () => {
     if (!newCode.trim()) return;
+    if (!/^[A-Z0-9]{5}$/.test(newCode.trim().toUpperCase())) {
+      setError('Join code must be exactly 5 letters/numbers.');
+      return;
+    }
     try {
       const created = await createJoinCode(workspaceId, {
         code: newCode.trim().toUpperCase(),
@@ -110,7 +123,8 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
           <input
             value={newCode}
             onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-            placeholder="e.g. SHIM-P1"
+            placeholder="e.g. X7KD2"
+            maxLength={5}
             className="px-4 py-2 border border-gray-300 rounded-lg"
           />
           <input
@@ -128,6 +142,17 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
           <button onClick={handleCreateCode} className={`${theme.bg} ${theme.hover} text-white rounded-lg px-4 py-2`}>
             Create Code
           </button>
+        </div>
+        <div className="mb-4">
+          <button
+            onClick={generateRandomCode}
+            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200"
+          >
+            Generate Random Code
+          </button>
+          <p className="text-xs text-gray-500 mt-2">
+            Share one class code. Students use this code to join your class, then choose their own period and group during signup.
+          </p>
         </div>
         <div className="space-y-2">
           {joinCodes.map((code) => (

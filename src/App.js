@@ -85,11 +85,11 @@ export default function App() {
   const [filters, setFilters] = useState({
     country: "US",
     state: "NY",
-    school: "MTN12",
-    instructor: "Shim",
-    period: "P1",
-    group: "G4",
-    studentId: "STU003",
+    school: "",
+    instructor: "",
+    period: "",
+    group: "",
+    studentId: "",
   });
 
   // Handle auto-login for specific user if needed, or just let the landing page handle it
@@ -362,6 +362,7 @@ export default function App() {
         {activeSection === 'rawdata' && (
           <RawDataView
             workspaceId={workspaceId}
+            viewerProfile={viewerProfile}
             selectedMetric={selectedMetric}
             setSelectedMetric={setSelectedMetric}
             filters={filters}

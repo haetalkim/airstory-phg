@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const joinCodePattern = /^[A-Z0-9]{5}$/;
+
 export const registerSchema = z.object({
   body: z.object({
     email: z.string().email(),
@@ -13,7 +15,7 @@ export const registerSchema = z.object({
     groupCode: z.string().optional().default(""),
     studentCode: z.string().optional().default(""),
     joinWorkspaceId: z.string().uuid().optional(),
-    joinCode: z.string().min(4).optional(),
+    joinCode: z.string().trim().toUpperCase().regex(joinCodePattern, "Join code must be 5 letters/numbers.").optional(),
   }),
   params: z.object({}).passthrough(),
   query: z.object({}).passthrough(),
@@ -30,7 +32,7 @@ export const loginSchema = z.object({
 
 export const createJoinCodeSchema = z.object({
   body: z.object({
-    code: z.string().min(4).max(32),
+    code: z.string().trim().toUpperCase().regex(joinCodePattern, "Code must be 5 letters/numbers."),
     schoolCode: z.string().optional().default(""),
     instructor: z.string().optional().default(""),
     active: z.boolean().optional().default(true),

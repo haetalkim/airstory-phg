@@ -74,6 +74,10 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
       setFormError('Student sign up requires a teacher join code.');
       return;
     }
+    if (isSignUp && mode === 'student' && !/^[A-Z0-9]{5}$/.test(joinCode.trim().toUpperCase())) {
+      setFormError('Join code must be exactly 5 letters/numbers.');
+      return;
+    }
     setFormError('');
     if (!isSignUp && ((mode === 'student' && (email === 'jiin@tamgu.com' || email === 'julia@tamgu.com') && password === 'password') ||
         (mode === 'teacher' && email === 'shim@tamgu.com' && password === 'password'))) {
@@ -297,42 +301,47 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                             type="text"
                             value={joinCode}
                             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                            placeholder="Teacher code"
+                            placeholder="5-letter/number class code"
+                            maxLength={5}
                             className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium tracking-wider uppercase"
                           />
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Instructor (optional)</label>
-                          <input
-                            type="text"
-                            value={signupInstructor}
-                            onChange={(e) => setSignupInstructor(e.target.value)}
-                            placeholder="e.g. Shim"
-                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Period</label>
-                            <select
-                              value={signupPeriod}
-                              onChange={(e) => setSignupPeriod(e.target.value)}
-                              className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-                            >
-                              {['P1', 'P2', 'P3'].map((p) => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Group</label>
-                            <select
-                              value={signupGroup}
-                              onChange={(e) => setSignupGroup(e.target.value)}
-                              className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-                            >
-                              {['G1', 'G2', 'G3', 'G4', 'G5'].map((g) => <option key={g} value={g}>{g}</option>)}
-                            </select>
-                          </div>
-                        </div>
+                        {joinCode.trim().length === 5 && (
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Instructor (optional)</label>
+                              <input
+                                type="text"
+                                value={signupInstructor}
+                                onChange={(e) => setSignupInstructor(e.target.value)}
+                                placeholder="e.g. Shim"
+                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Period</label>
+                                <select
+                                  value={signupPeriod}
+                                  onChange={(e) => setSignupPeriod(e.target.value)}
+                                  className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                                >
+                                  {['P1', 'P2', 'P3'].map((p) => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Group</label>
+                                <select
+                                  value={signupGroup}
+                                  onChange={(e) => setSignupGroup(e.target.value)}
+                                  className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                                >
+                                  {['G1', 'G2', 'G3', 'G4', 'G5'].map((g) => <option key={g} value={g}>{g}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
                   </>

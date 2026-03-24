@@ -13,6 +13,7 @@ const INDOOR_OUTDOOR_OPTIONS = ['INDOOR', 'OUTDOOR'];
 
 const RawDataView = ({
   workspaceId,
+  viewerProfile,
   selectedMetric,
   setSelectedMetric,
   filters,
@@ -116,7 +117,11 @@ const RawDataView = ({
       try {
         const result = await getMeasurements(workspaceId, { limit: 1000 });
         if (cancelled) return;
-        const mappedRaw = (result.measurements || []).map((m) => ({
+        const nonDemoMeasurements = (result.measurements || []).filter((m) => {
+          const code = String(m.session_code || "").toUpperCase();
+          return !code.startsWith("DEMO-");
+        });
+        const mappedRaw = nonDemoMeasurements.map((m) => ({
           id: m.id,
           date: new Date(m.captured_at).toISOString().split('T')[0],
           time: new Date(m.captured_at).toTimeString().slice(0, 8),
@@ -157,6 +162,13 @@ const RawDataView = ({
     };
   }, [workspaceId, onImportedDataChanged, groupRowsForDisplay]);
 
+  React.useEffect(() => {
+    setSelectedSchool(filters.school || '');
+    setSelectedInstructor(filters.instructor || '');
+    setSelectedPeriod(filters.period || '');
+    setSelectedGroup(filters.group || '');
+  }, [filters.school, filters.instructor, filters.period, filters.group]);
+
   // Get unique locations, sessions, groups, and schools
   const locations = [...new Set(rawData.map(d => d.location))];
   const sessions = [...new Set(rawData.map(d => d.sessionId))].map(id => {
@@ -164,10 +176,30 @@ const RawDataView = ({
     return { id, name: session.sessionName };
   });
   
-  const allGroups = [...new Set(rawData.map((d) => d.group).filter(Boolean))].sort();
   const allSchools = [...new Set(rawData.map((d) => d.school).filter(Boolean))].sort();
-  const allInstructors = [...new Set(rawData.map((d) => d.instructor).filter(Boolean))].sort();
-  const allPeriods = [...new Set(rawData.map((d) => d.period).filter(Boolean))].sort();
+  const allInstructors = [...new Set(
+    rawData
+      .filter((d) => !selectedSchool || d.school === selectedSchool)
+      .map((d) => d.instructor)
+      .filter(Boolean)
+  )].sort();
+  const allPeriods = [...new Set(
+    rawData
+      .filter((d) => (!selectedSchool || d.school === selectedSchool) && (!selectedInstructor || d.instructor === selectedInstructor))
+      .map((d) => d.period)
+      .filter(Boolean)
+  )].sort();
+  const allGroups = [...new Set(
+    rawData
+      .filter(
+        (d) =>
+          (!selectedSchool || d.school === selectedSchool) &&
+          (!selectedInstructor || d.instructor === selectedInstructor) &&
+          (!selectedPeriod || d.period === selectedPeriod)
+      )
+      .map((d) => d.group)
+      .filter(Boolean)
+  )].sort();
 
   // Filter data
   let filteredData = rawData.filter(row => {
@@ -234,6 +266,9 @@ const RawDataView = ({
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+  React.useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
   const paginatedData = filteredData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -503,18 +538,11 @@ const RawDataView = ({
                 setSelectedInstructor('');
                 setSelectedPeriod('');
                 setSelectedGroup('');
-                setFilters?.((prev) => ({
-                  ...prev,
-                  school: nextSchool,
-                  instructor: '',
-                  period: '',
-                  group: '',
-                }));
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             >
               <option value="">Select School</option>
-              {allSchools.map(s => <option key={s} value={s}>{s === filters.school ? `${s} (My School)` : s}</option>)}
+              {allSchools.map(s => <option key={s} value={s}>{s === viewerProfile?.school ? `${s} (My School)` : s}</option>)}
             </select>
           </div>
 
@@ -529,17 +557,11 @@ const RawDataView = ({
                 setSelectedInstructor(nextInstructor);
                 setSelectedPeriod('');
                 setSelectedGroup('');
-                setFilters?.((prev) => ({
-                  ...prev,
-                  instructor: nextInstructor,
-                  period: '',
-                  group: '',
-                }));
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
               <option value="">Select Class</option>
-              {allInstructors.map(i => <option key={i} value={i}>{i === filters.instructor ? `${i} (My Class)` : i}</option>)}
+              {allInstructors.map(i => <option key={i} value={i}>{i === viewerProfile?.instructor ? `${i} (My Class)` : i}</option>)}
             </select>
           </div>
 
@@ -553,16 +575,11 @@ const RawDataView = ({
                 const nextPeriod = e.target.value;
                 setSelectedPeriod(nextPeriod);
                 setSelectedGroup('');
-                setFilters?.((prev) => ({
-                  ...prev,
-                  period: nextPeriod,
-                  group: '',
-                }));
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
               <option value="">Select Period</option>
-              {allPeriods.map(p => <option key={p} value={p}>{p === filters.period ? `${p} (My Period)` : p}</option>)}
+              {allPeriods.map(p => <option key={p} value={p}>{p === viewerProfile?.period ? `${p} (My Period)` : p}</option>)}
             </select>
           </div>
 
@@ -575,12 +592,11 @@ const RawDataView = ({
               onChange={(e) => {
                 const nextGroup = e.target.value;
                 setSelectedGroup(nextGroup);
-                setFilters?.((prev) => ({ ...prev, group: nextGroup }));
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
               <option value="">Select Group</option>
-              {allGroups.map(g => <option key={g} value={g}>{g === filters.group ? `${g} (My Team)` : g}</option>)}
+              {allGroups.map(g => <option key={g} value={g}>{g === viewerProfile?.group ? `${g} (My Team)` : g}</option>)}
             </select>
           </div>
         </div>
@@ -592,13 +608,6 @@ const RawDataView = ({
                 setSelectedInstructor('');
                 setSelectedPeriod('');
                 setSelectedGroup('');
-                setFilters?.((prev) => ({
-                  ...prev,
-                  school: '',
-                  instructor: '',
-                  period: '',
-                  group: '',
-                }));
               }}
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
