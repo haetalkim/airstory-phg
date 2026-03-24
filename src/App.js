@@ -89,9 +89,15 @@ export default function App() {
     setAuthLoading(true);
     try {
       const session = await loginApi(email, password);
-      const me = await getMe();
-      const membership = me?.memberships?.[0];
-      const profile = me?.profile;
+      let me = null;
+      try {
+        me = await getMe();
+      } catch {
+        // Render cold starts can make /auth/me briefly fail after login.
+        // Keep the user logged in using the login payload and hydrate profile later.
+      }
+      const membership = me?.memberships?.[0] || null;
+      const profile = me?.profile || null;
       setWorkspaceId(session?.user?.workspaceId || membership?.workspace_id || "");
       setUserRole(membership?.role || "student");
       setIsLoggedIn(true);
@@ -129,9 +135,14 @@ export default function App() {
         studentCode: email.split("@")[0].toUpperCase(),
         joinWorkspaceId: auth?.user?.workspaceId || undefined,
       });
-      const me = await getMe();
-      const membership = me?.memberships?.[0];
-      const profile = me?.profile;
+      let me = null;
+      try {
+        me = await getMe();
+      } catch {
+        // Keep newly registered users signed in even if profile fetch is delayed.
+      }
+      const membership = me?.memberships?.[0] || null;
+      const profile = me?.profile || null;
       setWorkspaceId(session?.user?.workspaceId || membership?.workspace_id || "");
       setUserRole(membership?.role || "student");
       setIsLoggedIn(true);
