@@ -1,4 +1,12 @@
-const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:4000/api";
+// Backend mounts routes under `/api/...`. Paths in this file are like `/auth/login`.
+// So the base must be `https://host/api` (NOT `https://host` alone), or every request 404s with "Not found".
+function normalizeApiBase(raw) {
+  const fallback = "http://localhost:4000/api";
+  const u = (raw || fallback).trim().replace(/\/+$/, "");
+  if (u.endsWith("/api")) return u;
+  return `${u}/api`;
+}
+const API_BASE = normalizeApiBase(process.env.REACT_APP_API_BASE_URL);
 
 export function getStoredAuth() {
   const raw = localStorage.getItem("air_auth");
