@@ -61,6 +61,14 @@ export const addMeasurementEditSchema = z.object({
   }),
 });
 
+const indoorOutdoorImport = z.preprocess((val) => {
+  const s = String(val ?? "OUTDOOR")
+    .trim()
+    .toUpperCase();
+  if (s === "IN" || s === "INSIDE" || s === "INDOOR") return "INDOOR";
+  return "OUTDOOR";
+}, z.enum(["INDOOR", "OUTDOOR"]));
+
 const importRowSchema = z.object({
   capturedAt: z.string().datetime(),
   sessionCode: z.string().min(1).optional().default("SESSION"),
@@ -71,7 +79,7 @@ const importRowSchema = z.object({
   instructor: z.string().optional().default(""),
   period: z.string().optional().default(""),
   group: z.string().optional().default(""),
-  indoorOutdoor: z.enum(["INDOOR", "OUTDOOR"]).optional().default("OUTDOOR"),
+  indoorOutdoor: indoorOutdoorImport.optional().default("OUTDOOR"),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
   pm25: z.number(),

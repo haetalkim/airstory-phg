@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, Image as ImageIcon, X, Upload } from 'lucide-react';
 import { addMeasurementEdit, clearWorkspaceMeasurements, getMeasurements, importCsvMeasurements } from '../api/data';
 import { getRoster } from '../api/auth';
@@ -8,7 +8,11 @@ import {
   parseImportedCsv,
   parseImportedCsvRaw,
   setImportedMeasurements,
+  normalizeIndoorOutdoor,
 } from '../utils/importedData';
+import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
+
+const CSV_UPLOAD_CHUNK_SIZE = 2500;
 
 const INDOOR_OUTDOOR_OPTIONS = ['INDOOR', 'OUTDOOR'];
 
@@ -47,123 +51,33 @@ const RawDataView = ({
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [rosterRows, setRosterRows] = useState([]);
   const itemsPerPage = 50;
+  const importGenerationRef = useRef(0);
 
-  const groupRowsForDisplay = React.useCallback((rows) => {
-    const byChunk = new Map();
-    rows.forEach((row) => {
-      const captured = row.capturedAt ? new Date(row.capturedAt) : new Date(`${row.date}T${row.time || '00:00'}`);
-      if (Number.isNaN(captured.getTime())) return;
-      const minuteBucket = new Date(captured);
-      minuteBucket.setSeconds(0, 0);
-      const key = [
-        row.sessionId,
-        row.location,
-        row.latitude,
-        row.longitude,
-        row.school,
-        row.instructor,
-        row.period,
-        row.group,
-        row.indoorOutdoor,
-        minuteBucket.toISOString(),
-      ].join('|');
-
-      if (!byChunk.has(key)) {
-        byChunk.set(key, {
-          ...row,
-          id: `chunk-${row.id}`,
-          date: minuteBucket.toISOString().split('T')[0],
-          time: minuteBucket.toTimeString().slice(0, 5),
-          capturedAt: minuteBucket.toISOString(),
-          count: 0,
-          pm25Sum: 0,
-          coSum: 0,
-          tempSum: 0,
-          humiditySum: 0,
-          detailedData: [],
-        });
+  const loadFromBackend = useCallback(async () => {
+    if (!workspaceId) return;
+    const genAtStart = importGenerationRef.current;
+    setLoadingBackend(true);
+    try {
+      const result = await getMeasurements(workspaceId, { limit: 10000 });
+      if (genAtStart !== importGenerationRef.current) return;
+      const mapped = workspaceMeasurementsToDisplayRows(result.measurements || []);
+      if (mapped.length) {
+        setRawData(mapped);
+        setImportedMeasurements(mapped);
+        onImportedDataChanged?.();
       }
-      const agg = byChunk.get(key);
-      agg.count += 1;
-      agg.pm25Sum += Number(row.pm25) || 0;
-      agg.coSum += Number(row.co) || 0;
-      agg.tempSum += Number(row.temp) || 0;
-      agg.humiditySum += Number(row.humidity) || 0;
-      agg.detailedData.push({
-        id: row.id,
-        time: captured.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        pm25: Number(row.pm25) || 0,
-        co: Number((Number(row.co) || 0).toFixed(2)),
-        temp: Number(row.temp) || 0,
-        humidity: Number(row.humidity) || 0,
-      });
-    });
-
-    return Array.from(byChunk.values())
-      .map((agg) => ({
-        ...agg,
-        pm25: Math.round(agg.pm25Sum / Math.max(agg.count, 1)),
-        co: (agg.coSum / Math.max(agg.count, 1)).toFixed(2),
-        temp: Math.round(agg.tempSum / Math.max(agg.count, 1)),
-        humidity: Math.round(agg.humiditySum / Math.max(agg.count, 1)),
-        detailedData: agg.detailedData.sort((a, b) => a.time.localeCompare(b.time)),
-      }))
-      .sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt));
-  }, []);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    async function loadFromBackend() {
-      if (!workspaceId) return;
-      setLoadingBackend(true);
-      try {
-        const result = await getMeasurements(workspaceId, { limit: 1000 });
-        if (cancelled) return;
-        const nonDemoMeasurements = (result.measurements || []).filter((m) => {
-          const code = String(m.session_code || "").toUpperCase();
-          const name = String(m.session_name || "").toUpperCase();
-          return !code.startsWith("DEMO-") && !name.includes("CAMPUS WALK GROUP");
-        });
-        const mappedRaw = nonDemoMeasurements.map((m) => ({
-          id: m.id,
-          date: new Date(m.captured_at).toISOString().split('T')[0],
-          time: new Date(m.captured_at).toTimeString().slice(0, 8),
-          sessionId: m.session_id || m.session_code || 'SESSION',
-          sessionName: m.session_name || m.session_code || 'Session',
-          sessionNotes: m.session_notes || '',
-          location: m.location_name || 'Unknown',
-          latitude: m.latitude ?? 40.78,
-          longitude: m.longitude ?? -73.96,
-          indoorOutdoor: m.indoor_outdoor || 'OUTDOOR',
-          school: m.school_code || '',
-          instructor: m.instructor || '',
-          period: m.period || '',
-          group: m.group_code || '',
-          pm25: Number(m.edits?.pm25?.editedValue ?? m.pm25 ?? 0),
-          co: Number(m.edits?.co?.editedValue ?? m.co ?? 0).toFixed(2),
-          temp: Number(m.edits?.temp?.editedValue ?? m.temp ?? 0),
-          humidity: Number(m.edits?.humidity?.editedValue ?? m.humidity ?? 0),
-          photos: [],
-          edits: m.edits || {},
-          capturedAt: new Date(m.captured_at).toISOString(),
-        }));
-        const mapped = groupRowsForDisplay(mappedRaw);
-        if (mapped.length) {
-          setRawData(mapped);
-          setImportedMeasurements(mapped);
-          onImportedDataChanged?.();
-        }
-      } catch {
-        // Fall back to imported CSV data when backend is unavailable.
-      } finally {
-        if (!cancelled) setLoadingBackend(false);
+    } catch {
+      // Fall back to imported CSV data when backend is unavailable.
+    } finally {
+      if (genAtStart === importGenerationRef.current) {
+        setLoadingBackend(false);
       }
     }
+  }, [workspaceId, onImportedDataChanged]);
+
+  useEffect(() => {
     loadFromBackend();
-    return () => {
-      cancelled = true;
-    };
-  }, [workspaceId, onImportedDataChanged, groupRowsForDisplay]);
+  }, [loadFromBackend]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -381,6 +295,7 @@ const RawDataView = ({
       const text = await file.text();
       const rawRows = parseImportedCsvRaw(text);
       const imported = parseImportedCsv(text);
+      importGenerationRef.current += 1;
       // Always show imported data in UI immediately.
       setRawData(imported);
       setImportedMeasurements(imported);
@@ -388,28 +303,30 @@ const RawDataView = ({
       setImportError('');
 
       if (workspaceId && rawRows.length) {
+        const payloadRows = rawRows.map((r) => ({
+          capturedAt: r.capturedAt,
+          sessionCode: r.sessionId || 'SESSION',
+          sessionName: r.sessionName || 'Imported Session',
+          sessionNotes: r.sessionNotes || '',
+          location: r.location || '',
+          school: r.school || '',
+          instructor: r.instructor || '',
+          period: r.period || '',
+          group: r.group || '',
+          indoorOutdoor: normalizeIndoorOutdoor(r.indoorOutdoor),
+          latitude: Number.isFinite(Number(r.latitude)) ? Number(r.latitude) : null,
+          longitude: Number.isFinite(Number(r.longitude)) ? Number(r.longitude) : null,
+          pm25: Number(r.pm25) || 0,
+          co: Number(r.co) || 0,
+          temp: Number(r.temp) || 0,
+          humidity: Number(r.humidity) || 0,
+        }));
         try {
-          await importCsvMeasurements(
-            workspaceId,
-            rawRows.map((r) => ({
-              capturedAt: r.capturedAt,
-              sessionCode: r.sessionId,
-              sessionName: r.sessionName,
-              sessionNotes: r.sessionNotes || '',
-              location: r.location || '',
-              school: r.school || '',
-              instructor: r.instructor || '',
-              period: r.period || '',
-              group: r.group || '',
-              indoorOutdoor: r.indoorOutdoor || 'OUTDOOR',
-              latitude: Number.isFinite(Number(r.latitude)) ? Number(r.latitude) : null,
-              longitude: Number.isFinite(Number(r.longitude)) ? Number(r.longitude) : null,
-              pm25: Number(r.pm25) || 0,
-              co: Number(r.co) || 0,
-              temp: Number(r.temp) || 0,
-              humidity: Number(r.humidity) || 0,
-            }))
-          );
+          for (let i = 0; i < payloadRows.length; i += CSV_UPLOAD_CHUNK_SIZE) {
+            const chunk = payloadRows.slice(i, i + CSV_UPLOAD_CHUNK_SIZE);
+            await importCsvMeasurements(workspaceId, chunk);
+          }
+          await loadFromBackend();
         } catch (persistError) {
           setImportError(
             persistError?.message

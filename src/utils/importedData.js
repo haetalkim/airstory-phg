@@ -42,6 +42,14 @@ function getMappedValue(record, keys, fallback = "") {
   return fallback;
 }
 
+export function normalizeIndoorOutdoor(value) {
+  const s = String(value ?? "OUTDOOR")
+    .trim()
+    .toUpperCase();
+  if (s === "IN" || s === "INSIDE" || s === "INDOOR") return "INDOOR";
+  return "OUTDOOR";
+}
+
 export function setImportedMeasurements(data) {
   localStorage.setItem(IMPORTED_MEASUREMENTS_KEY, JSON.stringify(data || []));
 }
@@ -102,7 +110,7 @@ export function parseImportedCsvRaw(csvText) {
       location: getMappedValue(record, ["location"], "Imported Location"),
       latitude: Number(getMappedValue(record, ["latitude", "lat"], "40.758")),
       longitude: Number(getMappedValue(record, ["longitude", "lng", "lon"], "-73.9855")),
-      indoorOutdoor: getMappedValue(record, ["indooroutdoor"], "OUTDOOR") || "OUTDOOR",
+      indoorOutdoor: normalizeIndoorOutdoor(getMappedValue(record, ["indooroutdoor"], "OUTDOOR")),
       school: getMappedValue(record, ["school", "schoolcode"], ""),
       instructor: getMappedValue(record, ["classinstructor", "class", "instructor"], ""),
       period: getMappedValue(record, ["period"], ""),

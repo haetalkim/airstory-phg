@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import LandingPage from "./components/LandingPage";
 import HeatMapDashboard from "./components/HeatMapDashboard";
 import RawDataView from "./components/RawDataView";
@@ -8,6 +8,12 @@ import ManageClasses from "./components/ManageClasses";
 import { MapPin, Table, BarChart3, User, LogOut, Users } from "lucide-react";
 import { login as loginApi, register as registerApi, getMe, logout as logoutApi } from "./api/auth";
 import { getStoredAuth } from "./api/http";
+import { getMeasurements } from "./api/data";
+import {
+  setImportedMeasurements,
+  clearImportedMeasurements,
+} from "./utils/importedData";
+import { workspaceMeasurementsToDisplayRows } from "./utils/measurementRows";
 
 // Metric configurations with colors
 // Using a colorblind-friendly palette with similar blue/teal tones
@@ -142,6 +148,49 @@ export default function App() {
   const handleImportedDataChanged = useCallback(() => {
     setImportedDataVersion((v) => v + 1);
   }, []);
+
+  const serverMeasurementCountRef = useRef(null);
+
+  useEffect(() => {
+    if (!isLoggedIn || !workspaceId) {
+      serverMeasurementCountRef.current = null;
+      return undefined;
+    }
+    let cancelled = false;
+    async function pullWorkspaceMeasurements() {
+      if (cancelled) return;
+      try {
+        const result = await getMeasurements(workspaceId, { limit: 10000 });
+        if (cancelled) return;
+        const mc = result.measurements?.length ?? 0;
+        const mapped = workspaceMeasurementsToDisplayRows(result.measurements || []);
+        const prev = serverMeasurementCountRef.current;
+
+        if (mc === 0) {
+          if (prev !== null && prev > 0) {
+            clearImportedMeasurements();
+            setImportedDataVersion((v) => v + 1);
+          }
+          serverMeasurementCountRef.current = 0;
+          return;
+        }
+
+        if (prev === null || mc > prev) {
+          serverMeasurementCountRef.current = mc;
+          setImportedMeasurements(mapped);
+          setImportedDataVersion((v) => v + 1);
+        }
+      } catch {
+        // Offline: keep existing imported cache
+      }
+    }
+    pullWorkspaceMeasurements();
+    const interval = setInterval(pullWorkspaceMeasurements, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isLoggedIn, workspaceId]);
 
   useEffect(() => {
     if (!isLoggedIn) return undefined;
