@@ -51,10 +51,25 @@ export async function apiRequest(path, options = {}) {
   };
   if (auth?.accessToken) headers.Authorization = `Bearer ${auth.accessToken}`;
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    const isNetwork =
+      err instanceof TypeError ||
+      String(err?.message || "")
+        .toLowerCase()
+        .includes("failed to fetch");
+    if (isNetwork) {
+      throw new Error(
+        "Network error — API unreachable or blocked (check CORS / FRONTEND_URL on the server, or VPN)."
+      );
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     let message = `Request failed (${response.status})`;

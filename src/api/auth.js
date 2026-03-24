@@ -1,9 +1,12 @@
 import { apiRequest, setStoredAuth, getStoredAuth } from "./http";
 
 export async function login(email, password) {
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
   const data = await apiRequest("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: normalizedEmail, password }),
   });
   setStoredAuth(data);
   return data;
@@ -23,10 +26,13 @@ export async function register({
   joinWorkspaceId,
   joinCode,
 }) {
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
   const data = await apiRequest("/auth/register", {
     method: "POST",
     body: JSON.stringify({
-      email,
+      email: normalizedEmail,
       password,
       fullName,
       workspaceName: workspaceName || "Default Workspace",

@@ -2,9 +2,14 @@ import { z } from "zod";
 
 const joinCodePattern = /^[A-Z0-9]{5}$/;
 
+const normalizedEmail = z
+  .string()
+  .email()
+  .transform((s) => s.trim().toLowerCase());
+
 export const registerSchema = z.object({
   body: z.object({
-    email: z.string().email(),
+    email: normalizedEmail,
     password: z.string().min(8),
     fullName: z.string().min(2),
     workspaceName: z.string().min(2).default("Default Workspace"),
@@ -23,7 +28,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   body: z.object({
-    email: z.string().email(),
+    email: normalizedEmail,
     password: z.string().min(1),
   }),
   params: z.object({}).passthrough(),
