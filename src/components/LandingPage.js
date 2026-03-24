@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   ArrowRight, 
   BookOpen, 
@@ -27,6 +27,19 @@ const Button = ({ children, variant = 'primary', className = '', ...props }) => 
   );
 };
 
+const AIR_FACTS = [
+  "Trees act as natural air filters! One mature tree can absorb up to 48 lbs of CO2 per year.",
+  "PM2.5 particles are about 30 times smaller than the width of a human hair.",
+  "Rain can temporarily lower airborne particle levels by washing pollutants out of the air.",
+  "Indoor air can sometimes be more polluted than outdoor air without proper ventilation.",
+  "Morning and evening rush hours often show higher roadside pollution levels.",
+  "High humidity can change how some pollutants behave and how particles stay suspended.",
+  "Urban green spaces can reduce local air temperature and improve nearby air quality.",
+  "Wind speed and direction strongly affect where pollution travels across a city.",
+  "Long-term exposure to poor air quality can impact both lung and heart health.",
+  "Air quality sensors help communities spot local hotspots that citywide averages can miss.",
+];
+
 const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) => {
   const [mode, setMode] = useState('student');
   const [email, setEmail] = useState('jiin@tamgu.com');
@@ -37,6 +50,10 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
   const [showVerification, setShowVerification] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const randomAirFact = useMemo(
+    () => AIR_FACTS[Math.floor(Math.random() * AIR_FACTS.length)],
+    []
+  );
 
   // Update email when mode changes
   const handleModeChange = (newMode) => {
@@ -190,7 +207,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
               <div>
                 <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em] mb-0.5">Random Air Fact of the Day!</h4>
                 <p className="font-semibold text-gray-700 leading-snug">
-                  Trees act as natural air filters! One mature tree can absorb up to 48 lbs of CO₂ per year.
+                  {randomAirFact}
                 </p>
               </div>
             </div>

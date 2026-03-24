@@ -1,7 +1,16 @@
 // Backend mounts routes under `/api/...`. Paths in this file are like `/auth/login`.
 // So the base must be `https://host/api` (NOT `https://host` alone), or every request 404s with "Not found".
+function getDefaultApiBase() {
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  return isLocalhost
+    ? "http://localhost:4000/api"
+    : "https://air-sensor-api.onrender.com/api";
+}
+
 function normalizeApiBase(raw) {
-  const fallback = "http://localhost:4000/api";
+  const fallback = getDefaultApiBase();
   const u = (raw || fallback).trim().replace(/\/+$/, "");
   if (u.endsWith("/api")) return u;
   return `${u}/api`;
