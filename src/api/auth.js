@@ -21,6 +21,7 @@ export async function register({
   groupCode,
   studentCode,
   joinWorkspaceId,
+  joinCode,
 }) {
   const data = await apiRequest("/auth/register", {
     method: "POST",
@@ -36,6 +37,7 @@ export async function register({
       groupCode: groupCode || "",
       studentCode: studentCode || "",
       joinWorkspaceId,
+      joinCode: joinCode || undefined,
     }),
   });
   setStoredAuth(data);
@@ -48,6 +50,31 @@ export async function getMe() {
 
 export async function getRoster(workspaceId) {
   return apiRequest(`/auth/workspaces/${workspaceId}/roster`);
+}
+
+export async function getJoinCodes(workspaceId) {
+  return apiRequest(`/auth/workspaces/${workspaceId}/join-codes`);
+}
+
+export async function createJoinCode(workspaceId, body) {
+  return apiRequest(`/auth/workspaces/${workspaceId}/join-codes`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function setJoinCodeActive(workspaceId, codeId, active) {
+  return apiRequest(`/auth/workspaces/${workspaceId}/join-codes/${codeId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ active }),
+  });
+}
+
+export async function resetStudentPassword(workspaceId, userId, newPassword) {
+  return apiRequest(`/auth/workspaces/${workspaceId}/users/${userId}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ newPassword }),
+  });
 }
 
 export async function logout() {

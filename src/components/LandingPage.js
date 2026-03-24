@@ -45,11 +45,14 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
   const [email, setEmail] = useState('jiin@tamgu.com');
   const [password, setPassword] = useState('password');
   const [fullName, setFullName] = useState('New User');
+  const [joinCode, setJoinCode] = useState('');
+  const [signupInstructor, setSignupInstructor] = useState(filters.instructor || '');
   const [signupPeriod, setSignupPeriod] = useState(filters.period || 'P1');
   const [signupGroup, setSignupGroup] = useState(filters.group || 'G1');
   const [showVerification, setShowVerification] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [formError, setFormError] = useState('');
   const randomAirFact = useMemo(
     () => AIR_FACTS[Math.floor(Math.random() * AIR_FACTS.length)],
     []
@@ -57,6 +60,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
 
   // Update email when mode changes
   const handleModeChange = (newMode) => {
+    setFormError('');
     setMode(newMode);
     if (newMode === 'teacher') {
       setEmail('shim@tamgu.com');
@@ -66,12 +70,26 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
   };
 
   const handleLoginAttempt = () => {
+    if (isSignUp && mode === 'student' && !joinCode.trim()) {
+      setFormError('Student sign up requires a teacher join code.');
+      return;
+    }
+    setFormError('');
     if (!isSignUp && ((mode === 'student' && (email === 'jiin@tamgu.com' || email === 'julia@tamgu.com') && password === 'password') ||
         (mode === 'teacher' && email === 'shim@tamgu.com' && password === 'password'))) {
       setShowVerification(true);
     } else {
       if (isSignUp) {
-        onRegister({ email, password, fullName, mode, period: signupPeriod, group: signupGroup });
+        onRegister({
+          email,
+          password,
+          fullName,
+          mode,
+          joinCode,
+          instructor: signupInstructor,
+          period: signupPeriod,
+          group: signupGroup,
+        });
       } else {
         onLogin({ email, password, mode });
       }
@@ -81,7 +99,16 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
   const confirmVerification = () => {
     setShowVerification(false);
     if (isSignUp) {
-      onRegister({ email, password, fullName, mode, period: signupPeriod, group: signupGroup });
+      onRegister({
+        email,
+        password,
+        fullName,
+        mode,
+        joinCode,
+        instructor: signupInstructor,
+        period: signupPeriod,
+        group: signupGroup,
+      });
     } else {
       onLogin({ email, password, mode });
     }
@@ -263,28 +290,50 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                       />
                     </div>
                     {mode === 'student' && (
-                      <div className="grid grid-cols-2 gap-3">
+                      <>
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Period</label>
-                          <select
-                            value={signupPeriod}
-                            onChange={(e) => setSignupPeriod(e.target.value)}
-                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-                          >
-                            {['P1', 'P2', 'P3'].map((p) => <option key={p} value={p}>{p}</option>)}
-                          </select>
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Join Code</label>
+                          <input
+                            type="text"
+                            value={joinCode}
+                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                            placeholder="Teacher code"
+                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium tracking-wider uppercase"
+                          />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Group</label>
-                          <select
-                            value={signupGroup}
-                            onChange={(e) => setSignupGroup(e.target.value)}
-                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-                          >
-                            {['G1', 'G2', 'G3', 'G4', 'G5'].map((g) => <option key={g} value={g}>{g}</option>)}
-                          </select>
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Instructor (optional)</label>
+                          <input
+                            type="text"
+                            value={signupInstructor}
+                            onChange={(e) => setSignupInstructor(e.target.value)}
+                            placeholder="e.g. Shim"
+                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                          />
                         </div>
-                      </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Period</label>
+                            <select
+                              value={signupPeriod}
+                              onChange={(e) => setSignupPeriod(e.target.value)}
+                              className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                            >
+                              {['P1', 'P2', 'P3'].map((p) => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Group</label>
+                            <select
+                              value={signupGroup}
+                              onChange={(e) => setSignupGroup(e.target.value)}
+                              className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                            >
+                              {['G1', 'G2', 'G3', 'G4', 'G5'].map((g) => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </>
                 )}
@@ -316,13 +365,19 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
               </Button>
               <button
                 type="button"
-                onClick={() => setIsSignUp((prev) => !prev)}
+                onClick={() => {
+                  setFormError('');
+                  setIsSignUp((prev) => !prev);
+                }}
                 className="w-full text-sm text-blue-600 hover:text-blue-700 font-semibold"
               >
                 {isSignUp ? 'Already have an account? Log in' : 'Need an account? Sign up'}
               </button>
               {authError && (
                 <p className="text-sm text-red-600 text-center font-medium">{authError}</p>
+              )}
+              {formError && (
+                <p className="text-sm text-red-600 text-center font-medium">{formError}</p>
               )}
               {authLoading && (
                 <p className="text-sm text-gray-500 text-center font-medium">Signing in...</p>

@@ -134,7 +134,7 @@ export default function App() {
     }
   };
 
-  const handleRegister = async ({ email, password, fullName, mode, period, group }) => {
+  const handleRegister = async ({ email, password, fullName, mode, period, group, instructor, joinCode }) => {
     setAuthError("");
     setAuthLoading(true);
     try {
@@ -146,11 +146,12 @@ export default function App() {
         workspaceName: mode === "student" ? "Demo Sensor Platform Workspace" : `${fullName || "User"} Workspace`,
         role: mode === "teacher" ? "teacher" : "student",
         schoolCode: filters.school,
-        instructor: filters.instructor,
+        instructor: instructor || filters.instructor,
         period: period || filters.period,
         groupCode: group || filters.group,
         studentCode: email.split("@")[0].toUpperCase(),
         joinWorkspaceId: auth?.user?.workspaceId || undefined,
+        joinCode: joinCode || undefined,
       });
       let me = null;
       try {
@@ -210,6 +211,15 @@ export default function App() {
   };
 
   const currentTheme = METRIC_THEMES[selectedMetric];
+
+  const handleTeacherSelectGroup = ({ period, group }) => {
+    setFilters((prev) => ({
+      ...prev,
+      period: period || prev.period,
+      group: group || prev.group,
+    }));
+    setActiveSection("rawdata");
+  };
 
   const isTeacher = userRole === "teacher" || userRole === "owner";
   const navItems = isTeacher
@@ -382,7 +392,7 @@ export default function App() {
           />
         )}
         {activeSection === 'manageclasses' && isTeacher && (
-          <ManageClasses workspaceId={workspaceId} theme={currentTheme} />
+          <ManageClasses workspaceId={workspaceId} theme={currentTheme} onGroupSelect={handleTeacherSelectGroup} />
         )}
       </main>
 

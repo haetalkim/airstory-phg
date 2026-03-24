@@ -11,14 +11,6 @@ import {
 
 const INDOOR_OUTDOOR_OPTIONS = ['INDOOR', 'OUTDOOR'];
 
-// Available hierarchy options
-const HIERARCHY_OPTIONS = {
-  schools: ['MTN12', 'MTN15', 'BRK08', 'QNS05'],
-  instructors: ['Shim', 'Shin', 'Park'],
-  periods: ['P1', 'P2', 'P3'],
-  groups: ['G1', 'G2', 'G3', 'G4', 'G5']
-};
-
 const RawDataView = ({
   workspaceId,
   selectedMetric,
@@ -172,10 +164,10 @@ const RawDataView = ({
     return { id, name: session.sessionName };
   });
   
-  const allGroups = HIERARCHY_OPTIONS.groups;
-  const allSchools = HIERARCHY_OPTIONS.schools;
-  const allInstructors = HIERARCHY_OPTIONS.instructors;
-  const allPeriods = HIERARCHY_OPTIONS.periods;
+  const allGroups = [...new Set(rawData.map((d) => d.group).filter(Boolean))].sort();
+  const allSchools = [...new Set(rawData.map((d) => d.school).filter(Boolean))].sort();
+  const allInstructors = [...new Set(rawData.map((d) => d.instructor).filter(Boolean))].sort();
+  const allPeriods = [...new Set(rawData.map((d) => d.period).filter(Boolean))].sort();
 
   // Filter data
   let filteredData = rawData.filter(row => {
