@@ -1,35 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
-import { TrendingUp, TrendingDown, Calendar, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, X, MapPin } from 'lucide-react';
 import { getImportedMeasurements } from '../utils/importedData';
-
-const generateWeekData = (metric) => {
-  const baseData = {
-    pm25: [10, 12, 15, 20, 17, 13, 11],
-    co: [0.4, 0.5, 0.6, 0.8, 0.7, 0.5, 0.3],
-    temp: [18, 20, 22, 21, 19, 17, 18], // Celsius
-    humidity: [45, 42, 50, 55, 48, 40, 38]
-  };
-  
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  return days.map((day, i) => ({
-    day,
-    value: baseData[metric][i]
-  }));
-};
-
-const generateMonthData = (metric) => {
-  const data = [];
-  for (let i = 30; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    data.push({
-      date: date.toISOString().split('T')[0],
-      value: Math.floor(Math.random() * 20) + 5
-    });
-  }
-  return data;
-};
+import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
 
 const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes, currentFilters }) => {
   const [comparisonType, setComparisonType] = useState('group'); // 'group', 'school', 'location', 'time'
@@ -365,139 +338,101 @@ const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes,
   );
 };
 
-const TrendModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes }) => {
-  const [aggregation, setAggregation] = useState('daily');
-  
+const TrendModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes, dailyData }) => {
   if (!isOpen) return null;
 
-  const getChartData = () => {
-    switch(aggregation) {
-      case 'hourly':
-        return Array.from({ length: 24 }, (_, i) => ({
-          label: `${i}:00`,
-          value: Math.floor(Math.random() * 20) + 5
-        }));
-      case 'daily':
-        return generateMonthData(selectedMetric);
-      case 'weekly':
-        return generateWeekData(selectedMetric);
-      case 'monthly':
-        return Array.from({ length: 12 }, (_, i) => ({
-          label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i],
-          value: Math.floor(Math.random() * 20) + 5
-        }));
-      default:
-        return [];
-    }
-  };
-
-  const chartData = getChartData();
+  const chartData = dailyData || [];
+  const hasPoints = chartData.length > 0;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className={`${theme.bg} text-white p-6 rounded-t-2xl flex items-center justify-between`}>
           <div>
-            <h3 className="text-xl font-bold">Trend Analysis - {metricThemes[selectedMetric].label}</h3>
-            <p className="text-sm opacity-90 mt-1">Detailed time-series visualization</p>
+            <h3 className="text-xl font-bold">Your measurements — {metricThemes[selectedMetric].label}</h3>
+            <p className="text-sm opacity-90 mt-1">Daily averages from imported / saved data (same as Analysis overview)</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
-        
+
         <div className="p-6">
-          {/* Aggregation Selector */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">Time Aggregation</label>
-            <div className="flex gap-2">
-              {['hourly', 'daily', 'weekly', 'monthly'].map((agg) => (
-                <button
-                  key={agg}
-                  onClick={() => setAggregation(agg)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    aggregation === agg
-                      ? `${theme.bg} text-white shadow-lg`
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {agg.charAt(0).toUpperCase() + agg.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
+          {!hasPoints ? (
+            <p className="text-center text-gray-600 py-12">No data yet. Import or collect measurements, then open this again.</p>
+          ) : (
+            <>
+              <div className="bg-gray-50 rounded-xl p-6">
+                <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={theme.primary} stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor={theme.primary} stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      stroke="#9CA3AF"
+                      style={{ fontSize: '12px' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="#9CA3AF"
+                      style={{ fontSize: '12px' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                        padding: '12px'
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke={theme.primary}
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorTrend)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
 
-          {/* Chart */}
-          <div className="bg-gray-50 rounded-xl p-6">
-            <ResponsiveContainer width="100%" height={400}>
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={theme.primary} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={theme.primary} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis 
-                  dataKey={aggregation === 'daily' ? 'date' : 'label'} 
-                  stroke="#9CA3AF"
-                  style={{ fontSize: '12px' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  stroke="#9CA3AF"
-                  style={{ fontSize: '12px' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    background: 'white', 
-                    border: 'none', 
-                    borderRadius: '12px', 
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    padding: '12px'
-                  }} 
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={theme.primary}
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorTrend)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Statistics */}
-          <div className="grid grid-cols-4 gap-4 mt-6">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-1">Average</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {Math.round(chartData.reduce((sum, d) => sum + d.value, 0) / chartData.length)}
-              </p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-1">Minimum</p>
-              <p className="text-2xl font-bold text-green-600">
-                {Math.min(...chartData.map(d => d.value))}
-              </p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-1">Maximum</p>
-              <p className="text-2xl font-bold text-orange-600">
-                {Math.max(...chartData.map(d => d.value))}
-              </p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-1">Range</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {Math.max(...chartData.map(d => d.value)) - Math.min(...chartData.map(d => d.value))}
-              </p>
-            </div>
-          </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-600 mb-1">Average</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {Math.round(chartData.reduce((sum, d) => sum + d.value, 0) / chartData.length)}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-600 mb-1">Minimum</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {Math.min(...chartData.map(d => d.value))}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-600 mb-1">Maximum</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {Math.max(...chartData.map(d => d.value))}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-600 mb-1">Range</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {Math.max(...chartData.map(d => d.value)) - Math.min(...chartData.map(d => d.value))}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -508,10 +443,10 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
+  const [referenceLocation, setReferenceLocation] = useState(REFERENCE_LOCATIONS[2]?.name || 'Central Park');
 
   const imported = useMemo(
     () => getImportedMeasurements(),
-    // Re-fetch when CSV import updates this counter (parent state)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [importedDataVersion]
   );
@@ -526,8 +461,10 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
     });
   }, [imported, filters]);
 
+  const hasData = scopedData.length > 0;
+
   const monthData = useMemo(() => {
-    if (!scopedData.length) return generateMonthData(selectedMetric);
+    if (!scopedData.length) return [];
     const byDate = {};
     scopedData.forEach((row) => {
       const key = row.date;
@@ -542,39 +479,61 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   }, [scopedData, selectedMetric]);
 
   const weekData = useMemo(() => {
-    if (!monthData.length) return generateWeekData(selectedMetric);
+    if (!monthData.length) return [];
     return monthData.slice(-7).map((d) => ({
-      day: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' }),
+      day: new Date(`${d.date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' }),
       value: d.value,
+      date: d.date,
     }));
-  }, [monthData, selectedMetric]);
+  }, [monthData]);
 
-  // Calculate statistics
-  const allValues = monthData.map(d => Number(d.value));
-  const avgValue = Math.round(allValues.reduce((sum, val) => sum + val, 0) / allValues.length);
-  const minValue = Math.min(...allValues);
-  const maxValue = Math.max(...allValues);
-  const sortedValues = [...allValues].sort((a, b) => a - b);
-  const medianValue = sortedValues[Math.floor(sortedValues.length / 2)];
-  const standardDeviation = Math.sqrt(
-    allValues.reduce((sum, val) => sum + Math.pow(val - avgValue, 2), 0) / allValues.length
-  ).toFixed(2);
+  /** Align your last week with a simulated reference location trend (labeled in UI). */
+  const weekCompareData = useMemo(() => {
+    if (!weekData.length) return [];
+    const refSeries = getReferenceWeekSeries(referenceLocation, selectedMetric);
+    return weekData.map((row, i) => ({
+      label: row.day,
+      yours: row.value,
+      reference: refSeries[i]?.value ?? refSeries[refSeries.length - 1]?.value,
+    }));
+  }, [weekData, referenceLocation, selectedMetric]);
+
+  const stats = useMemo(() => {
+    const allValues = monthData.map((d) => Number(d.value));
+    if (!allValues.length) return null;
+    const avgValue = Math.round(allValues.reduce((sum, val) => sum + val, 0) / allValues.length);
+    const minValue = Math.min(...allValues);
+    const maxValue = Math.max(...allValues);
+    const sortedValues = [...allValues].sort((a, b) => a - b);
+    const medianValue = sortedValues[Math.floor(sortedValues.length / 2)];
+    const standardDeviation = Math.sqrt(
+      allValues.reduce((sum, val) => sum + Math.pow(val - avgValue, 2), 0) / allValues.length
+    ).toFixed(2);
+    return { avgValue, minValue, maxValue, medianValue, standardDeviation, allValues };
+  }, [monthData]);
 
   const classAverage = useMemo(() => {
     const schoolRows = imported.filter((row) => row.school === filters.school && row.period === filters.period);
-    if (!schoolRows.length) return avgValue + 2;
+    if (!schoolRows.length) return null;
     return Math.round(
       schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length
     );
-  }, [imported, filters.school, filters.period, selectedMetric, avgValue]);
+  }, [imported, filters.school, filters.period, selectedMetric]);
 
   const schoolAverage = useMemo(() => {
     const schoolRows = imported.filter((row) => row.school === filters.school);
-    if (!schoolRows.length) return avgValue + 4;
+    if (!schoolRows.length) return null;
     return Math.round(
       schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length
     );
-  }, [imported, filters.school, selectedMetric, avgValue]);
+  }, [imported, filters.school, selectedMetric]);
+
+  const avgValue = stats?.avgValue ?? 0;
+  const minValue = stats?.minValue ?? 0;
+  const maxValue = stats?.maxValue ?? 0;
+  const medianValue = stats?.medianValue ?? 0;
+  const standardDeviation = stats?.standardDeviation ?? '0';
+  const allValues = stats?.allValues ?? [];
 
   return (
     <div className="space-y-6">
@@ -586,13 +545,18 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
         </div>
         <div className="flex gap-2">
           <button
+            type="button"
+            disabled={!hasData}
             onClick={() => setShowCompareModal(true)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium ${theme.bg} ${theme.hover} text-white rounded-lg transition-all shadow-lg`}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all shadow-lg ${
+              hasData ? `${theme.bg} ${theme.hover} text-white` : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+            }`}
           >
             <TrendingUp className="w-4 h-4" />
             Compare Data
           </button>
           <button
+            type="button"
             onClick={() => setShowTrendModal(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
           >
@@ -647,7 +611,23 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
       </div>
 
       {/* Conditional Content based on Active Tab */}
-      {activeTab === 'overview' ? (
+      {!hasData ? (
+        <div className="bg-white rounded-2xl p-12 shadow-lg border border-gray-200 text-center max-w-2xl mx-auto">
+          <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+            <MapPin className="w-8 h-8 text-slate-400" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">No data for Analysis yet</h2>
+          <p className="text-gray-600 mb-4">
+            With your current filters, there are no measurements. Collect sessions in the field or import CSV on{' '}
+            <strong>Raw Data</strong>, then come back here.
+          </p>
+          <p className="text-sm text-gray-500">
+            We no longer show placeholder charts — the Analysis page only uses <strong>your</strong> workspace data.
+            When you have data, you can compare it to a <strong>reference location trend</strong> (simulated NYC-area
+            baselines for class discussion, not live regulatory feeds).
+          </p>
+        </div>
+      ) : activeTab === 'overview' ? (
         <>
           {/* Statistics Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -682,107 +662,125 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
         </div>
       </div>
 
-      {/* Charts Grid */}
+      {/* Charts Grid — your recent week vs reference; your full series */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly Trend */}
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">7-Day Trend</h2>
-            <div className="flex items-center gap-2">
-              {avgValue > 15 ? (
-                <>
-                  <TrendingUp className="w-5 h-5 text-orange-600" />
-                  <span className="text-sm font-medium text-orange-600">Above Average</span>
-                </>
-              ) : (
-                <>
-                  <TrendingDown className="w-5 h-5 text-green-600" />
-                  <span className="text-sm font-medium text-green-600">Below Average</span>
-                </>
-              )}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Your recent week vs reference location</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                <strong>Your data</strong> = filtered measurements. <strong>Reference</strong> = simulated regional trend for
+                the selected place (classroom discussion — not a live government feed).
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <MapPin className="w-4 h-4 text-gray-500" />
+              <select
+                value={referenceLocation}
+                onChange={(e) => setReferenceLocation(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white max-w-[220px]"
+              >
+                {REFERENCE_LOCATIONS.map((loc) => (
+                  <option key={loc.name} value={loc.name}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={weekData}>
-              <defs>
-                <linearGradient id="colorWeek" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={theme.primary} stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={theme.primary} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis 
-                dataKey="day" 
-                stroke="#9CA3AF" 
-                style={{ fontSize: '13px' }} 
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis 
-                stroke="#9CA3AF" 
-                style={{ fontSize: '13px' }} 
-                tickLine={false}
-                axisLine={false}
-                label={{ value: metricThemes[selectedMetric].unit, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' } }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  background: 'white', 
-                  border: 'none', 
-                  borderRadius: '12px', 
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                  padding: '12px'
-                }} 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke={theme.primary}
-                strokeWidth={3}
-                fillOpacity={1}
-                fill="url(#colorWeek)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {weekCompareData.length ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={weekCompareData}>
+                <XAxis dataKey="label" stroke="#9CA3AF" style={{ fontSize: '13px' }} tickLine={false} axisLine={false} />
+                <YAxis
+                  stroke="#9CA3AF"
+                  style={{ fontSize: '13px' }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={{
+                    value: metricThemes[selectedMetric].unit,
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' },
+                  }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    padding: '12px',
+                  }}
+                />
+                <Legend />
+                <Line type="monotone" dataKey="yours" name="Your data" stroke={theme.primary} strokeWidth={3} dot={{ r: 4 }} />
+                <Line
+                  type="monotone"
+                  dataKey="reference"
+                  name="Reference (simulated)"
+                  stroke="#94a3b8"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={{ r: 3 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-sm text-gray-500 py-8 text-center">Not enough dated points in this filter for a week chart.</p>
+          )}
         </div>
 
-        {/* 30-Day Trend */}
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">30-Day Trend</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthData}>
-              <XAxis 
-                dataKey="date" 
-                stroke="#9CA3AF" 
-                style={{ fontSize: '10px' }} 
-                tickLine={false}
-                axisLine={false}
-                interval={4}
-              />
-              <YAxis 
-                stroke="#9CA3AF" 
-                style={{ fontSize: '13px' }} 
-                tickLine={false}
-                axisLine={false}
-                label={{ value: metricThemes[selectedMetric].unit, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' } }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  background: 'white', 
-                  border: 'none', 
-                  borderRadius: '12px', 
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                  padding: '12px'
-                }} 
-              />
-              <Line 
-                type="monotone" 
-                dataKey="value" 
-                stroke={theme.primary}
-                strokeWidth={2}
-                dot={{ fill: theme.primary, r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Your measurements over time</h2>
+          <p className="text-xs text-gray-500 mb-4">Daily average for the selected metric (all days in your current filter).</p>
+          {monthData.length >= 2 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={monthData}>
+                <XAxis
+                  dataKey="date"
+                  stroke="#9CA3AF"
+                  style={{ fontSize: '10px' }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={4}
+                />
+                <YAxis
+                  stroke="#9CA3AF"
+                  style={{ fontSize: '13px' }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={{
+                    value: metricThemes[selectedMetric].unit,
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' },
+                  }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    padding: '12px',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  name="Your data"
+                  stroke={theme.primary}
+                  strokeWidth={2}
+                  dot={{ fill: theme.primary, r: 3 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-sm text-gray-500 py-12 text-center">
+              Add more days of data (or relax filters) to see a time series.
+            </p>
+          )}
         </div>
       </div>
 
@@ -865,7 +863,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-600">✓</span>
-                <span>Click "View Detailed Trends" for time-based analysis</span>
+                <span>Use <strong>View Trends</strong> for the full daily series in a modal</span>
               </li>
             </ul>
           </div>
@@ -914,24 +912,21 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-purple-600 mb-1">{classAverage}</p>
+                <p className="text-4xl font-bold text-purple-600 mb-1">{classAverage ?? '—'}</p>
                 <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
               </div>
               <div className="space-y-2 text-sm">
+                <p className="text-xs text-gray-500">
+                  Average across all groups in your class period (same school + period in imported data).
+                </p>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Groups</span>
-                  <span className="font-semibold text-gray-900">6 total</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Your Ranking</span>
-                  <span className="font-semibold text-purple-600">#3</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">vs Class</span>
-                  <span className="font-semibold text-green-600">
-                    {avgValue <= classAverage
-                      ? `${Math.abs(avgValue - classAverage)} better`
-                      : `${Math.abs(avgValue - classAverage)} higher`}
+                  <span className="text-gray-600">vs your group</span>
+                  <span className="font-semibold text-gray-900">
+                    {classAverage != null
+                      ? avgValue <= classAverage
+                        ? `${Math.abs(avgValue - classAverage)} lower`
+                        : `${Math.abs(avgValue - classAverage)} higher`
+                      : '—'}
                   </span>
                 </div>
               </div>
@@ -946,24 +941,21 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-blue-600 mb-1">{schoolAverage}</p>
+                <p className="text-4xl font-bold text-blue-600 mb-1">{schoolAverage ?? '—'}</p>
                 <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
               </div>
               <div className="space-y-2 text-sm">
+                <p className="text-xs text-gray-500">
+                  Average for your school code across imported rows (all classes/groups in file).
+                </p>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Classes</span>
-                  <span className="font-semibold text-gray-900">4 total</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Location</span>
-                  <span className="font-semibold text-gray-900">{filters.state}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">vs School</span>
-                  <span className="font-semibold text-green-600">
-                    {avgValue <= schoolAverage
-                      ? `${Math.abs(avgValue - schoolAverage)} better`
-                      : `${Math.abs(avgValue - schoolAverage)} higher`}
+                  <span className="text-gray-600">vs your group</span>
+                  <span className="font-semibold text-gray-900">
+                    {schoolAverage != null
+                      ? avgValue <= schoolAverage
+                        ? `${Math.abs(avgValue - schoolAverage)} lower`
+                        : `${Math.abs(avgValue - schoolAverage)} higher`
+                      : '—'}
                   </span>
                 </div>
               </div>
@@ -972,40 +964,64 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
 
           {/* Comparison Chart */}
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Group Comparison - Last 7 Days</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Your recent week vs class / school</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Lines are flat when we don’t have enough imported rows to compute class or school averages.
+            </p>
             <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={weekData.map((d) => ({
-                day: d.day,
-                'Your Group': d.value,
-                'Class Avg': classAverage,
-                'School Avg': schoolAverage
-              }))}>
-                <XAxis 
-                  dataKey="day" 
+              <LineChart
+                data={weekData.map((d) => ({
+                  day: d.day,
+                  'Your Group': d.value,
+                  ...(classAverage != null ? { 'Class Avg': classAverage } : {}),
+                  ...(schoolAverage != null ? { 'School Avg': schoolAverage } : {}),
+                }))}
+              >
+                <XAxis
+                  dataKey="day"
                   stroke="#9CA3AF"
                   style={{ fontSize: '13px' }}
                   tickLine={false}
                   axisLine={false}
                 />
-                <YAxis 
-                  stroke="#9CA3AF"
-                  style={{ fontSize: '13px' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    background: 'white', 
-                    border: 'none', 
-                    borderRadius: '12px', 
+                <YAxis stroke="#9CA3AF" style={{ fontSize: '13px' }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    padding: '12px'
-                  }} 
+                    padding: '12px',
+                  }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="Your Group" stroke={theme.primary} strokeWidth={3} dot={{ fill: theme.primary, r: 5 }} />
-                <Line type="monotone" dataKey="Class Avg" stroke="#9CA3AF" strokeWidth={2} strokeDasharray="5 5" dot={{ fill: '#9CA3AF', r: 4 }} />
-                <Line type="monotone" dataKey="School Avg" stroke="#3B82F6" strokeWidth={2} strokeDasharray="3 3" dot={{ fill: '#3B82F6', r: 4 }} />
+                <Line
+                  type="monotone"
+                  dataKey="Your Group"
+                  stroke={theme.primary}
+                  strokeWidth={3}
+                  dot={{ fill: theme.primary, r: 5 }}
+                />
+                {classAverage != null && (
+                  <Line
+                    type="monotone"
+                    dataKey="Class Avg"
+                    stroke="#9CA3AF"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ fill: '#9CA3AF', r: 4 }}
+                  />
+                )}
+                {schoolAverage != null && (
+                  <Line
+                    type="monotone"
+                    dataKey="School Avg"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                    strokeDasharray="3 3"
+                    dot={{ fill: '#3B82F6', r: 4 }}
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1013,37 +1029,41 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
           {/* Insights */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-lg border border-green-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">🎯 Your Strengths</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">Quick read</h3>
               <ul className="space-y-2 text-sm text-gray-700">
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 mt-0.5">✓</span>
-                  <span>Your group's readings differ by <strong>{Math.abs(avgValue - classAverage)} {metricThemes[selectedMetric].unit}</strong> from class average</span>
+                  <span className="text-green-600 mt-0.5">•</span>
+                  <span>
+                    <strong>Your group</strong> average for this metric: {avgValue} {metricThemes[selectedMetric].unit}.
+                  </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 mt-0.5">✓</span>
-                  <span>More consistent measurements (lower variability)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-600 mt-0.5">✓</span>
-                  <span>Trending in a positive direction this week</span>
+                  <span className="text-green-600 mt-0.5">•</span>
+                  <span>
+                    {classAverage != null
+                      ? `Class-wide (same period) average is ${classAverage} ${metricThemes[selectedMetric].unit}.`
+                      : 'Class average needs more imported rows (other groups in the same period).'}
+                  </span>
                 </li>
               </ul>
             </div>
 
             <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-lg border border-blue-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">💡 Observations</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">Compare further</h3>
               <ul className="space-y-2 text-sm text-gray-700">
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600 mt-0.5">•</span>
-                  <span>Group 2 shows similar patterns to your measurements</span>
+                  <span>
+                    On <strong>Overview</strong>, use <strong>Your recent week vs reference location</strong> to contrast
+                    classroom data with a simulated NYC-area baseline.
+                  </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600 mt-0.5">•</span>
-                  <span>School-wide average is higher - explore why in the comparison tool</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">•</span>
-                  <span>Thursday showed highest readings across all groups</span>
+                  <span>
+                    Open <strong>Compare Data</strong> for the full sandbox comparison tool (still demo-style randoms —
+                    we can wire it to the API next).
+                  </span>
                 </li>
               </ul>
             </div>
@@ -1083,6 +1103,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
         selectedMetric={selectedMetric}
         theme={theme}
         metricThemes={metricThemes}
+        dailyData={monthData}
       />
     </div>
   );
