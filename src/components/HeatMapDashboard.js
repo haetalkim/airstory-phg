@@ -898,7 +898,6 @@ const HeatMapDashboard = ({
           </div>
         </div>
       </div>
-      </div>
       {/* End Screenshot Container */}
 
       {/* Status Info Modal */}
