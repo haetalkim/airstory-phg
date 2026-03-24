@@ -9,6 +9,7 @@ import {
   parseImportedCsvRaw,
   setImportedMeasurements,
   normalizeIndoorOutdoor,
+  isBlankHierarchyField,
 } from '../utils/importedData';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 
@@ -170,10 +171,14 @@ const RawDataView = ({
     const matchesLocation = locationFilter === 'all' || row.location === locationFilter;
     const matchesSession = sessionFilter === 'all' || row.sessionId === sessionFilter;
     
-    const matchesSchool = !selectedSchool || row.school === selectedSchool;
-    const matchesInstructor = !selectedInstructor || row.instructor === selectedInstructor;
-    const matchesPeriod = !selectedPeriod || row.period === selectedPeriod;
-    const matchesGroup = !selectedGroup || row.group === selectedGroup;
+    const matchesSchool =
+      !selectedSchool || isBlankHierarchyField(row.school) || row.school === selectedSchool;
+    const matchesInstructor =
+      !selectedInstructor || isBlankHierarchyField(row.instructor) || row.instructor === selectedInstructor;
+    const matchesPeriod =
+      !selectedPeriod || isBlankHierarchyField(row.period) || row.period === selectedPeriod;
+    const matchesGroup =
+      !selectedGroup || isBlankHierarchyField(row.group) || row.group === selectedGroup;
     
     const matchesDate = () => {
       if (dateFilter === 'all') return true;
@@ -301,6 +306,11 @@ const RawDataView = ({
       setImportedMeasurements(imported);
       onImportedDataChanged?.();
       setImportError('');
+      // Historical CSVs are often hidden by "today" or session chips; widen filters after import.
+      setDateFilter('all');
+      setLocationFilter('all');
+      setSessionFilter('all');
+      setSearchTerm('');
 
       if (workspaceId && rawRows.length) {
         const payloadRows = rawRows.map((r) => ({
@@ -462,6 +472,13 @@ const RawDataView = ({
           </p>
           {loadingBackend && <p className="text-xs text-gray-500 mt-1">Loading backend data...</p>}
           {importError && <p className="text-xs text-red-600 mt-1">{importError}</p>}
+          {rawData.length > 0 && filteredData.length === 0 && (
+            <p className="text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              {rawData.length} row(s) loaded but none match the current filters. Try &quot;Reset Hierarchy&quot;
+              below, clear Search / Session / Date filters, or note CSV rows with blank School/Period/Group now
+              show under any selection.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all cursor-pointer">

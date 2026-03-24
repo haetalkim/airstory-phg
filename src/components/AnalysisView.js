@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, X, MapPin } from 'lucide-react';
-import { getImportedMeasurements } from '../utils/importedData';
+import { getImportedMeasurements, isBlankHierarchyField } from '../utils/importedData';
 import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
 import { apiRequest } from '../api/http';
 
@@ -473,16 +473,24 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
 
   const classScopeData = useMemo(() => {
     return imported.filter((row) => {
-      if (filters.school && row.school !== filters.school) return false;
-      if (filters.instructor && row.instructor !== filters.instructor) return false;
-      if (filters.period && row.period !== filters.period) return false;
+      if (filters.school && !isBlankHierarchyField(row.school) && row.school !== filters.school)
+        return false;
+      if (
+        filters.instructor &&
+        !isBlankHierarchyField(row.instructor) &&
+        row.instructor !== filters.instructor
+      )
+        return false;
+      if (filters.period && !isBlankHierarchyField(row.period) && row.period !== filters.period)
+        return false;
       return true;
     });
   }, [imported, filters.school, filters.instructor, filters.period]);
 
   const schoolScopeData = useMemo(() => {
     return imported.filter((row) => {
-      if (filters.school && row.school !== filters.school) return false;
+      if (filters.school && !isBlankHierarchyField(row.school) && row.school !== filters.school)
+        return false;
       return true;
     });
   }, [imported, filters.school]);

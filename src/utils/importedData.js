@@ -50,6 +50,11 @@ export function normalizeIndoorOutdoor(value) {
   return "OUTDOOR";
 }
 
+/** True if CSV/class field is missing — should not force-hide rows when global filters are set. */
+export function isBlankHierarchyField(value) {
+  return !String(value ?? "").trim();
+}
+
 export function setImportedMeasurements(data) {
   localStorage.setItem(IMPORTED_MEASUREMENTS_KEY, JSON.stringify(data || []));
 }
