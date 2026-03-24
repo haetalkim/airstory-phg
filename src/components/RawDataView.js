@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, Image as ImageIcon, X, Upload } from 'lucide-react';
-import { addMeasurementEdit, getMeasurements, importCsvMeasurements } from '../api/data';
+import { addMeasurementEdit, clearWorkspaceMeasurements, getMeasurements, importCsvMeasurements } from '../api/data';
+import { getRoster } from '../api/auth';
 import {
   clearImportedMeasurements,
   getImportedMeasurements,
@@ -44,6 +45,7 @@ const RawDataView = ({
   const [expandedRows, setExpandedRows] = useState({});
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [rosterRows, setRosterRows] = useState([]);
   const itemsPerPage = 50;
 
   const groupRowsForDisplay = React.useCallback((rows) => {
@@ -119,7 +121,8 @@ const RawDataView = ({
         if (cancelled) return;
         const nonDemoMeasurements = (result.measurements || []).filter((m) => {
           const code = String(m.session_code || "").toUpperCase();
-          return !code.startsWith("DEMO-");
+          const name = String(m.session_name || "").toUpperCase();
+          return !code.startsWith("DEMO-") && !name.includes("CAMPUS WALK GROUP");
         });
         const mappedRaw = nonDemoMeasurements.map((m) => ({
           id: m.id,
@@ -163,6 +166,23 @@ const RawDataView = ({
   }, [workspaceId, onImportedDataChanged, groupRowsForDisplay]);
 
   React.useEffect(() => {
+    let cancelled = false;
+    async function loadRosterMeta() {
+      if (!workspaceId) return;
+      try {
+        const data = await getRoster(workspaceId);
+        if (!cancelled) setRosterRows(data.members || []);
+      } catch {
+        if (!cancelled) setRosterRows([]);
+      }
+    }
+    loadRosterMeta();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  React.useEffect(() => {
     setSelectedSchool(filters.school || '');
     setSelectedInstructor(filters.instructor || '');
     setSelectedPeriod(filters.period || '');
@@ -176,30 +196,50 @@ const RawDataView = ({
     return { id, name: session.sessionName };
   });
   
-  const allSchools = [...new Set(rawData.map((d) => d.school).filter(Boolean))].sort();
+  const rosterSchools = rosterRows.map((m) => m.school_code).filter(Boolean);
+  const rosterInstructors = rosterRows.map((m) => m.instructor).filter(Boolean);
+  const rosterPeriods = rosterRows.map((m) => m.period).filter(Boolean);
+  const rosterGroups = rosterRows.map((m) => m.group_code).filter(Boolean);
+
+  const allSchools = [...new Set((rosterSchools.length ? rosterSchools : rawData.map((d) => d.school)).filter(Boolean))].sort();
   const allInstructors = [...new Set(
-    rawData
+    (rosterInstructors.length ? rosterRows.filter((m) => !selectedSchool || m.school_code === selectedSchool).map((m) => m.instructor) : rawData
       .filter((d) => !selectedSchool || d.school === selectedSchool)
-      .map((d) => d.instructor)
+      .map((d) => d.instructor))
       .filter(Boolean)
   )].sort();
   const allPeriods = [...new Set(
-    rawData
-      .filter((d) => (!selectedSchool || d.school === selectedSchool) && (!selectedInstructor || d.instructor === selectedInstructor))
-      .map((d) => d.period)
+    (rosterPeriods.length
+      ? rosterRows
+          .filter((m) => (!selectedSchool || m.school_code === selectedSchool) && (!selectedInstructor || m.instructor === selectedInstructor))
+          .map((m) => m.period)
+      : rawData
+          .filter((d) => (!selectedSchool || d.school === selectedSchool) && (!selectedInstructor || d.instructor === selectedInstructor))
+          .map((d) => d.period))
       .filter(Boolean)
   )].sort();
   const allGroups = [...new Set(
-    rawData
-      .filter(
-        (d) =>
-          (!selectedSchool || d.school === selectedSchool) &&
-          (!selectedInstructor || d.instructor === selectedInstructor) &&
-          (!selectedPeriod || d.period === selectedPeriod)
-      )
-      .map((d) => d.group)
+    (rosterGroups.length
+      ? rosterRows
+          .filter(
+            (m) =>
+              (!selectedSchool || m.school_code === selectedSchool) &&
+              (!selectedInstructor || m.instructor === selectedInstructor) &&
+              (!selectedPeriod || m.period === selectedPeriod)
+          )
+          .map((m) => m.group_code)
+      : rawData
+          .filter(
+            (d) =>
+              (!selectedSchool || d.school === selectedSchool) &&
+              (!selectedInstructor || d.instructor === selectedInstructor) &&
+              (!selectedPeriod || d.period === selectedPeriod)
+          )
+          .map((d) => d.group))
       .filter(Boolean)
   )].sort();
+  const normalizedPeriods = allPeriods.length ? allPeriods : ['P1'];
+  const normalizedGroups = [...new Set([...(allGroups || []), 'G1', 'G2', 'G3', 'G4'])].sort();
 
   // Filter data
   let filteredData = rawData.filter(row => {
@@ -375,10 +415,18 @@ const RawDataView = ({
     }
   };
 
-  const handleClearImportedData = () => {
-    clearImportedMeasurements();
-    setRawData([]);
-    onImportedDataChanged?.();
+  const handleClearImportedData = async () => {
+    try {
+      if (workspaceId) {
+        await clearWorkspaceMeasurements(workspaceId);
+      }
+      clearImportedMeasurements();
+      setRawData([]);
+      onImportedDataChanged?.();
+      setImportError('');
+    } catch (error) {
+      setImportError(error.message || 'Failed to clear data.');
+    }
   };
 
   const markEdited = (rowIds, field) => {
@@ -579,7 +627,7 @@ const RawDataView = ({
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
               <option value="">Select Period</option>
-              {allPeriods.map(p => <option key={p} value={p}>{p === viewerProfile?.period ? `${p} (My Period)` : p}</option>)}
+              {normalizedPeriods.map(p => <option key={p} value={p}>{p === viewerProfile?.period ? `${p} (My Period)` : p}</option>)}
             </select>
           </div>
 
@@ -596,7 +644,7 @@ const RawDataView = ({
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
               <option value="">Select Group</option>
-              {allGroups.map(g => <option key={g} value={g}>{g === viewerProfile?.group ? `${g} (My Team)` : g}</option>)}
+              {normalizedGroups.map(g => <option key={g} value={g}>{g === viewerProfile?.group ? `${g} (My Team)` : g}</option>)}
             </select>
           </div>
         </div>

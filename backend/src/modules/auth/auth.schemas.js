@@ -64,3 +64,24 @@ export const resetStudentPasswordSchema = z.object({
   }),
   query: z.object({}).passthrough(),
 });
+
+export const updateStudentPlacementSchema = z.object({
+  body: z.object({
+    period: z.string().min(1),
+    groupCode: z.string().min(1),
+  }),
+  params: z.object({
+    workspaceId: z.string().uuid(),
+    userId: z.string().uuid(),
+  }),
+  query: z.object({}).passthrough(),
+});
+
+export const removeStudentSchema = z.object({
+  body: z.object({}).passthrough(),
+  params: z.object({
+    workspaceId: z.string().uuid(),
+    userId: z.string().uuid(),
+  }),
+  query: z.object({}).passthrough(),
+});

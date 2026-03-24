@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { KeyRound, GraduationCap } from 'lucide-react';
+import { KeyRound, GraduationCap, LockKeyhole, Trash2, MoveRight, X } from 'lucide-react';
 import {
   createJoinCode,
   getJoinCodes,
   getRoster,
+  removeStudent,
   resetStudentPassword,
   setJoinCodeActive,
+  updateStudentPlacement,
 } from '../api/auth';
 
 export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
@@ -14,8 +16,13 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
   const [newCode, setNewCode] = useState('');
   const [newCodeSchool, setNewCodeSchool] = useState('MTN12');
   const [newCodeInstructor, setNewCodeInstructor] = useState('Shim');
-  const [resetPasswordDraft, setResetPasswordDraft] = useState({});
   const [error, setError] = useState('');
+  const [activeStudent, setActiveStudent] = useState(null);
+  const [activeAction, setActiveAction] = useState('');
+  const [draftPassword, setDraftPassword] = useState('');
+  const [draftPeriod, setDraftPeriod] = useState('P1');
+  const [draftGroup, setDraftGroup] = useState('G1');
+  const [busy, setBusy] = useState(false);
 
   const generateRandomCode = () => {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -89,16 +96,60 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
   };
 
   const handleResetPassword = async (student) => {
-    const next = resetPasswordDraft[student.id];
-    if (!next) return;
+    if (!draftPassword) return;
     try {
-      await resetStudentPassword(workspaceId, student.id, next);
-      setResetPasswordDraft((prev) => ({ ...prev, [student.id]: '' }));
+      setBusy(true);
+      await resetStudentPassword(workspaceId, student.id, draftPassword);
+      setDraftPassword('');
+      setActiveStudent(null);
+      setActiveAction('');
       setError('');
       // eslint-disable-next-line no-alert
       alert(`Password reset for ${student.full_name}`);
     } catch (e) {
       setError(e.message || 'Failed to reset student password.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openStudentAction = (student, action) => {
+    setActiveStudent(student);
+    setActiveAction(action);
+    setDraftPassword('');
+    setDraftPeriod(student.period || 'P1');
+    setDraftGroup(student.group_code || 'G1');
+  };
+
+  const handleMoveStudent = async () => {
+    if (!activeStudent) return;
+    try {
+      setBusy(true);
+      await updateStudentPlacement(workspaceId, activeStudent.id, { period: draftPeriod, groupCode: draftGroup });
+      await load();
+      setActiveStudent(null);
+      setActiveAction('');
+      setError('');
+    } catch (e) {
+      setError(e.message || 'Failed to move student.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemoveStudent = async () => {
+    if (!activeStudent) return;
+    try {
+      setBusy(true);
+      await removeStudent(workspaceId, activeStudent.id);
+      await load();
+      setActiveStudent(null);
+      setActiveAction('');
+      setError('');
+    } catch (e) {
+      setError(e.message || 'Failed to remove student.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -190,21 +241,30 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
                 <div key={student.id} className="p-3 bg-gray-50 rounded-lg">
                   <p className="font-medium text-gray-900">{student.full_name}</p>
                   <p className="text-xs text-gray-500 mb-2">{student.email}</p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="password"
-                      value={resetPasswordDraft[student.id] || ''}
-                      onChange={(e) =>
-                        setResetPasswordDraft((prev) => ({ ...prev, [student.id]: e.target.value }))
-                      }
-                      placeholder="New password"
-                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm"
-                    />
+                  <div className="flex items-center gap-2 justify-end">
                     <button
-                      onClick={() => handleResetPassword(student)}
-                      className="px-3 py-1.5 rounded text-sm bg-amber-50 text-amber-700 hover:bg-amber-100"
+                      onClick={() => openStudentAction(student, 'password')}
+                      className="px-3 py-1.5 rounded text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 inline-flex items-center gap-1"
+                      title="Reset password"
                     >
-                      Reset
+                      <LockKeyhole className="w-3.5 h-3.5" />
+                      PW
+                    </button>
+                    <button
+                      onClick={() => openStudentAction(student, 'move')}
+                      className="px-3 py-1.5 rounded text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 inline-flex items-center gap-1"
+                      title="Move period/group"
+                    >
+                      <MoveRight className="w-3.5 h-3.5" />
+                      Move
+                    </button>
+                    <button
+                      onClick={() => openStudentAction(student, 'delete')}
+                      className="px-3 py-1.5 rounded text-xs bg-red-50 text-red-700 hover:bg-red-100 inline-flex items-center gap-1"
+                      title="Remove student"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      X
                     </button>
                   </div>
                 </div>
@@ -213,6 +273,90 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
           </div>
         ))}
       </div>
+
+      {activeStudent && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setActiveStudent(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-gray-900">
+                  {activeAction === 'password' && 'Reset Password'}
+                  {activeAction === 'move' && 'Move Student'}
+                  {activeAction === 'delete' && 'Remove Student'}
+                </h4>
+                <p className="text-xs text-gray-500 mt-1">{activeStudent.full_name} • {activeStudent.email}</p>
+              </div>
+              <button
+                onClick={() => !busy && setActiveStudent(null)}
+                className="p-1.5 rounded-lg hover:bg-gray-100"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5">
+              {activeAction === 'password' && (
+                <div className="space-y-3">
+                  <input
+                    type="password"
+                    value={draftPassword}
+                    onChange={(e) => setDraftPassword(e.target.value)}
+                    placeholder="New password (8+ chars)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  <button
+                    disabled={busy || draftPassword.length < 8}
+                    onClick={() => handleResetPassword(activeStudent)}
+                      className="px-3 py-1.5 rounded text-sm bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    >
+                    Apply Password
+                  </button>
+                </div>
+              )}
+              {activeAction === 'move' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={draftPeriod}
+                      onChange={(e) => setDraftPeriod(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      {['P1', 'P2', 'P3'].map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <select
+                      value={draftGroup}
+                      onChange={(e) => setDraftGroup(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      {['G1', 'G2', 'G3', 'G4', 'G5'].map((g) => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
+                  <button
+                    disabled={busy}
+                    onClick={handleMoveStudent}
+                    className="px-3 py-1.5 rounded text-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  >
+                    Move Student
+                  </button>
+                </div>
+              )}
+              {activeAction === 'delete' && (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-700">
+                    Remove this student from the class roster?
+                  </p>
+                  <button
+                    disabled={busy}
+                    onClick={handleRemoveStudent}
+                    className="px-3 py-1.5 rounded text-sm bg-red-50 text-red-700 hover:bg-red-100"
+                  >
+                    Remove Student
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
         <div className="flex items-center gap-3 mb-3">

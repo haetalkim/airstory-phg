@@ -8,9 +8,11 @@ import { validate } from "../../middleware/validate.js";
 import {
   createJoinCodeSchema,
   loginSchema,
+  removeStudentSchema,
   registerSchema,
   resetStudentPasswordSchema,
   toggleJoinCodeSchema,
+  updateStudentPlacementSchema,
 } from "./auth.schemas.js";
 
 const router = express.Router();
@@ -337,6 +339,68 @@ router.post(
     await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, userId]);
     await pool.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [userId]);
     res.status(204).send();
+  }
+);
+
+router.patch(
+  "/workspaces/:workspaceId/users/:userId/placement",
+  requireAuth,
+  requireWorkspaceRole(["owner", "teacher"]),
+  validate(updateStudentPlacementSchema),
+  async (req, res) => {
+    const { workspaceId, userId } = req.params;
+    const { period, groupCode } = req.validated.body;
+    const student = await pool.query(
+      `SELECT wm.user_id
+       FROM workspace_memberships wm
+       WHERE wm.workspace_id = $1 AND wm.user_id = $2 AND wm.role = 'student'`,
+      [workspaceId, userId]
+    );
+    if (!student.rowCount) {
+      return res.status(404).json({ error: "Student not found in this workspace" });
+    }
+    const updated = await pool.query(
+      `UPDATE user_profiles
+       SET period = $1, group_code = $2
+       WHERE workspace_id = $3 AND user_id = $4
+       RETURNING user_id, workspace_id, period, group_code`,
+      [period, groupCode, workspaceId, userId]
+    );
+    if (!updated.rowCount) return res.status(404).json({ error: "Student profile not found" });
+    res.json({ profile: updated.rows[0] });
+  }
+);
+
+router.delete(
+  "/workspaces/:workspaceId/users/:userId",
+  requireAuth,
+  requireWorkspaceRole(["owner", "teacher"]),
+  validate(removeStudentSchema),
+  async (req, res, next) => {
+    const client = await pool.connect();
+    try {
+      const { workspaceId, userId } = req.params;
+      const student = await client.query(
+        `SELECT wm.user_id
+         FROM workspace_memberships wm
+         WHERE wm.workspace_id = $1 AND wm.user_id = $2 AND wm.role = 'student'`,
+        [workspaceId, userId]
+      );
+      if (!student.rowCount) {
+        return res.status(404).json({ error: "Student not found in this workspace" });
+      }
+
+      await client.query("BEGIN");
+      await client.query(`DELETE FROM user_profiles WHERE workspace_id = $1 AND user_id = $2`, [workspaceId, userId]);
+      await client.query(`DELETE FROM workspace_memberships WHERE workspace_id = $1 AND user_id = $2`, [workspaceId, userId]);
+      await client.query("COMMIT");
+      res.status(204).send();
+    } catch (error) {
+      await client.query("ROLLBACK");
+      next(error);
+    } finally {
+      client.release();
+    }
   }
 );
 

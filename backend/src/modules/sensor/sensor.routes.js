@@ -251,6 +251,28 @@ router.post(
   }
 );
 
+router.delete(
+  "/workspaces/:workspaceId/measurements",
+  requireWorkspaceRole(["owner", "teacher"]),
+  async (req, res, next) => {
+    const client = await pool.connect();
+    try {
+      const { workspaceId } = req.params;
+      await client.query("BEGIN");
+      await client.query(`DELETE FROM measurement_edits WHERE workspace_id = $1`, [workspaceId]);
+      await client.query(`DELETE FROM measurements WHERE workspace_id = $1`, [workspaceId]);
+      await client.query(`DELETE FROM sessions WHERE workspace_id = $1`, [workspaceId]);
+      await client.query("COMMIT");
+      res.status(204).send();
+    } catch (err) {
+      await client.query("ROLLBACK");
+      next(err);
+    } finally {
+      client.release();
+    }
+  }
+);
+
 router.post(
   "/workspaces/:workspaceId/measurements",
   requireWorkspaceRole(["owner", "teacher"]),

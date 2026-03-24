@@ -24,3 +24,9 @@ export function importCsvMeasurements(workspaceId, rows = []) {
     body: JSON.stringify({ rows }),
   });
 }
+
+export function clearWorkspaceMeasurements(workspaceId) {
+  return apiRequest(`/workspaces/${workspaceId}/measurements`, {
+    method: "DELETE",
+  });
+}

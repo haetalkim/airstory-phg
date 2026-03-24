@@ -77,6 +77,19 @@ export async function resetStudentPassword(workspaceId, userId, newPassword) {
   });
 }
 
+export async function updateStudentPlacement(workspaceId, userId, { period, groupCode }) {
+  return apiRequest(`/auth/workspaces/${workspaceId}/users/${userId}/placement`, {
+    method: "PATCH",
+    body: JSON.stringify({ period, groupCode }),
+  });
+}
+
+export async function removeStudent(workspaceId, userId) {
+  return apiRequest(`/auth/workspaces/${workspaceId}/users/${userId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function logout() {
   const auth = getStoredAuth();
   try {

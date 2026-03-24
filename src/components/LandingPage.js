@@ -52,6 +52,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
   const [showVerification, setShowVerification] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [signupStep, setSignupStep] = useState(1);
   const [formError, setFormError] = useState('');
   const randomAirFact = useMemo(
     () => AIR_FACTS[Math.floor(Math.random() * AIR_FACTS.length)],
@@ -61,6 +62,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
   // Update email when mode changes
   const handleModeChange = (newMode) => {
     setFormError('');
+    setSignupStep(1);
     setMode(newMode);
     if (newMode === 'teacher') {
       setEmail('shim@tamgu.com');
@@ -70,6 +72,15 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
   };
 
   const handleLoginAttempt = () => {
+    if (isSignUp && mode === 'student' && signupStep === 1) {
+      if (!/^[A-Z0-9]{5}$/.test(joinCode.trim().toUpperCase())) {
+        setFormError('Join code must be exactly 5 letters/numbers.');
+        return;
+      }
+      setFormError('');
+      setSignupStep(2);
+      return;
+    }
     if (isSignUp && mode === 'student' && !joinCode.trim()) {
       setFormError('Student sign up requires a teacher join code.');
       return;
@@ -274,7 +285,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                   {mode === 'student' ? <GraduationCap size={40} /> : <Users size={40} />}
                 </div>
                 <h3 className="text-2xl font-black text-gray-900">
-                  {isSignUp ? 'Create Account' : (mode === 'student' ? 'Student Login' : 'Instructor Login')}
+                  {isSignUp ? (mode === 'student' ? `Student Sign Up ${signupStep === 1 ? '• Step 1' : '• Step 2'}` : 'Create Account') : (mode === 'student' ? 'Student Login' : 'Instructor Login')}
                 </h3>
                 <p className="text-gray-500 font-medium mt-1">
                   {isSignUp ? 'Set up your account credentials.' : 'Enter your school credentials to begin.'}
@@ -284,30 +295,32 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
               <div className="space-y-4">
                 {isSignUp && (
                   <>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
-                      <input
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-                      />
-                    </div>
                     {mode === 'student' && (
                       <>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Join Code</label>
-                          <input
-                            type="text"
-                            value={joinCode}
-                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                            placeholder="5-letter/number class code"
-                            maxLength={5}
-                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium tracking-wider uppercase"
-                          />
-                        </div>
-                        {joinCode.trim().length === 5 && (
+                        {signupStep === 1 && (
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Join Code</label>
+                            <input
+                              type="text"
+                              value={joinCode}
+                              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                              placeholder="5-letter/number class code"
+                              maxLength={5}
+                              className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium tracking-wider uppercase"
+                            />
+                          </div>
+                        )}
+                        {signupStep === 2 && (
                           <>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                              <input
+                                type="text"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                              />
+                            </div>
                             <div className="space-y-2">
                               <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Instructor (optional)</label>
                               <input
@@ -340,36 +353,60 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                                 </select>
                               </div>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => setSignupStep(1)}
+                              className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
+                            >
+                              Change Join Code
+                            </button>
                           </>
                         )}
                       </>
                     )}
+                    {mode === 'teacher' && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                        <input
+                          type="text"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                        />
+                      </div>
+                    )}
                   </>
                 )}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
-                  <input 
-                    type="email" 
-                    placeholder="name@school.edu" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Password</label>
-                  <input 
-                    type="password" 
-                    placeholder="••••••••" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium" 
-                  />
-                </div>
+                {!(isSignUp && mode === 'student' && signupStep === 1) && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                      <input 
+                        type="email" 
+                        placeholder="name@school.edu" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Password</label>
+                      <input 
+                        type="password" 
+                        placeholder="••••••••" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium" 
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               <Button onClick={handleLoginAttempt} className="w-full py-4 text-lg">
-                {isSignUp ? 'Create Account' : (mode === 'student' ? 'Join Lab Session' : 'Access Dashboard')} 
+                {isSignUp
+                  ? (mode === 'student' ? (signupStep === 1 ? 'Next' : 'Create Account') : 'Create Account')
+                  : (mode === 'student' ? 'Join Lab Session' : 'Access Dashboard')} 
                 <ArrowRight size={22} className="ml-1" />
               </Button>
               <button
@@ -377,6 +414,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                 onClick={() => {
                   setFormError('');
                   setIsSignUp((prev) => !prev);
+                  setSignupStep(1);
                 }}
                 className="w-full text-sm text-blue-600 hover:text-blue-700 font-semibold"
               >
