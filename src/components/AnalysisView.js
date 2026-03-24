@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, X, MapPin } from 'lucide-react';
 import { getImportedMeasurements } from '../utils/importedData';
 import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
+import { apiRequest } from '../api/http';
 
 const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes, currentFilters }) => {
   const [comparisonType, setComparisonType] = useState('group'); // 'group', 'school', 'location', 'time'
@@ -444,6 +445,8 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
   const [referenceLocation, setReferenceLocation] = useState(REFERENCE_LOCATIONS[2]?.name || 'Central Park');
+  const [openaqPoints, setOpenaqPoints] = useState(null);
+  const [openaqMeta, setOpenaqMeta] = useState({ status: 'idle', message: '' });
 
   const imported = useMemo(
     () => getImportedMeasurements(),
@@ -487,16 +490,70 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
     }));
   }, [monthData]);
 
-  /** Align your last week with a simulated reference location trend (labeled in UI). */
+  const openaqByDate = useMemo(() => {
+    if (!openaqPoints?.length) return null;
+    return Object.fromEntries(openaqPoints.map((p) => [p.date, p.value]));
+  }, [openaqPoints]);
+
+  useEffect(() => {
+    if (!weekData.length || selectedMetric !== 'pm25') {
+      setOpenaqPoints(null);
+      setOpenaqMeta({ status: 'idle', message: '' });
+      return;
+    }
+    const loc = REFERENCE_LOCATIONS.find((l) => l.name === referenceLocation);
+    if (loc?.lat == null || loc?.lng == null) return;
+
+    let cancelled = false;
+    (async () => {
+      setOpenaqMeta({ status: 'loading', message: '' });
+      try {
+        const dateFrom = weekData[0].date;
+        const dateTo = weekData[weekData.length - 1].date;
+        const q = new URLSearchParams({
+          lat: String(loc.lat),
+          lng: String(loc.lng),
+          date_from: dateFrom,
+          date_to: dateTo,
+          metric: 'pm25',
+        });
+        const data = await apiRequest(`/analytics/openaq/daily?${q.toString()}`);
+        if (cancelled) return;
+        setOpenaqPoints(data.points || []);
+        const label = data.locationName ? `OpenAQ @ ${data.locationName}` : 'OpenAQ';
+        setOpenaqMeta({ status: 'ok', message: label });
+      } catch (e) {
+        if (cancelled) return;
+        setOpenaqPoints(null);
+        setOpenaqMeta({
+          status: 'error',
+          message: e?.message || 'OpenAQ unavailable — using simulated reference.',
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [weekData, referenceLocation, selectedMetric]);
+
+  /** Your week vs OpenAQ (PM2.5) when available, else simulated reference. */
   const weekCompareData = useMemo(() => {
     if (!weekData.length) return [];
-    const refSeries = getReferenceWeekSeries(referenceLocation, selectedMetric);
-    return weekData.map((row, i) => ({
-      label: row.day,
-      yours: row.value,
-      reference: refSeries[i]?.value ?? refSeries[refSeries.length - 1]?.value,
-    }));
-  }, [weekData, referenceLocation, selectedMetric]);
+    const sim = getReferenceWeekSeries(referenceLocation, selectedMetric);
+    return weekData.map((row, i) => {
+      let reference;
+      if (selectedMetric === 'pm25' && openaqByDate && openaqByDate[row.date] != null) {
+        reference = openaqByDate[row.date];
+      } else {
+        reference = sim[i]?.value ?? sim[sim.length - 1]?.value;
+      }
+      return {
+        label: row.day,
+        yours: row.value,
+        reference,
+      };
+    });
+  }, [weekData, referenceLocation, selectedMetric, openaqByDate]);
 
   const stats = useMemo(() => {
     const allValues = monthData.map((d) => Number(d.value));
@@ -669,9 +726,19 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Your recent week vs reference location</h2>
               <p className="text-xs text-gray-500 mt-1">
-                <strong>Your data</strong> = filtered measurements. <strong>Reference</strong> = simulated regional trend for
-                the selected place (classroom discussion — not a live government feed).
+                <strong>Your data</strong> = filtered measurements. For <strong>PM2.5</strong>, the gray line uses{' '}
+                <strong>OpenAQ</strong> daily averages near the pin (when your API key is set on the server). Other metrics
+                use a <strong>simulated</strong> regional curve for discussion only.
               </p>
+              {selectedMetric === 'pm25' && openaqMeta.status === 'loading' && (
+                <p className="text-xs text-blue-600 mt-1">Loading OpenAQ reference…</p>
+              )}
+              {selectedMetric === 'pm25' && openaqMeta.status === 'ok' && (
+                <p className="text-xs text-green-700 mt-1">{openaqMeta.message}</p>
+              )}
+              {selectedMetric === 'pm25' && openaqMeta.status === 'error' && (
+                <p className="text-xs text-amber-700 mt-1">{openaqMeta.message}</p>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <MapPin className="w-4 h-4 text-gray-500" />
@@ -718,7 +785,11 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 <Line
                   type="monotone"
                   dataKey="reference"
-                  name="Reference (simulated)"
+                  name={
+                    selectedMetric === 'pm25' && openaqMeta.status === 'ok' && openaqPoints?.length
+                      ? 'Reference (OpenAQ)'
+                      : 'Reference (simulated)'
+                  }
                   stroke="#94a3b8"
                   strokeWidth={2}
                   strokeDasharray="6 4"

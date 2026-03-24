@@ -14,6 +14,8 @@ export const env = {
   googleSheetId: process.env.GOOGLE_SHEET_ID || "",
   googleServiceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "",
   googlePrivateKey: (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+  /** OpenAQ v3 — keep in backend only; never commit (see backend/.env.example). */
+  openaqApiKey: process.env.OPENAQ_API_KEY || "",
 };
 
 export function isProduction() {

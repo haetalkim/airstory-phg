@@ -20,6 +20,7 @@ You will have **three URLs**:
    - Find **`FRONTEND_URL`** (sync: false — you must set it).
    - Set value to your **exact Vercel URL**: `https://your-project.vercel.app`  
      - Use `https`, **no** trailing slash.
+   - Optional: **`OPENAQ_API_KEY`** — your [OpenAQ](https://openaq.org/) key so the Analysis page can load a **PM2.5** reference line from OpenAQ (see `docs/OPENAQ.md`). Never commit this key.
 6. **Save** — Render redeploys.
 
 **Migrations (free tier):** `preDeployCommand` is **not supported** on Render’s free web services. After the first successful API deploy, open the Web Service → **Shell** and run **`npm run db:migrate`** once (safe to repeat). Paid plans can use `preDeployCommand` in `render.yaml` if you add it back.
