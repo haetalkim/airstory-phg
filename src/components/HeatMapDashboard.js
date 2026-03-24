@@ -409,7 +409,6 @@ const HeatMapDashboard = ({
     filteredImported,
     selectedMetric,
     filters,
-    usingWorkspaceHeatmap,
     locations,
   ]);
 
