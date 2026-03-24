@@ -12,6 +12,7 @@ if (!env.databaseUrl) {
 // local `npm run db:migrate` fails with: "SSL/TLS required".
 const url = env.databaseUrl || "";
 const isLocalDb =
+  !url ||
   /localhost|127\.0\.0\.1/.test(url) ||
   /^postgresql:\/\/postgres:postgres@/.test(url);
 

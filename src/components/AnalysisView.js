@@ -447,6 +447,8 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
+  const [compareMode, setCompareMode] = useState('openaq'); // openaq | group | class | school
+  const [compareGroup, setCompareGroup] = useState('');
   const [referenceLocation, setReferenceLocation] = useState(REFERENCE_LOCATIONS[2]?.name || 'Central Park');
   const [openaqPoints, setOpenaqPoints] = useState(null);
   const [openaqMeta, setOpenaqMeta] = useState({ status: 'idle', message: '' });
@@ -468,6 +470,22 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   }, [imported, filters]);
 
   const hasData = scopedData.length > 0;
+
+  const classScopeData = useMemo(() => {
+    return imported.filter((row) => {
+      if (filters.school && row.school !== filters.school) return false;
+      if (filters.instructor && row.instructor !== filters.instructor) return false;
+      if (filters.period && row.period !== filters.period) return false;
+      return true;
+    });
+  }, [imported, filters.school, filters.instructor, filters.period]);
+
+  const schoolScopeData = useMemo(() => {
+    return imported.filter((row) => {
+      if (filters.school && row.school !== filters.school) return false;
+      return true;
+    });
+  }, [imported, filters.school]);
 
   const monthData = useMemo(() => {
     if (!scopedData.length) return [];
@@ -585,20 +603,75 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   }, [monthData]);
 
   const classAverage = useMemo(() => {
-    const schoolRows = imported.filter((row) => row.school === filters.school && row.period === filters.period);
+    const schoolRows = classScopeData;
     if (!schoolRows.length) return null;
     return Math.round(
       schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length
     );
-  }, [imported, filters.school, filters.period, selectedMetric]);
+  }, [classScopeData, selectedMetric]);
 
   const schoolAverage = useMemo(() => {
-    const schoolRows = imported.filter((row) => row.school === filters.school);
+    const schoolRows = schoolScopeData;
     if (!schoolRows.length) return null;
     return Math.round(
       schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length
     );
-  }, [imported, filters.school, selectedMetric]);
+  }, [schoolScopeData, selectedMetric]);
+
+  const availableCompareGroups = useMemo(() => {
+    const groups = [...new Set(classScopeData.map((r) => r.group).filter(Boolean))].sort();
+    return groups.filter((g) => g !== filters.group);
+  }, [classScopeData, filters.group]);
+
+  useEffect(() => {
+    if (!availableCompareGroups.length) {
+      setCompareGroup('');
+      return;
+    }
+    if (!compareGroup || !availableCompareGroups.includes(compareGroup)) {
+      setCompareGroup(availableCompareGroups[0]);
+    }
+  }, [availableCompareGroups, compareGroup]);
+
+  const compareChartData = useMemo(() => {
+    if (!weekData.length) return [];
+    const makeDailySeries = (rows) => {
+      const byDate = {};
+      rows.forEach((row) => {
+        const key = row.date;
+        const value = Number(row[selectedMetric] ?? 0);
+        if (!byDate[key]) byDate[key] = { sum: 0, count: 0 };
+        byDate[key].sum += value;
+        byDate[key].count += 1;
+      });
+      return Object.entries(byDate)
+        .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+        .map(([date, agg]) => ({ date, value: Number((agg.sum / agg.count).toFixed(2)) }));
+    };
+
+    if (compareMode === 'openaq') {
+      return weekCompareData.map((d) => ({ day: d.label, yours: d.yours, comparison: d.reference }));
+    }
+
+    const dayKeys = weekData.map((d) => d.date);
+    let comparisonSeries = [];
+    if (compareMode === 'group' && compareGroup) {
+      comparisonSeries = makeDailySeries(classScopeData.filter((r) => r.group === compareGroup));
+    } else if (compareMode === 'class') {
+      comparisonSeries = makeDailySeries(classScopeData);
+    } else if (compareMode === 'school') {
+      comparisonSeries = makeDailySeries(schoolScopeData);
+    }
+    const comparisonByDate = Object.fromEntries(comparisonSeries.map((d) => [d.date, d.value]));
+
+    return weekData
+      .filter((d) => dayKeys.includes(d.date))
+      .map((d) => ({
+        day: d.day,
+        yours: d.value,
+        comparison: comparisonByDate[d.date] ?? null,
+      }));
+  }, [weekData, weekCompareData, compareMode, compareGroup, classScopeData, schoolScopeData, selectedMetric]);
 
   const avgValue = stats?.avgValue ?? 0;
   const minValue = stats?.minValue ?? 0;
@@ -619,7 +692,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
           <button
             type="button"
             disabled={!hasData}
-            onClick={() => setShowCompareModal(true)}
+            onClick={() => setActiveTab('compare')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all shadow-lg ${
               hasData ? `${theme.bg} ${theme.hover} text-white` : 'bg-gray-200 text-gray-500 cursor-not-allowed'
             }`}
@@ -1056,19 +1129,45 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
 
           {/* Comparison Chart */}
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Your recent week vs class / school</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Lines are flat when we don’t have enough imported rows to compute class or school averages.
-            </p>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Your recent week comparison</h3>
+                <p className="text-xs text-gray-500">
+                  Compare your filtered data with OpenAQ, another group, class average, or school average.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={compareMode}
+                  onChange={(e) => setCompareMode(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value="openaq">vs OpenAQ reference</option>
+                  <option value="group">vs another group</option>
+                  <option value="class">vs class average</option>
+                  <option value="school">vs school average</option>
+                </select>
+                {compareMode === 'group' && (
+                  <select
+                    value={compareGroup}
+                    onChange={(e) => setCompareGroup(e.target.value)}
+                    className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                  >
+                    {availableCompareGroups.length ? (
+                      availableCompareGroups.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">NO DATA</option>
+                    )}
+                  </select>
+                )}
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={350}>
-              <LineChart
-                data={weekData.map((d) => ({
-                  day: d.day,
-                  'Your Group': d.value,
-                  ...(classAverage != null ? { 'Class Avg': classAverage } : {}),
-                  ...(schoolAverage != null ? { 'School Avg': schoolAverage } : {}),
-                }))}
-              >
+              <LineChart data={compareChartData}>
                 <XAxis
                   dataKey="day"
                   stroke="#9CA3AF"
@@ -1089,31 +1188,30 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 <Legend />
                 <Line
                   type="monotone"
-                  dataKey="Your Group"
+                  dataKey="yours"
+                  name="Your data"
                   stroke={theme.primary}
                   strokeWidth={3}
                   dot={{ fill: theme.primary, r: 5 }}
                 />
-                {classAverage != null && (
-                  <Line
-                    type="monotone"
-                    dataKey="Class Avg"
-                    stroke="#9CA3AF"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    dot={{ fill: '#9CA3AF', r: 4 }}
-                  />
-                )}
-                {schoolAverage != null && (
-                  <Line
-                    type="monotone"
-                    dataKey="School Avg"
-                    stroke="#3B82F6"
-                    strokeWidth={2}
-                    strokeDasharray="3 3"
-                    dot={{ fill: '#3B82F6', r: 4 }}
-                  />
-                )}
+                <Line
+                  type="monotone"
+                  dataKey="comparison"
+                  name={
+                    compareMode === 'openaq'
+                      ? 'OpenAQ / reference'
+                      : compareMode === 'group'
+                        ? `Group ${compareGroup || ''}`
+                        : compareMode === 'class'
+                          ? 'Class average'
+                          : 'School average'
+                  }
+                  stroke="#64748b"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={{ fill: '#64748b', r: 4 }}
+                  connectNulls={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1152,10 +1250,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600 mt-0.5">•</span>
-                  <span>
-                    Open <strong>Compare Data</strong> for the full sandbox comparison tool (still demo-style randoms —
-                    we can wire it to the API next).
-                  </span>
+                  <span>Use the compare mode selector above to switch between OpenAQ, other groups, class, and school.</span>
                 </li>
               </ul>
             </div>
@@ -1169,10 +1264,10 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
                 <p className="text-sm opacity-90">Compare with other schools, locations, and time periods</p>
               </div>
               <button
-                onClick={() => setShowCompareModal(true)}
+                onClick={() => setActiveTab('compare')}
                 className="px-6 py-3 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 transition-all shadow-md"
               >
-                Open Comparison Tool
+                Open Compare View
               </button>
             </div>
           </div>
