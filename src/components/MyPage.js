@@ -276,7 +276,7 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
 
           {/* About */}
           <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 shadow-lg border border-gray-200">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">About Project ABC</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">About Air Story</h3>
             <div className="space-y-3 text-sm text-gray-600">
               <p>
                 <strong className="text-gray-900">Version:</strong> 1.0.0
@@ -285,7 +285,7 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
                 <strong className="text-gray-900">Last Updated:</strong> November 2025
               </p>
               <p>
-                Project ABC is a comprehensive air quality monitoring platform designed for schools and communities.
+                Air Story is a comprehensive air quality monitoring platform designed for schools and communities.
               </p>
               <div className="flex flex-wrap gap-4 mt-4">
                 <button type="button" className="text-blue-600 hover:text-blue-700 font-medium bg-transparent border-0 p-0 cursor-pointer">

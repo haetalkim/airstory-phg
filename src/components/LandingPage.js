@@ -222,17 +222,13 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
               <span className="max-w-0 overflow-hidden inline-block group-hover:max-w-[300px] transition-all duration-700 ease-in-out">
                 <span className="text-gray-900">ir</span>
               </span>
-              <span className="text-blue-600 ml-1">B</span>
+              <span className="text-blue-600 ml-1">S</span>
               <span className="max-w-0 overflow-hidden inline-block group-hover:max-w-[300px] transition-all duration-700 ease-in-out">
-                <span className="text-gray-900">io</span>
-              </span>
-              <span className="text-blue-600 ml-1">C</span>
-              <span className="max-w-0 overflow-hidden inline-block group-hover:max-w-[300px] transition-all duration-700 ease-in-out">
-                <span className="text-gray-900">ivic</span>
+                <span className="text-gray-900">tory</span>
               </span>
             </h1>
             <p className="text-xl text-gray-600 font-medium max-w-lg leading-relaxed">
-              Connecting biology, civic responsibility, and real-time air quality data in your classroom.
+              Turn everyday air-quality observations into a story you can learn from—together.
             </p>
           </div>
 

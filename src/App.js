@@ -393,7 +393,7 @@ export default function App() {
           />
         </main>
         <footer className="py-8 text-center text-gray-400 text-sm font-bold uppercase tracking-widest">
-          <p>ABC • TAMGU LAB @TC</p>
+          <p>Air Story • TAMGU LAB @TC</p>
         </footer>
       </div>
     );
@@ -414,7 +414,7 @@ export default function App() {
             >
               <img 
                 src="/logo.svg" 
-                alt="ABC" 
+                alt="Air Story" 
                 className="h-12 w-auto"
                 onError={(e) => {
                   // Fallback to text if image fails to load
@@ -423,7 +423,7 @@ export default function App() {
                 }}
               />
               <h1 className="text-2xl font-bold text-gray-900 tracking-tight" style={{display: 'none'}}>
-                ABC
+                Air Story
               </h1>
             </button>
 
@@ -538,7 +538,7 @@ export default function App() {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-20">
         <div className="max-w-7xl mx-auto px-6 py-6 text-center text-sm text-gray-600">
-          <p>&copy; 2025 Project ABC. All rights reserved.</p>
+          <p>&copy; 2025 Air Story. All rights reserved.</p>
         </div>
       </footer>
     </div>
