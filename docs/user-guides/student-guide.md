@@ -1,18 +1,18 @@
-# Student Guide — AIR @TAMGU
+# Student Guide — Air Story
 
-This guide explains how to use **ABC** as a student: sign-in, reading data, and submitting **edit annotations** (`*`) the right way. **ABC** is this platform (you may also see the name **AIR @TAMGU**). Your instructor may pair this guide with a written unit plan.
+This guide explains how to use **Air Story** as a student: sign-in, reading data, and submitting **edit annotations** (`*`) the right way. Your instructor may pair this guide with the unit plan in [`instructor-curriculum-guide.md`](./instructor-curriculum-guide.md).
 
 ---
 
-## What ABC is
+## What Air Story is
 
-**ABC** is the **air-quality learning platform** your class uses in **K–12 STEM** lessons. It connects to **sensors** (handheld or mobile apps in the field, depending on your school’s setup) so measurements are not stuck on one device—they show up in a **shared workspace** where your group can see trends, compare conditions, and talk about evidence together.
+**Air Story** is the **air-quality learning platform** your class uses in **K–12 STEM** lessons. It connects to **sensors** (handheld or mobile apps in the field, depending on your school’s setup) so measurements are not stuck on one device—they show up in a **shared workspace** where your group can see trends, compare conditions, and talk about evidence together.
 
 ### Why air quality is a socio-scientific issue (SSI)
 
 Air quality sits at the boundary of **science and society**. The numbers describe particles and gases, but the stakes include **health**, **who is exposed**, **schools and neighborhoods**, **rules and technology**, and **what should be done** when data are uncertain or disagree. In an SSI unit, you are not only learning to read a graph—you are practicing how **communities use evidence** to argue, decide, and care for people and the environment.
 
-### Data literacy on ABC
+### Data literacy on Air Story
 
 **Data literacy** here means you can:
 
@@ -21,13 +21,13 @@ Air quality sits at the boundary of **science and society**. The numbers describ
 - Tell the difference between **raw sensor values** and **your annotations** (`*`), and why both matter for honesty and grading.
 - Use exports or screenshots **fairly** when you report (cite what the dashboard showed and when).
 
-### Data agency on ABC
+### Data agency on Air Story
 
 **Data agency** means you are not a passive viewer. Within the rules of your class, you can **look**, **compare**, **question**, and **propose** annotation edits with a note—so the record stays traceable. Agency is **not** “change numbers until the story looks good”; it is **taking responsibility** for how data are interpreted and communicated in a socio-scientific debate.
 
 ### How this ties to your sensor work
 
-Sensors **collect**; ABC **organizes and displays** that stream under **sessions** your teacher sets up. If your class uses a phone or field app, your teacher will share the procedure; technical integration details for developers live in [`../mobile/MOBILE_INTEGRATION_GUIDE.md`](../mobile/MOBILE_INTEGRATION_GUIDE.md).
+Sensors **collect**; **Air Story** **organizes and displays** that stream under **sessions** your teacher sets up. If your class uses a phone or field app, your teacher will share the procedure; technical integration details for developers live in [`../mobile/MOBILE_INTEGRATION_GUIDE.md`](../mobile/MOBILE_INTEGRATION_GUIDE.md).
 
 ---
 
@@ -99,5 +99,6 @@ If you are practicing in front of the class, follow [`student-demo-guide.md`](./
 
 | Document | Use |
 |----------|-----|
+| [`instructor-curriculum-guide.md`](./instructor-curriculum-guide.md) | How your teacher may sequence lessons, SSI discussion, and tool use across the unit. |
 | [`student-demo-guide.md`](./student-demo-guide.md) | Short scripted demo (two groups, one annotation). |
 | [`../mobile/MOBILE_INTEGRATION_GUIDE.md`](../mobile/MOBILE_INTEGRATION_GUIDE.md) | How mobile apps talk to the same API (if your class uses an app). |
