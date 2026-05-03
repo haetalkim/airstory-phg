@@ -45,6 +45,8 @@ jobs:
       - name: Build
         env:
           REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL || 'https://air-sensor-api.onrender.com/api' }}
+          # Maps embeds at build time (CRA). Add repo secret or heat map shows "API Key Required".
+          REACT_APP_GOOGLE_MAPS_API_KEY: ${{ secrets.REACT_APP_GOOGLE_MAPS_API_KEY }}
         run: npm run build
 
       - name: Upload Pages artifact

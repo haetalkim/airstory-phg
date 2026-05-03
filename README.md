@@ -14,7 +14,7 @@ Air quality classroom platform: React dashboard + Express/Postgres API.
 **Frontend (canonical): GitHub Pages** — the live site must be built from **this repo root** (`npm run build`), not from `air-quality-tracker/`.
 
 - **CI:** push to `main` runs [.github/workflows/deploy-gh-pages.yml](.github/workflows/deploy-gh-pages.yml) (see **[docs/GITHUB_PAGES.md](docs/GITHUB_PAGES.md)** for secrets + troubleshooting).
-- **Manual:** `npm run deploy` uses `scripts/deploy-github-pages.sh` and **`CACHE_DIR`** outside the repo. Set `REACT_APP_API_BASE_URL` in `.env` before deploy (baked into the static build).
+- **Manual:** `npm run deploy` uses `scripts/deploy-github-pages.sh` and **`CACHE_DIR`** outside the repo. Before deploy, set in `.env` (baked into the static build): `REACT_APP_API_BASE_URL`, and **`REACT_APP_GOOGLE_MAPS_API_KEY`** for the heat map. CI needs the same vars as **Actions secrets** (see [docs/GITHUB_PAGES.md](docs/GITHUB_PAGES.md)).
 
 GitHub: **Settings → Pages** — source **GitHub Actions** so the workflow in `.github/workflows/deploy-gh-pages.yml` can publish (artifact + deploy-pages). For branch-only deploys, use **`npm run deploy`** instead (see [docs/GITHUB_PAGES.md](docs/GITHUB_PAGES.md)).
 

@@ -17,13 +17,16 @@ Do **not** keep GitHub’s template workflow that uploads **`path: '.'`** (whole
 - Triggers on push to `main` when `src/`, `public/`, `package.json`, `package-lock.json`, Tailwind/PostCSS configs, or the workflow file change (also **Actions → Run workflow**).
 - Runs `npm ci` and `npm run build` at the **repo root**, uploads `build/` as a Pages artifact, then **`actions/deploy-pages`** publishes it.
 
-### Optional repository secret
+### Repository secrets (Actions build)
 
 | Name | Purpose |
 |------|--------|
 | `REACT_APP_API_BASE_URL` | Full API base URL ending in `/api`, e.g. `https://air-sensor-api.onrender.com/api`. If omitted, the workflow uses the same default as [DEPLOY_RENDER.md](DEPLOY_RENDER.md). |
+| `REACT_APP_GOOGLE_MAPS_API_KEY` | **Required for the heat map** (embedded at `npm run build`). Without it, the app shows “Google Maps API Key Required”. Same value as local `.env`. |
 
 GitHub: **Settings → Secrets and variables → Actions → New repository secret**.
+
+**Google Cloud Console** (API key restrictions): allow HTTP referrers for your Pages URL, e.g. `https://haetalkim.github.io/airstory/*` (and `http://localhost:*` for dev). Enable **Maps JavaScript API** (and billing if prompted).
 
 ### GitHub Pages settings (must match this workflow)
 
