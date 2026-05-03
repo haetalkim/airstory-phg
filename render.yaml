@@ -17,9 +17,8 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install
+    # start runs migrate + Sikich teacher upsert (idempotent), then the API — no manual Shell step.
     startCommand: npm start
-    # preDeployCommand is not supported on Render free-tier web services — run
-    # migrations once manually: Web Service → Shell → `npm run db:migrate`
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

@@ -5,14 +5,13 @@
 1. Copy `.env.example` to `.env` and fill values.
 2. Install dependencies:
    - `npm install`
-3. Run migrations:
+3. **Production (`npm start` on Render, etc.):** each start runs `db:migrate` then `db:upsert-teacher` then the API — the Sikich teacher is created/updated automatically; no Shell step required.
+4. **Local dev:** optional one-off:
    - `npm run db:migrate`
-4. Seed a starter account (local dev — resets PHG01 workspace data):
-   - `npm run db:seed`
-   - **Production / existing DB:** create the Sikich login **without** wiping class data:
-     - `npm run db:upsert-teacher`
-5. Start server:
-   - `npm run dev`
+   - `npm run db:seed` — resets the PHG01 workspace (measurements + join codes for that workspace)
+   - or `npm run db:upsert-teacher` — teacher only, no data wipe
+5. Local server:
+   - `npm run dev` (does **not** auto-migrate; run step 4 manually when schema changes)
 
 ## API Base
 
