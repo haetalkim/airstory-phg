@@ -7,8 +7,10 @@
    - `npm install`
 3. Run migrations:
    - `npm run db:migrate`
-4. Seed a starter account:
+4. Seed a starter account (local dev — resets PHG01 workspace data):
    - `npm run db:seed`
+   - **Production / existing DB:** create the Sikich login **without** wiping class data:
+     - `npm run db:upsert-teacher`
 5. Start server:
    - `npm run dev`
 
@@ -53,3 +55,14 @@ The seed creates:
 - **No join code in the database** until the teacher creates one in the portal (so the flow matches production).
 
 Teachers can use **Manage Classes** to create join codes, view the roster, change student **period/group**, reset passwords, or remove students from the class (see `PATCH .../users/:userId/placement` and related auth routes).
+
+### “Invalid credentials” for `sikich@tamgu.com`
+
+The hosted API (`air-sensor-api.onrender.com` by default) uses **whatever Postgres `DATABASE_URL` it was given**. That database must contain the teacher row with the hashed password.
+
+1. On **Render** (or your host): open the **Web Service → Shell** (or run locally with the **production** `DATABASE_URL` copied from the dashboard).
+2. From `backend`: run migrations if needed, then:
+   - `npm run db:upsert-teacher` — recommended for production (does not delete students, sessions, or join codes).
+   - or `npm run db:seed` — only on an **empty / dev** database (it clears PHG01 workspace measurements and join codes for that workspace).
+
+After `db:upsert-teacher`, try logging in again with `sikich@tamgu.com` / `sikich2026`.
