@@ -28,6 +28,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Needed so secrets stored under Settings → Environments → github-pages are visible during `npm run build`.
+    # Repository-level Actions secrets also work here.
+    environment:
+      name: github-pages
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,10 +46,21 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Verify Google Maps key (CRA bakes this at build time)
+        env:
+          MAPS: ${{ secrets.REACT_APP_GOOGLE_MAPS_API_KEY }}
+        run: |
+          if [ -z "$MAPS" ]; then
+            echo "::error::REACT_APP_GOOGLE_MAPS_API_KEY is missing."
+            echo "Add it in THIS repo (e.g. airstory): Settings → Secrets and variables → Actions → New repository secret."
+            echo "Name must be exactly: REACT_APP_GOOGLE_MAPS_API_KEY"
+            echo "Or add the same name under Environments → github-pages (this job uses that environment)."
+            exit 1
+          fi
+
       - name: Build
         env:
           REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL || 'https://air-sensor-api.onrender.com/api' }}
-          # Maps embeds at build time (CRA). Add repo secret or heat map shows "API Key Required".
           REACT_APP_GOOGLE_MAPS_API_KEY: ${{ secrets.REACT_APP_GOOGLE_MAPS_API_KEY }}
         run: npm run build
 

@@ -26,6 +26,10 @@ Do **not** keep GitHub’s template workflow that uploads **`path: '.'`** (whole
 
 GitHub: **Settings → Secrets and variables → Actions → New repository secret**.
 
+**Important:** The site is built on **GitHub Actions**, not on your laptop — **local `.env` is never uploaded.** You must create the secret on the **same repo** that hosts the site (e.g. `haetalkim/airstory`), not only on another fork/clone.
+
+The workflow’s **build** job uses the **`github-pages` environment**, so you can put this key either as a **repository** Actions secret or as an **environment** secret on `github-pages`.
+
 **Google Cloud Console** (API key restrictions): allow HTTP referrers for your Pages URL, e.g. `https://haetalkim.github.io/airstory/*` (and `http://localhost:*` for dev). Enable **Maps JavaScript API** (and billing if prompted).
 
 ### GitHub Pages settings (must match this workflow)
