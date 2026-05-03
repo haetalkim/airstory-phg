@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, Image as ImageIcon, X, Upload } from 'lucide-react';
 import { addMeasurementEdit, clearWorkspaceMeasurements, getMeasurements, importCsvMeasurements } from '../api/data';
-import { getRoster } from '../api/auth';
+import { getRoster, getClassStructure } from '../api/auth';
 import {
   clearImportedMeasurements,
   getImportedMeasurements,
@@ -12,7 +12,11 @@ import {
   isBlankHierarchyField,
   uniqueHierarchyFromImportedRows,
 } from '../utils/importedData';
-import { groupsForPeriodFromStructure, periodsFromClassStructure } from '../utils/classStructure';
+import {
+  compareHierarchyToken,
+  groupsForPeriodFromStructure,
+  periodsFromClassStructure,
+} from '../utils/classStructure';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import {
   SENSOR_CSV_EXPORT_HEADERS,
@@ -59,8 +63,34 @@ const RawDataView = ({
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [rosterRows, setRosterRows] = useState([]);
+  /** When App has not loaded workspace grid yet (or /class-structure failed once), fetch here so period/group match Manage Classes. */
+  const [fetchedClassStructure, setFetchedClassStructure] = useState(null);
   const itemsPerPage = 50;
   const importGenerationRef = useRef(0);
+
+  const resolvedClassStructure = classStructure || fetchedClassStructure;
+
+  useEffect(() => {
+    if (!workspaceId) {
+      setFetchedClassStructure(null);
+      return;
+    }
+    if (classStructure) {
+      setFetchedClassStructure(null);
+      return;
+    }
+    let cancelled = false;
+    getClassStructure(workspaceId)
+      .then((s) => {
+        if (!cancelled) setFetchedClassStructure(s);
+      })
+      .catch(() => {
+        if (!cancelled) setFetchedClassStructure(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, classStructure]);
 
   const loadFromBackend = useCallback(async () => {
     if (!workspaceId) return;
@@ -162,22 +192,28 @@ const RawDataView = ({
       .filter(Boolean)
   )].sort();
 
-  const structurePeriods = periodsFromClassStructure(classStructure);
+  const structurePeriods = periodsFromClassStructure(resolvedClassStructure);
   const periodForGroups =
     selectedPeriod ||
     filters.period ||
     structurePeriods[0] ||
+    allPeriods[0] ||
     'P1';
-  const structureGroups = groupsForPeriodFromStructure(classStructure, periodForGroups);
+  const structureGroups = groupsForPeriodFromStructure(resolvedClassStructure, periodForGroups);
 
-  const normalizedPeriods = [...new Set([...structurePeriods, ...allPeriods])].sort();
-  const effectivePeriods = normalizedPeriods.length ? normalizedPeriods : ['P1'];
+  const mergedPeriods = [...new Set([...structurePeriods, ...allPeriods])];
+  const effectivePeriods = structurePeriods.length
+    ? [...structurePeriods].sort(compareHierarchyToken)
+    : mergedPeriods.length
+      ? mergedPeriods.sort(compareHierarchyToken)
+      : ['P1'];
 
-  const normalizedGroups = [...new Set([...structureGroups, ...allGroups])].sort();
-  const effectiveGroups =
-    normalizedGroups.length > 0
-      ? normalizedGroups
-      : [...new Set([...(allGroups || []), 'G1', 'G2', 'G3', 'G4'])].sort();
+  const mergedGroups = [...new Set([...structureGroups, ...allGroups])];
+  const effectiveGroups = structureGroups.length
+    ? [...structureGroups].sort(compareHierarchyToken)
+    : mergedGroups.length > 0
+      ? mergedGroups.sort(compareHierarchyToken)
+      : ['G1', 'G2', 'G3', 'G4'].sort(compareHierarchyToken);
 
   // Filter data
   let filteredData = rawData.filter(row => {

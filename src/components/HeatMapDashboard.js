@@ -72,17 +72,11 @@ const accessibleGradient = [
   'rgba(255, 255, 255, 1)'
 ];
 
-/** OpenAQ query center: Philadelphia, PA (default when school code unknown). */
-const PHILLY = { city: 'Philadelphia, PA', lat: 39.9526, lng: -75.1652, radius: 15000 };
-
-const SCHOOL_CITY_CENTER = {
-  PHG01: PHILLY,
-  MTN12: PHILLY,
-  MTN15: PHILLY,
-  BRK08: PHILLY,
-  QNS05: PHILLY,
-  DEFAULT: PHILLY,
-};
+/**
+ * OpenAQ + map chrome: always Philadelphia for this program.
+ * (Avoids legacy per-school centers that still pointed at NYC / Manhattan in older builds.)
+ */
+const PROGRAM_REGION = { city: 'Philadelphia, PA', lat: 39.9526, lng: -75.1652, radius: 15000 };
 
 const StatusInfoModal = ({ isOpen, onClose, theme }) => {
   if (!isOpen) return null;
@@ -194,20 +188,15 @@ const HeatMapDashboard = ({
     };
   }, [workspaceId, selectedMetric]);
 
-  const cityConfig = useMemo(
-    () => SCHOOL_CITY_CENTER[filters.school] || SCHOOL_CITY_CENTER.DEFAULT,
-    [filters.school]
-  );
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const q = new URLSearchParams({
-          lat: String(cityConfig.lat),
-          lng: String(cityConfig.lng),
+          lat: String(PROGRAM_REGION.lat),
+          lng: String(PROGRAM_REGION.lng),
           metric: selectedMetric,
-          radius: String(cityConfig.radius),
+          radius: String(PROGRAM_REGION.radius),
           limit: '25',
         });
         const data = await apiRequest(`/analytics/openaq/heatmap?${q.toString()}`);
@@ -221,7 +210,7 @@ const HeatMapDashboard = ({
     return () => {
       cancelled = true;
     };
-  }, [cityConfig, selectedMetric]);
+  }, [selectedMetric]);
 
   const importedPoints = useMemo(() => {
     return importedMeasurements
@@ -457,9 +446,8 @@ const HeatMapDashboard = ({
     : null;
 
   const mapCenter = useMemo(() => {
-    // Keep the basemap anchored on the configured city (Philadelphia for this program) when showing OpenAQ.
     if (usingOpenAQHeatmap) {
-      return { lat: cityConfig.lat, lng: cityConfig.lng };
+      return { lat: PROGRAM_REGION.lat, lng: PROGRAM_REGION.lng };
     }
     const pts = workspaceHeatmap?.points;
     if (workspaceId && pts?.length) {
@@ -472,8 +460,8 @@ const HeatMapDashboard = ({
       const lng = locations.reduce((s, p) => s + Number(p.lng), 0) / locations.length;
       if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
     }
-    return { lat: cityConfig.lat, lng: cityConfig.lng };
-  }, [workspaceHeatmap, workspaceId, locations, usingOpenAQHeatmap, cityConfig]);
+    return { lat: PROGRAM_REGION.lat, lng: PROGRAM_REGION.lng };
+  }, [workspaceHeatmap, workspaceId, locations, usingOpenAQHeatmap]);
 
   // Transform location data to WeightedLocation format for HeatmapLayer
   const heatmapData = useMemo(() => {
@@ -652,7 +640,7 @@ const HeatMapDashboard = ({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Air Quality Heat Map</h1>
-          <p className="text-gray-600">OpenAQ city visualization for {cityConfig.city}</p>
+          <p className="text-gray-600">OpenAQ city visualization for {PROGRAM_REGION.city}</p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -710,10 +698,10 @@ const HeatMapDashboard = ({
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg border border-gray-200 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">{cityConfig.city} Air Quality Map</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{PROGRAM_REGION.city} Air Quality Map</h2>
               {usingOpenAQHeatmap ? (
                 <p className="text-xs text-emerald-700 mt-1 font-medium">
-                  Visualization source: OpenAQ city sensors near your school.
+                  Visualization source: OpenAQ sensors in the Philadelphia region.
                 </p>
               ) : usingWorkspaceHeatmap ? (
                 <p className="text-xs text-emerald-700 mt-1 font-medium">

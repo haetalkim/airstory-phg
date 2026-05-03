@@ -1,5 +1,13 @@
 /** Normalize workspace class grid from API (periods + groupsByPeriod or counts only). */
 
+/** Sort P1…P9 / G1…G9 numerically (not lexicographic P1, P10, P2). */
+export function compareHierarchyToken(a, b) {
+  const na = Number(String(a).replace(/\D/g, '')) || 0;
+  const nb = Number(String(b).replace(/\D/g, '')) || 0;
+  if (na !== nb) return na - nb;
+  return String(a).localeCompare(String(b));
+}
+
 export function periodsFromClassStructure(cs) {
   if (!cs) return [];
   if (Array.isArray(cs.periods) && cs.periods.length) return [...cs.periods];
