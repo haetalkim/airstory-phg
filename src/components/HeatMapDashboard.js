@@ -457,10 +457,9 @@ const HeatMapDashboard = ({
     : null;
 
   const mapCenter = useMemo(() => {
-    if (usingOpenAQHeatmap && openaqHeatmap?.points?.length) {
-      const lat = openaqHeatmap.points.reduce((s, p) => s + Number(p.latitude), 0) / openaqHeatmap.points.length;
-      const lng = openaqHeatmap.points.reduce((s, p) => s + Number(p.longitude), 0) / openaqHeatmap.points.length;
-      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    // Keep the basemap anchored on the configured city (Philadelphia for this program) when showing OpenAQ.
+    if (usingOpenAQHeatmap) {
+      return { lat: cityConfig.lat, lng: cityConfig.lng };
     }
     const pts = workspaceHeatmap?.points;
     if (workspaceId && pts?.length) {
@@ -473,8 +472,8 @@ const HeatMapDashboard = ({
       const lng = locations.reduce((s, p) => s + Number(p.lng), 0) / locations.length;
       if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
     }
-    return { lat: PHILLY.lat, lng: PHILLY.lng };
-  }, [workspaceHeatmap, workspaceId, locations, usingOpenAQHeatmap, openaqHeatmap]);
+    return { lat: cityConfig.lat, lng: cityConfig.lng };
+  }, [workspaceHeatmap, workspaceId, locations, usingOpenAQHeatmap, cityConfig]);
 
   // Transform location data to WeightedLocation format for HeatmapLayer
   const heatmapData = useMemo(() => {

@@ -12,6 +12,7 @@ import {
   isBlankHierarchyField,
   uniqueHierarchyFromImportedRows,
 } from '../utils/importedData';
+import { groupsForPeriodFromStructure, periodsFromClassStructure } from '../utils/classStructure';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import {
   SENSOR_CSV_EXPORT_HEADERS,
@@ -161,16 +162,13 @@ const RawDataView = ({
       .filter(Boolean)
   )].sort();
 
-  const structurePeriods = classStructure?.periods?.length ? classStructure.periods : [];
+  const structurePeriods = periodsFromClassStructure(classStructure);
   const periodForGroups =
     selectedPeriod ||
     filters.period ||
     structurePeriods[0] ||
     'P1';
-  const structureGroups =
-    classStructure?.groupsByPeriod && periodForGroups
-      ? classStructure.groupsByPeriod[periodForGroups] || []
-      : [];
+  const structureGroups = groupsForPeriodFromStructure(classStructure, periodForGroups);
 
   const normalizedPeriods = [...new Set([...structurePeriods, ...allPeriods])].sort();
   const effectivePeriods = normalizedPeriods.length ? normalizedPeriods : ['P1'];
@@ -1001,26 +999,34 @@ const RawDataView = ({
                     <span className="truncate block" title={String(row.location ?? '')}>{row.location || '—'}</span>
                   </td>
                   <td className="px-4 py-3 text-sm font-mono">
-                    <a
-                      href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                      title="Open in Google Maps"
-                    >
-                      {Number(row.latitude).toFixed(4)}
-                    </a>
+                    {row.latitude != null && row.longitude != null && Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude)) ? (
+                      <a
+                        href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        title="Open in Google Maps"
+                      >
+                        {Number(row.latitude).toFixed(4)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm font-mono">
-                    <a
-                      href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                      title="Open in Google Maps"
-                    >
-                      {Number(row.longitude).toFixed(4)}
-                    </a>
+                    {row.latitude != null && row.longitude != null && Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude)) ? (
+                      <a
+                        href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        title="Open in Google Maps"
+                      >
+                        {Number(row.longitude).toFixed(4)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
 
                   {/* INDOOR/OUTDOOR */}

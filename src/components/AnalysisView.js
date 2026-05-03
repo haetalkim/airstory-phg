@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, X, MapPin } from 'lucide-react';
 import { getImportedMeasurements, isBlankHierarchyField } from '../utils/importedData';
+import { groupsForPeriodFromStructure, periodsFromClassStructure } from '../utils/classStructure';
 import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
 import { apiRequest } from '../api/http';
 
@@ -688,24 +689,16 @@ const AnalysisView = ({
 
   const availableCompareGroups = useMemo(() => {
     const fromData = [...new Set(classScopeData.map((r) => r.group).filter(Boolean))];
-    const period = filters.period || classStructure?.periods?.[0];
-    const fromWorkspace =
-      classStructure?.groupsByPeriod && period
-        ? classStructure.groupsByPeriod[period] || []
-        : [];
+    const period = filters.period || periodsFromClassStructure(classStructure)[0];
+    const fromWorkspace = groupsForPeriodFromStructure(classStructure, period);
     const merged = [...new Set([...fromWorkspace, ...fromData])].sort();
     return merged.filter((g) => g !== filters.group);
   }, [classScopeData, filters.group, filters.period, classStructure]);
 
   const workspaceGroupsForCompare = useMemo(() => {
-    const p = filters.period || classStructure?.periods?.[0];
-    if (classStructure?.groupsByPeriod && p) {
-      const g = classStructure.groupsByPeriod[p];
-      if (g?.length) return g;
-    }
-    if (classStructure?.groupCount) {
-      return Array.from({ length: classStructure.groupCount }, (_, i) => `G${i + 1}`);
-    }
+    const p = filters.period || periodsFromClassStructure(classStructure)[0];
+    const g = groupsForPeriodFromStructure(classStructure, p);
+    if (g.length) return g;
     return ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];
   }, [classStructure, filters.period]);
 

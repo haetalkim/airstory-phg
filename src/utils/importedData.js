@@ -130,8 +130,18 @@ export function parseImportedCsvRaw(csvText) {
       sessionName: getMappedValue(record, ["sessionname", "session"], "Imported Session"),
       sessionNotes: getMappedValue(record, ["notes", "sessionnotes"], ""),
       location: getMappedValue(record, ["location"], "Imported Location"),
-      latitude: Number(getMappedValue(record, ["latitude", "lat"], "40.758")),
-      longitude: Number(getMappedValue(record, ["longitude", "lng", "lon"], "-73.9855")),
+      latitude: (() => {
+        const raw = getMappedValue(record, ["latitude", "lat"], "");
+        if (raw === "" || raw == null) return null;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : null;
+      })(),
+      longitude: (() => {
+        const raw = getMappedValue(record, ["longitude", "lng", "lon"], "");
+        if (raw === "" || raw == null) return null;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : null;
+      })(),
       indoorOutdoor: normalizeIndoorOutdoor(getMappedValue(record, ["indooroutdoor"], "OUTDOOR")),
       school: getMappedValue(record, ["school", "schoolcode"], ""),
       instructor: getMappedValue(record, ["classinstructor", "class", "instructor"], ""),
@@ -147,8 +157,6 @@ export function parseImportedCsvRaw(csvText) {
       capturedAt: parsedDate.toISOString(),
     };
 
-    if (!Number.isFinite(item.latitude)) item.latitude = 40.758;
-    if (!Number.isFinite(item.longitude)) item.longitude = -73.9855;
     rawRows.push(item);
   }
 

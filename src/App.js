@@ -600,7 +600,10 @@ export default function App() {
             theme={currentTheme}
             onGroupSelect={handleTeacherSelectGroup}
             viewerProfile={viewerProfile}
-            onClassStructureChanged={() => refreshClassStructure()}
+            onClassStructureChanged={(next) => {
+              if (next && typeof next === "object") setClassStructure(next);
+              else refreshClassStructure();
+            }}
           />
         )}
       </main>

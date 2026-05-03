@@ -103,7 +103,7 @@ export default function ManageClasses({
       setPeriodCount(updated.periodCount || Number(periodCount));
       setGroupCount(updated.groupCount || Number(groupCount));
       setError('');
-      onClassStructureChanged?.();
+      onClassStructureChanged?.(updated);
     } catch (e) {
       setError(e.message || 'Failed to update class structure.');
     } finally {

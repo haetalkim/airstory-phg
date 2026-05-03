@@ -362,7 +362,7 @@ router.get(
 router.get(
   "/workspaces/:workspaceId/class-structure",
   requireAuth,
-  requireWorkspaceRole(["owner", "teacher"]),
+  requireWorkspaceRole(["owner", "teacher", "student"]),
   async (req, res) => {
     const { workspaceId } = req.params;
     const structure = await getWorkspaceStructure(workspaceId);

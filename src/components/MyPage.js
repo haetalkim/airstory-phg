@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { User, Settings, HelpCircle, Shield, LogOut, Edit2, Save, X } from 'lucide-react';
 import { getMe, getRoster, changePassword } from '../api/auth';
+import { periodsFromClassStructure } from '../utils/classStructure';
 
 const MyPage = ({
   workspaceId,
@@ -16,7 +17,7 @@ const MyPage = ({
   const [isEditing, setIsEditing] = useState(false);
   const [tempFilters, setTempFilters] = useState({ ...filters });
   const [groupMembers, setGroupMembers] = useState([]);
-  const [instructor, setInstructor] = useState({ name: 'Mr. Sikich', role: 'Instructor', id: 'INST001' });
+  const [instructor, setInstructor] = useState({ name: '', role: 'Instructor', id: '' });
   const [me, setMe] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordEmail, setPasswordEmail] = useState('');
@@ -67,7 +68,8 @@ const MyPage = ({
   }, [workspaceId]);
 
   const periodEditOptions = useMemo(() => {
-    if (classStructure?.periods?.length) return classStructure.periods;
+    const p = periodsFromClassStructure(classStructure);
+    if (p.length) return p;
     return ['P1', 'P2', 'P3', 'P4'];
   }, [classStructure]);
 
@@ -309,10 +311,12 @@ const MyPage = ({
               <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-white rounded-lg border border-purple-200">
                 <User className="w-6 h-6 text-purple-600 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{instructor.name}</p>
+                  <p className="font-semibold text-gray-900">
+                    {instructor.name || viewerProfile.instructor || filters.instructor || '—'}
+                  </p>
                   <p className="text-sm text-gray-600">{instructor.role}</p>
                 </div>
-                <span className="text-xs text-gray-500 font-mono">{instructor.id}</span>
+                <span className="text-xs text-gray-500 font-mono">{instructor.id || '—'}</span>
               </div>
             </div>
 

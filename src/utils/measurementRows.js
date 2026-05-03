@@ -17,8 +17,14 @@ export function mapApiMeasurementsToFlatRows(measurements) {
     sessionName: m.session_name || m.session_code || "Session",
     sessionNotes: m.session_notes || "",
     location: m.location_name || "Unknown",
-    latitude: m.latitude ?? 40.78,
-    longitude: m.longitude ?? -73.96,
+    latitude:
+      m.latitude != null && m.latitude !== ""
+        ? (Number.isFinite(Number(m.latitude)) ? Number(m.latitude) : null)
+        : null,
+    longitude:
+      m.longitude != null && m.longitude !== ""
+        ? (Number.isFinite(Number(m.longitude)) ? Number(m.longitude) : null)
+        : null,
     indoorOutdoor: m.indoor_outdoor || "OUTDOOR",
     school: m.school_code || "",
     instructor: m.instructor || "",
