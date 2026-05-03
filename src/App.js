@@ -92,7 +92,7 @@ export default function App() {
   const lastProfileHierarchySnapRef = useRef("");
   const [filters, setFilters] = useState({
     country: "US",
-    state: "NY",
+    state: "PA",
     school: "",
     instructor: "",
     period: "",

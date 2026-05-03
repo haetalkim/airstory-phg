@@ -6,7 +6,7 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
   const [isEditing, setIsEditing] = useState(false);
   const [tempFilters, setTempFilters] = useState({ ...filters });
   const [groupMembers, setGroupMembers] = useState([]);
-  const [instructor, setInstructor] = useState({ name: 'Shim', role: 'Instructor', id: 'INST001' });
+  const [instructor, setInstructor] = useState({ name: 'Mr. Sikich', role: 'Instructor', id: 'INST001' });
   const [me, setMe] = useState(null);
 
   useEffect(() => {

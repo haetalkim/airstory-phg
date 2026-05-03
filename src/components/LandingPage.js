@@ -12,6 +12,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { getJoinCodeConfig } from '../api/auth';
+import AirStoryLogo from './AirStoryLogo';
 
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
   const variants = {
@@ -179,7 +180,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
         <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-left space-y-4">
           <div>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{mode === 'student' ? 'Student Name' : 'Instructor Name'}</p>
-            <p className="text-lg font-bold text-gray-900">{mode === 'student' ? 'Jiin Kim' : 'Instructor Shim'}</p>
+            <p className="text-lg font-bold text-gray-900">{mode === 'student' ? 'Jiin Kim' : 'Mr. Sikich'}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Access Level</p>
@@ -217,16 +218,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
           </div>
           
           <div className="space-y-4 group">
-            <h1 className="text-6xl md:text-7xl font-black text-gray-900 tracking-tight leading-[1.05] cursor-default">
-              <span className="text-blue-600">A</span>
-              <span className="max-w-0 overflow-hidden inline-block group-hover:max-w-[300px] transition-all duration-700 ease-in-out">
-                <span className="text-gray-900">ir</span>
-              </span>
-              <span className="text-blue-600 ml-1">S</span>
-              <span className="max-w-0 overflow-hidden inline-block group-hover:max-w-[300px] transition-all duration-700 ease-in-out">
-                <span className="text-gray-900">tory</span>
-              </span>
-            </h1>
+            <AirStoryLogo />
             <p className="text-xl text-gray-600 font-medium max-w-lg leading-relaxed">
               Turn everyday air-quality observations into a story you can learn from—together.
             </p>
@@ -340,7 +332,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                                 type="text"
                                 value={signupInstructor}
                                 onChange={(e) => setSignupInstructor(e.target.value)}
-                                placeholder="e.g. Shim"
+                                placeholder="e.g. Mr. Sikich"
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
                               />
                             </div>

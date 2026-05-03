@@ -50,17 +50,12 @@ const generateCalendarData = (year, month) => {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dayOfWeek = (startingDayOfWeek + day - 1) % 7;
-    const pm25 = Math.floor(Math.random() * 25) + 3;
-    const co = (Math.random() * 0.8 + 0.2).toFixed(2);
-    const temp = Math.floor(Math.random() * 15) + 60;
-    const humidity = Math.floor(Math.random() * 30) + 35;
-
     week[dayOfWeek] = {
       day,
-      pm25,
-      co: parseFloat(co),
-      temp,
-      humidity,
+      pm25: null,
+      co: null,
+      temp: null,
+      humidity: null,
       date: new Date(year, month, day),
     };
 
@@ -82,12 +77,19 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
   const today = new Date();
   const calendarData = generateCalendarData(currentYear, currentMonth);
   const allDaysData = calendarData.flat().filter((d) => d !== null);
-  const avgValue = Math.round(
-    allDaysData.reduce((sum, d) => sum + d[selectedMetric], 0) / allDaysData.length
-  );
+  const metricSeries = allDaysData
+    .map((d) => d[selectedMetric])
+    .filter((v) => v != null && !Number.isNaN(Number(v)))
+    .map((v) => Number(v));
+  const hasMonthMetric = metricSeries.length > 0;
+  const avgValue = hasMonthMetric
+    ? Math.round(metricSeries.reduce((sum, v) => sum + v, 0) / metricSeries.length)
+    : 0;
 
   const getViewLabel = () => {
-    return `${filters.studentId} - ${filters.school} - Group ${filters.group.replace('G', '')}`;
+    const g = filters.group || '';
+    const groupLabel = g.startsWith('G') ? g.replace('G', '') : g || '—';
+    return `${filters.studentId || '—'} - ${filters.school || '—'} - Group ${groupLabel}`;
   };
 
   const handlePrevMonth = () => {
@@ -114,32 +116,18 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
     alert('Link copied to clipboard!');
   };
 
-  // Weekly data for line chart - dynamic based on selected metric
-  const generateWeekData = () => {
-    const baseData = [
-      { day: 'Mon', pm25: 10, co: 0.4, temp: 68, humidity: 45 },
-      { day: 'Tue', pm25: 12, co: 0.5, temp: 70, humidity: 42 },
-      { day: 'Wed', pm25: 15, co: 0.6, temp: 72, humidity: 50 },
-      { day: 'Thu', pm25: 20, co: 0.8, temp: 71, humidity: 55 },
-      { day: 'Fri', pm25: 17, co: 0.7, temp: 69, humidity: 48 },
-      { day: 'Sat', pm25: 13, co: 0.5, temp: 67, humidity: 40 },
-      { day: 'Sun', pm25: 11, co: 0.3, temp: 68, humidity: 38 },
-    ];
-    return baseData.map(d => ({ day: d.day, value: d[selectedMetric] }));
-  };
+  const weekData = [];
 
-  const weekData = generateWeekData();
-
-  const trend = avgValue - 12;
-
-  // Analytics calculations
-  const monthData = allDaysData.map(d => d[selectedMetric]);
-  const minValue = Math.min(...monthData);
-  const maxValue = Math.max(...monthData);
-  const medianValue = monthData.sort((a, b) => a - b)[Math.floor(monthData.length / 2)];
-  const standardDeviation = Math.sqrt(
-    monthData.reduce((sum, val) => sum + Math.pow(val - avgValue, 2), 0) / monthData.length
-  ).toFixed(2);
+  const monthData = metricSeries;
+  const minValue = hasMonthMetric ? Math.min(...monthData) : 0;
+  const maxValue = hasMonthMetric ? Math.max(...monthData) : 0;
+  const sortedMonth = hasMonthMetric ? [...monthData].sort((a, b) => a - b) : [];
+  const medianValue = hasMonthMetric ? sortedMonth[Math.floor(sortedMonth.length / 2)] : 0;
+  const standardDeviation = hasMonthMetric
+    ? Math.sqrt(
+        monthData.reduce((sum, val) => sum + Math.pow(val - avgValue, 2), 0) / monthData.length
+      ).toFixed(2)
+    : '0.00';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -156,7 +144,7 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
                 </div>
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4" />
-                  <span>Last updated: 22:00 Nov 5 2025</span>
+                  <span>Last updated: {new Date().toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -242,138 +230,88 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
               {/* Map - Takes 2 columns */}
               <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Manhattan Air Quality Map</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Philadelphia overview</h2>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <MapPin className="w-4 h-4" />
-                    <span>New York, NY</span>
+                    <span>Philadelphia, PA</span>
                   </div>
                 </div>
-                
-                {/* Map Container */}
-                <div className="relative bg-gradient-to-br from-blue-50 to-gray-100 rounded-xl overflow-hidden" style={{ height: '500px' }}>
-                  {/* Simplified Manhattan Map */}
-                  <svg viewBox="0 0 400 800" className="w-full h-full">
-                    {/* Manhattan outline (simplified) */}
-                    <path
-                      d="M 150 50 L 180 100 L 190 200 L 200 300 L 210 400 L 220 500 L 230 600 L 240 700 L 220 750 L 180 720 L 150 700 L 130 600 L 120 500 L 110 400 L 100 300 L 110 200 L 120 100 Z"
-                      fill="#f0f0f0"
-                      stroke="#888"
-                      strokeWidth="2"
-                    />
-                    
-                    {/* Heat map data points */}
-                    {[
-                      { name: 'Upper Manhattan', x: 155, y: 150, value: 8 },
-                      { name: 'Central Park', x: 165, y: 280, value: 12 },
-                      { name: 'Midtown', x: 175, y: 380, value: 22 },
-                      { name: 'Chelsea', x: 170, y: 480, value: 18 },
-                      { name: 'Greenwich Village', x: 165, y: 550, value: 15 },
-                      { name: 'Lower Manhattan', x: 160, y: 680, value: 10 },
-                      { name: 'East Side', x: 200, y: 400, value: 20 },
-                      { name: 'West Side', x: 140, y: 420, value: 14 },
-                    ].map((location, idx) => {
-                      const color = getColorForValue(location.value);
-                      const radius = 35;
-                      
-                      return (
-                        <g key={idx}>
-                          {/* Heat circle with gradient */}
-                          <circle
-                            cx={location.x}
-                            cy={location.y}
-                            r={radius}
-                            fill={color}
-                            opacity="0.6"
-                            className="cursor-pointer hover:opacity-80 transition-opacity"
-                          >
-                            <title>{location.name}: {location.value} {METRICS[selectedMetric].unit}</title>
-                          </circle>
-                          {/* Data point */}
-                          <circle
-                            cx={location.x}
-                            cy={location.y}
-                            r="8"
-                            fill="white"
-                            stroke={color}
-                            strokeWidth="3"
-                            className="cursor-pointer"
-                          />
-                          {/* Value label */}
-                          <text
-                            x={location.x}
-                            y={location.y + 4}
-                            textAnchor="middle"
-                            fontSize="11"
-                            fontWeight="bold"
-                            fill="#333"
-                          >
-                            {location.value}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </svg>
-                  
-                  {/* Legend */}
-                  <div className="absolute bottom-4 left-4 bg-white rounded-lg p-4 shadow-lg">
-                    <p className="text-xs font-semibold text-gray-700 mb-2">Air Quality Index</p>
+
+                <div
+                  className="relative flex flex-col items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-slate-100 px-6 text-center"
+                  style={{ minHeight: '500px' }}
+                >
+                  <MapPin className="mb-3 h-10 w-10 text-sky-600" aria-hidden />
+                  <p className="text-lg font-semibold text-gray-900">Map view: use Heat Map in the app toolbar</p>
+                  <p className="mt-2 max-w-lg text-sm text-gray-600">
+                    Live OpenAQ points and the Google heat map are centered on Philadelphia. This classroom dashboard no longer shows a decorative SVG with fake readings.
+                  </p>
+                  <div className="absolute bottom-4 left-4 rounded-lg bg-white p-4 shadow-lg">
+                    <p className="mb-2 text-xs font-semibold text-gray-700">PM 2.5 index (legend)</p>
                     <div className="space-y-1">
                       {AQI_RANGES.pm25.slice(0, -1).map((range, idx) => (
                         <div key={idx} className="flex items-center gap-2">
-                          <div 
-                            className="w-6 h-3 rounded"
-                            style={{ backgroundColor: range.color }}
-                          />
+                          <div className="h-3 w-6 rounded" style={{ backgroundColor: range.color }} />
                           <span className="text-xs text-gray-600">{range.label}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
-                
-                <p className="text-xs text-gray-500 mt-4 text-center">
-                  * Heat map shows aggregated data to protect location privacy
+
+                <p className="mt-4 text-center text-xs text-gray-500">
+                  Aggregated maps in the Heat Map view protect exact GPS paths while still showing regional patterns.
                 </p>
               </div>
 
               {/* Stats Sidebar */}
               <div className="space-y-6">
                 {/* Current Average */}
-                <div className="bg-white rounded-2xl p-6 shadow-lg" style={{ background: `linear-gradient(135deg, ${getColorForValue(avgValue)}30 0%, white 100%)` }}>
+                <div
+                  className="rounded-2xl bg-white p-6 shadow-lg"
+                  style={{
+                    background: hasMonthMetric
+                      ? `linear-gradient(135deg, ${getColorForValue(avgValue)}30 0%, white 100%)`
+                      : undefined,
+                  }}
+                >
                   <p className="text-sm font-semibold text-gray-600 mb-2">CITY AVERAGE</p>
                   <div className="flex items-end gap-3 mb-4">
-                    <span className="text-5xl font-bold text-gray-900">{avgValue}</span>
+                    <span className="text-5xl font-bold text-gray-900">{hasMonthMetric ? avgValue : '—'}</span>
                     <span className="text-xl text-gray-600 mb-2">{METRICS[selectedMetric].unit}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="px-3 py-1 rounded-full text-sm font-semibold"
-                      style={{ backgroundColor: getColorForValue(avgValue), color: "#1F2937" }}
-                    >
-                      {avgValue <= 12 ? 'Good' : avgValue <= 35 ? 'Moderate' : 'Unhealthy'}
-                    </span>
+                    {hasMonthMetric ? (
+                      <span
+                        className="rounded-full px-3 py-1 text-sm font-semibold"
+                        style={{ backgroundColor: getColorForValue(avgValue), color: '#1F2937' }}
+                      >
+                        {avgValue <= 12 ? 'Good' : avgValue <= 35 ? 'Moderate' : 'Unhealthy'}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600">
+                        No sample data
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Best Location */}
-                <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-lg border border-green-100">
+                <div className="rounded-2xl border border-green-100 bg-gradient-to-br from-green-50 to-white p-6 shadow-lg">
                   <p className="text-sm font-semibold text-gray-600 mb-2">BEST AREA</p>
-                  <p className="text-3xl font-bold text-green-600 mb-1">8</p>
-                  <p className="text-sm text-gray-600">Upper Manhattan</p>
+                  <p className="mb-1 text-3xl font-bold text-green-600">{hasMonthMetric ? Math.round(minValue) : '—'}</p>
+                  <p className="text-sm text-gray-600">{hasMonthMetric ? 'Lowest day in grid (no place labels)' : 'Connect measurements'}</p>
                 </div>
 
-                {/* Worst Location */}
-                <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl p-6 shadow-lg border border-orange-100">
+                <div className="rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 to-white p-6 shadow-lg">
                   <p className="text-sm font-semibold text-gray-600 mb-2">NEEDS ATTENTION</p>
-                  <p className="text-3xl font-bold text-orange-600 mb-1">22</p>
-                  <p className="text-sm text-gray-600">Midtown Area</p>
+                  <p className="mb-1 text-3xl font-bold text-orange-600">{hasMonthMetric ? Math.round(maxValue) : '—'}</p>
+                  <p className="text-sm text-gray-600">{hasMonthMetric ? 'Highest day in grid' : 'No readings yet'}</p>
                 </div>
 
-                {/* Active Stations */}
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-lg border border-blue-100">
-                  <p className="text-sm font-semibold text-gray-600 mb-2">ACTIVE STATIONS</p>
-                  <p className="text-3xl font-bold text-blue-600 mb-1">8</p>
-                  <p className="text-sm text-gray-600">Monitoring locations</p>
+                <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg">
+                  <p className="text-sm font-semibold text-gray-600 mb-2">DAYS IN MONTH</p>
+                  <p className="mb-1 text-3xl font-bold text-blue-600">{allDaysData.length}</p>
+                  <p className="text-sm text-gray-600">Calendar days (metric empty until data is linked)</p>
                 </div>
               </div>
             </div>
@@ -392,50 +330,11 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { name: 'Upper Manhattan', value: 8, trend: 'down' },
-                      { name: 'Lower Manhattan', value: 10, trend: 'down' },
-                      { name: 'Central Park Area', value: 12, trend: 'stable' },
-                      { name: 'West Side', value: 14, trend: 'up' },
-                      { name: 'Greenwich Village', value: 15, trend: 'stable' },
-                      { name: 'Chelsea', value: 18, trend: 'up' },
-                      { name: 'East Side', value: 20, trend: 'up' },
-                      { name: 'Midtown', value: 22, trend: 'up' },
-                    ].map((location, idx) => (
-                      <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4 text-sm text-gray-900 font-medium">{location.name}</td>
-                        <td className="py-3 px-4">
-                          <span className="text-sm font-semibold text-gray-900">{location.value} {METRICS[selectedMetric].unit}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span 
-                            className="px-3 py-1 rounded-full text-xs font-semibold"
-                            style={{ backgroundColor: getColorForValue(location.value), color: "#1F2937" }}
-                          >
-                            {location.value <= 12 ? 'Good' : location.value <= 35 ? 'Moderate' : 'Unhealthy'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1">
-                            {location.trend === 'down' && (
-                              <>
-                                <TrendingDown className="w-4 h-4 text-green-600" />
-                                <span className="text-xs text-green-600 font-medium">Improving</span>
-                              </>
-                            )}
-                            {location.trend === 'up' && (
-                              <>
-                                <TrendingUp className="w-4 h-4 text-orange-600" />
-                                <span className="text-xs text-orange-600 font-medium">Worsening</span>
-                              </>
-                            )}
-                            {location.trend === 'stable' && (
-                              <span className="text-xs text-gray-600 font-medium">Stable</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    <tr>
+                      <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-500">
+                        No location rows. Use Raw Data or the Heat Map for Philadelphia sensor listings and OpenAQ points.
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -444,46 +343,52 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
             {/* Time Series for Selected Area */}
             <div className="bg-white rounded-2xl p-6 shadow-lg mb-8">
               <h2 className="text-lg font-semibold text-gray-900 mb-6">Weekly Trend - City Average</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={weekData}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis 
-                    dataKey="day" 
-                    stroke="#9CA3AF" 
-                    style={{ fontSize: '13px' }} 
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    stroke="#9CA3AF" 
-                    style={{ fontSize: '13px' }} 
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      background: 'white', 
-                      border: 'none', 
-                      borderRadius: '12px', 
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                      padding: '12px'
-                    }} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#3B82F6" 
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorValue)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {weekData.length === 0 ? (
+                <div className="flex h-[300px] items-center justify-center text-sm text-gray-500 px-4 text-center">
+                  No weekly trend data in this preview. Import class measurements or open the Heat Map for Philadelphia OpenAQ trends.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={weekData}>
+                    <defs>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="day" 
+                      stroke="#9CA3AF" 
+                      style={{ fontSize: '13px' }} 
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      stroke="#9CA3AF" 
+                      style={{ fontSize: '13px' }} 
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: 'white', 
+                        border: 'none', 
+                        borderRadius: '12px', 
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                        padding: '12px'
+                      }} 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke="#3B82F6" 
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorValue)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             {/* Bottom Row - Reflection and Educational Fact */}
@@ -539,7 +444,7 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
                   <div>
                     <h3 className="text-lg font-bold text-blue-900 mb-2">Did You Know?</h3>
                     <p className="text-sm text-blue-800 leading-relaxed mb-4">
-                      PM 2.5 particles are 30× smaller than a human hair — they can travel deep into your lungs and enter your bloodstream. Urban areas like Midtown often have higher readings due to vehicle traffic and building density.
+                      PM 2.5 particles are 30× smaller than a human hair — they can travel deep into your lungs and enter your bloodstream. Dense corridors like Center City often show higher readings from traffic and buildings.
                     </p>
                     <a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
                       Learn more about air quality
@@ -650,46 +555,52 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <div className="bg-white rounded-2xl p-6 shadow-lg">
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">Weekly Trend</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={weekData}>
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis 
-                      dataKey="day" 
-                      stroke="#9CA3AF" 
-                      style={{ fontSize: '13px' }} 
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis 
-                      stroke="#9CA3AF" 
-                      style={{ fontSize: '13px' }} 
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'white', 
-                        border: 'none', 
-                        borderRadius: '12px', 
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                        padding: '12px'
-                      }} 
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="value" 
-                      stroke="#3B82F6" 
-                      strokeWidth={3}
-                      fillOpacity={1}
-                      fill="url(#colorValue)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {weekData.length === 0 ? (
+                  <div className="flex h-[300px] items-center justify-center text-sm text-gray-500 px-4 text-center">
+                    No weekly series until measurements are linked to this dashboard view.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={weekData}>
+                      <defs>
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis 
+                        dataKey="day" 
+                        stroke="#9CA3AF" 
+                        style={{ fontSize: '13px' }} 
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis 
+                        stroke="#9CA3AF" 
+                        style={{ fontSize: '13px' }} 
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          background: 'white', 
+                          border: 'none', 
+                          borderRadius: '12px', 
+                          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                          padding: '12px'
+                        }} 
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke="#3B82F6" 
+                        strokeWidth={3}
+                        fillOpacity={1}
+                        fill="url(#colorValue)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
 
               {/* Quality Distribution */}
@@ -697,12 +608,18 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">Air Quality Distribution</h2>
                 <div className="space-y-4">
                   {AQI_RANGES.pm25.slice(0, -1).map((range, idx) => {
-                    const count = allDaysData.filter(d => {
+                    const count = allDaysData.filter((d) => {
                       const val = d[selectedMetric];
+                      if (val == null || Number.isNaN(Number(val))) return false;
                       const prevMax = idx > 0 ? AQI_RANGES.pm25[idx - 1].max : 0;
                       return val > prevMax && val <= range.max;
                     }).length;
-                    const percentage = ((count / allDaysData.length) * 100).toFixed(1);
+                    const denom =
+                      allDaysData.filter((d) => {
+                        const val = d[selectedMetric];
+                        return val != null && !Number.isNaN(Number(val));
+                      }).length || 1;
+                    const percentage = ((count / denom) * 100).toFixed(1);
                     
                     return (
                       <div key={idx}>
@@ -733,18 +650,27 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">Key Findings:</h3>
                   <ul className="space-y-2 text-sm text-gray-600">
-                    <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-0.5">•</span>
-                      <span>Average {METRICS[selectedMetric].label} was <strong>{avgValue} {METRICS[selectedMetric].unit}</strong></span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-0.5">•</span>
-                      <span>Values ranged from <strong>{Math.round(minValue)}</strong> to <strong>{Math.round(maxValue)} {METRICS[selectedMetric].unit}</strong></span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-0.5">•</span>
-                      <span>Standard deviation of <strong>{standardDeviation}</strong> indicates {parseFloat(standardDeviation) < avgValue * 0.3 ? 'consistent' : 'variable'} readings</span>
-                    </li>
+                    {!hasMonthMetric ? (
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 mt-0.5">•</span>
+                        <span>No metric values for this month in this preview. Link workspace or CSV data to populate analytics.</span>
+                      </li>
+                    ) : (
+                      <>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 mt-0.5">•</span>
+                          <span>Average {METRICS[selectedMetric].label} was <strong>{avgValue} {METRICS[selectedMetric].unit}</strong></span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 mt-0.5">•</span>
+                          <span>Values ranged from <strong>{Math.round(minValue)}</strong> to <strong>{Math.round(maxValue)} {METRICS[selectedMetric].unit}</strong></span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 mt-0.5">•</span>
+                          <span>Standard deviation of <strong>{standardDeviation}</strong> indicates {parseFloat(standardDeviation) < avgValue * 0.3 ? 'consistent' : 'variable'} readings</span>
+                        </li>
+                      </>
+                    )}
                   </ul>
                 </div>
                 <div>
@@ -797,7 +723,7 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
               <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                 <p className="text-xs font-semibold text-green-700 mb-1">Currently Logged In As</p>
                 <p className="text-sm font-semibold text-green-900">
-                  {filters.studentId} - {filters.school} - Group {filters.group.replace('G', '')}
+                  {filters.studentId || '—'} - {filters.school || '—'} - Group {(filters.group || '—').replace(/^G/, '') || '—'}
                 </p>
               </div>
 
@@ -828,6 +754,7 @@ const Dashboard = ({ activeView, setActiveView, selectedMetric, setSelectedMetri
                   onChange={(e) => setFilters({...filters, state: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 >
+                  <option value="PA">Pennsylvania</option>
                   <option value="NY">New York</option>
                   <option value="CA">California</option>
                   <option value="TX">Texas</option>

@@ -7,7 +7,7 @@ async function run() {
     const demoUsers = [
       {
         email: "shim@tamgu.com",
-        fullName: "Shim",
+        fullName: "Mr. Sikich",
         password: "password",
         role: "teacher",
         groupCode: "INSTRUCTOR",
@@ -73,7 +73,7 @@ async function run() {
     for (const user of demoUsers) {
       await pool.query(
         `INSERT INTO user_profiles (user_id, workspace_id, school_code, instructor, period, group_code, student_code)
-         VALUES ($1, $2, 'MTN12', 'Shim', $3, $4, $5)`,
+         VALUES ($1, $2, 'MTN12', 'Mr. Sikich', $3, $4, $5)`,
         [userIds[user.email], workspaceId, user.period || "P1", user.groupCode === "INSTRUCTOR" ? "" : user.groupCode, user.studentCode || user.email.split("@")[0].toUpperCase()]
       );
     }

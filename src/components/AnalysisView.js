@@ -8,54 +8,43 @@ import { apiRequest } from '../api/http';
 /** Metrics we try to load from OpenAQ near the reference pin (when a sensor exists). */
 const OPENAQ_REFERENCE_METRICS = ['pm25', 'co', 'temp', 'humidity'];
 
+const COMPARISON_PALETTE = ['#3B82F6', '#EF4444', '#10B981', '#8B5CF6', '#F59E0B', '#6366F1', '#EC4899', '#14B8A6'];
+
 const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes, currentFilters }) => {
-  const [comparisonType, setComparisonType] = useState('group'); // 'group', 'school', 'location', 'time'
-  const [selectedGroups, setSelectedGroups] = useState(['G4', 'G5', 'G6']);
-  const [selectedSchools, setSelectedSchools] = useState(['MTN12', 'MTN15', 'BRK08']);
-  const [selectedLocations, setSelectedLocations] = useState(['Upper Manhattan', 'Midtown', 'Lower Manhattan']);
+  const [comparisonType, setComparisonType] = useState('location'); // 'group', 'school', 'location', 'time'
+  const [selectedGroups, setSelectedGroups] = useState([]);
+  const [selectedSchools, setSelectedSchools] = useState([]);
+  const [selectedLocations, setSelectedLocations] = useState(() =>
+    REFERENCE_LOCATIONS.slice(0, 3).map((l) => l.name)
+  );
   const [timeRange, setTimeRange] = useState('week');
 
   if (!isOpen) return null;
 
-  // Generate comparison data based on type
   const getComparisonData = () => {
     switch (comparisonType) {
+      case 'location': {
+        if (!selectedLocations.length) return [];
+        return selectedLocations.map((loc, idx) => {
+          const series = getReferenceWeekSeries(loc, selectedMetric);
+          const values = series.map((s) => s.value);
+          const rawAvg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+          const avg =
+            selectedMetric === 'co'
+              ? Math.round(rawAvg * 100) / 100
+              : Math.round(rawAvg);
+          return {
+            name: loc,
+            values,
+            avg,
+            color: COMPARISON_PALETTE[idx % COMPARISON_PALETTE.length],
+          };
+        });
+      }
       case 'group':
-        return selectedGroups.map(group => ({
-          name: `Group ${group.replace('G', '')}`,
-          values: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
-          avg: Math.floor(Math.random() * 20) + 5,
-          color: group === 'G4' ? theme.primary : group === 'G5' ? '#8B5CF6' : '#10B981'
-        }));
       case 'school':
-        return selectedSchools.map((school, idx) => ({
-          name: school,
-          values: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
-          avg: Math.floor(Math.random() * 20) + 5,
-          color: ['#3B82F6', '#8B5CF6', '#10B981'][idx]
-        }));
-      case 'location':
-        return selectedLocations.map((loc, idx) => ({
-          name: loc,
-          values: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
-          avg: Math.floor(Math.random() * 20) + 5,
-          color: ['#3B82F6', '#EF4444', '#10B981'][idx]
-        }));
       case 'time':
-        return [
-          {
-            name: 'This Week',
-            values: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
-            avg: Math.floor(Math.random() * 20) + 5,
-            color: theme.primary
-          },
-          {
-            name: 'Last Week',
-            values: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
-            avg: Math.floor(Math.random() * 20) + 5,
-            color: '#9CA3AF'
-          }
-        ];
+        return [];
       default:
         return [];
     }
@@ -165,7 +154,7 @@ const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes,
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-3">Select Schools to Compare</h4>
                 <div className="flex flex-wrap gap-2">
-                  {['MTN12', 'MTN15', 'BRK08', 'QNS20', 'BRX03'].map(school => (
+                  {['MTN12', 'MTN15', 'BRK08', 'QNS20', 'BRX03'].map((school) => (
                     <button
                       key={school}
                       onClick={() => toggleSchoolSelection(school)}
@@ -187,20 +176,23 @@ const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes,
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-3">Select Locations to Compare</h4>
                 <div className="flex flex-wrap gap-2">
-                  {['Upper Manhattan', 'Midtown', 'Lower Manhattan', 'Central Park', 'East Village', 'Chelsea'].map(loc => (
+                  {REFERENCE_LOCATIONS.map((ref) => (
                     <button
-                      key={loc}
-                      onClick={() => toggleLocationSelection(loc)}
+                      key={ref.name}
+                      onClick={() => toggleLocationSelection(ref.name)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        selectedLocations.includes(loc)
+                        selectedLocations.includes(ref.name)
                           ? `${theme.bg} text-white`
                           : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
                       }`}
                     >
-                      {loc}
+                      {ref.name}
                     </button>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Curves use the same illustrative Philadelphia reference series as Analysis (not random mock values).
+                </p>
               </div>
             )}
 
@@ -226,46 +218,61 @@ const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes,
             )}
           </div>
 
+          {comparisonType !== 'location' && (
+            <p className="mb-4 text-sm text-gray-600 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3">
+              By group, school, and time comparisons are not shown with sample numbers here. Use <strong>By Location</strong> for
+              Philadelphia reference curves, or rely on imported measurements in the main Analysis charts.
+            </p>
+          )}
+
           {/* Comparison Chart */}
           <div className="bg-white rounded-xl p-6 border-2 border-gray-200 mb-6">
             <h4 className="text-lg font-semibold text-gray-900 mb-4">Comparison Visualization</h4>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={chartData}>
-                <XAxis 
-                  dataKey="day" 
-                  stroke="#9CA3AF"
-                  style={{ fontSize: '12px' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  stroke="#9CA3AF"
-                  style={{ fontSize: '12px' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    background: 'white', 
-                    border: 'none', 
-                    borderRadius: '12px', 
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    padding: '12px'
-                  }} 
-                />
-                <Legend />
-                {comparisonData.map((item, idx) => (
-                  <Line 
-                    key={idx}
-                    type="monotone" 
-                    dataKey={item.name}
-                    stroke={item.color}
-                    strokeWidth={2}
-                    dot={{ fill: item.color, r: 4 }}
+            {comparisonData.length === 0 ? (
+              <div className="flex h-[400px] items-center justify-center text-center text-sm text-gray-500 px-6">
+                {comparisonType === 'location'
+                  ? 'Select at least one Philadelphia area above to plot reference trends.'
+                  : 'No chart for this comparison type until workspace data is wired in.'}
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={chartData}>
+                  <XAxis
+                    dataKey="day"
+                    stroke="#9CA3AF"
+                    style={{ fontSize: '12px' }}
+                    tickLine={false}
+                    axisLine={false}
                   />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
+                  <YAxis
+                    stroke="#9CA3AF"
+                    style={{ fontSize: '12px' }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                      padding: '12px',
+                    }}
+                  />
+                  <Legend />
+                  {comparisonData.map((item, idx) => (
+                    <Line
+                      key={idx}
+                      type="monotone"
+                      dataKey={item.name}
+                      stroke={item.color}
+                      strokeWidth={2}
+                      dot={{ fill: item.color, r: 4 }}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* Comparison Statistics Table */}
@@ -284,58 +291,86 @@ const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes,
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {comparisonData.map((item, idx) => {
-                    const min = Math.min(...item.values);
-                    const max = Math.max(...item.values);
-                    const trend = item.values[item.values.length - 1] > item.values[0] ? 'increasing' : 'decreasing';
-                    
-                    return (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: item.color }}
-                            />
-                            <span className="font-medium text-gray-900">{item.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-gray-900 font-semibold">{item.avg}</td>
-                        <td className="px-4 py-3 text-green-600 font-semibold">{min}</td>
-                        <td className="px-4 py-3 text-orange-600 font-semibold">{max}</td>
-                        <td className="px-4 py-3 text-gray-700">{max - min}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            {trend === 'increasing' ? (
-                              <>
-                                <TrendingUp className="w-4 h-4 text-orange-600" />
-                                <span className="text-sm text-orange-600 font-medium">Rising</span>
-                              </>
-                            ) : (
-                              <>
-                                <TrendingDown className="w-4 h-4 text-green-600" />
-                                <span className="text-sm text-green-600 font-medium">Falling</span>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {comparisonData.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                        No comparison rows. Choose locations (reference series) or another view with real data.
+                      </td>
+                    </tr>
+                  ) : (
+                    comparisonData.map((item, idx) => {
+                      const min = Math.min(...item.values);
+                      const max = Math.max(...item.values);
+                      const trend =
+                        item.values[item.values.length - 1] > item.values[0] ? 'increasing' : 'decreasing';
+
+                      return (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                              <span className="font-medium text-gray-900">{item.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-900 font-semibold">{item.avg}</td>
+                          <td className="px-4 py-3 text-green-600 font-semibold">{min}</td>
+                          <td className="px-4 py-3 text-orange-600 font-semibold">{max}</td>
+                          <td className="px-4 py-3 text-gray-700">{max - min}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              {trend === 'increasing' ? (
+                                <>
+                                  <TrendingUp className="w-4 h-4 text-orange-600" />
+                                  <span className="text-sm text-orange-600 font-medium">Rising</span>
+                                </>
+                              ) : (
+                                <>
+                                  <TrendingDown className="w-4 h-4 text-green-600" />
+                                  <span className="text-sm text-green-600 font-medium">Falling</span>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
           {/* Key Insights */}
-          <div className="mt-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2">💡 Key Insights</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Highest average: <strong>{comparisonData.reduce((max, item) => item.avg > max.avg ? item : max).name}</strong> ({comparisonData.reduce((max, item) => item.avg > max.avg ? item : max).avg} {metricThemes[selectedMetric].unit})</li>
-              <li>• Lowest average: <strong>{comparisonData.reduce((min, item) => item.avg < min.avg ? item : min).name}</strong> ({comparisonData.reduce((min, item) => item.avg < min.avg ? item : min).avg} {metricThemes[selectedMetric].unit})</li>
-              <li>• Range across groups: {Math.max(...comparisonData.map(d => d.avg)) - Math.min(...comparisonData.map(d => d.avg))} {metricThemes[selectedMetric].unit}</li>
-            </ul>
-          </div>
+          {comparisonData.length > 0 && (
+            <div className="mt-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
+              <h4 className="font-semibold text-blue-900 mb-2">💡 Key Insights</h4>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>
+                  • Highest average:{' '}
+                  <strong>
+                    {comparisonData.reduce((max, item) => (item.avg > max.avg ? item : max), comparisonData[0]).name}
+                  </strong>{' '}
+                  (
+                  {comparisonData.reduce((max, item) => (item.avg > max.avg ? item : max), comparisonData[0]).avg}{' '}
+                  {metricThemes[selectedMetric].unit})
+                </li>
+                <li>
+                  • Lowest average:{' '}
+                  <strong>
+                    {comparisonData.reduce((min, item) => (item.avg < min.avg ? item : min), comparisonData[0]).name}
+                  </strong>{' '}
+                  (
+                  {comparisonData.reduce((min, item) => (item.avg < min.avg ? item : min), comparisonData[0]).avg}{' '}
+                  {metricThemes[selectedMetric].unit})
+                </li>
+                <li>
+                  • Range across series:{' '}
+                  {Math.max(...comparisonData.map((d) => d.avg)) - Math.min(...comparisonData.map((d) => d.avg))}{' '}
+                  {metricThemes[selectedMetric].unit}
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -449,7 +484,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
   const [compareMode, setCompareMode] = useState('openaq'); // openaq | group | class | school
   const [compareGroup, setCompareGroup] = useState('');
-  const [referenceLocation, setReferenceLocation] = useState(REFERENCE_LOCATIONS[2]?.name || 'Central Park');
+  const [referenceLocation, setReferenceLocation] = useState(REFERENCE_LOCATIONS[0]?.name || 'Center City');
   const [openaqPoints, setOpenaqPoints] = useState(null);
   const [openaqMeta, setOpenaqMeta] = useState({ status: 'idle', message: '' });
 

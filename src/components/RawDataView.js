@@ -13,6 +13,11 @@ import {
   uniqueHierarchyFromImportedRows,
 } from '../utils/importedData';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
+import {
+  SENSOR_CSV_EXPORT_HEADERS,
+  csvEscapeCell,
+  formatSensorTimestamp,
+} from '../constants/sensorCsv';
 
 const CSV_UPLOAD_CHUNK_SIZE = 2500;
 
@@ -160,8 +165,9 @@ const RawDataView = ({
   // Filter data
   let filteredData = rawData.filter(row => {
     const matchesSearch = 
-      row.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(row.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       `${row.latitude}, ${row.longitude}`.includes(searchTerm) ||
+      String(row.sessionId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       row.sessionName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       row.date.includes(searchTerm) ||
       row.group.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -212,8 +218,13 @@ const RawDataView = ({
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
       
-      // Handle numeric values
-      if (sortConfig.key === 'pm25' || sortConfig.key === 'co' || sortConfig.key === 'temp' || sortConfig.key === 'humidity') {
+      if (sortConfig.key === 'capturedAt') {
+        aVal = new Date(a.capturedAt || `${a.date}T${a.time || '00:00'}`).getTime();
+        bVal = new Date(b.capturedAt || `${b.date}T${b.time || '00:00'}`).getTime();
+      } else if (sortConfig.key === 'latitude' || sortConfig.key === 'longitude') {
+        aVal = parseFloat(a[sortConfig.key]);
+        bVal = parseFloat(b[sortConfig.key]);
+      } else if (sortConfig.key === 'pm25' || sortConfig.key === 'co' || sortConfig.key === 'temp' || sortConfig.key === 'humidity') {
         aVal = parseFloat(aVal);
         bVal = parseFloat(bVal);
       }
@@ -242,40 +253,36 @@ const RawDataView = ({
   };
 
   const handleExport = () => {
-    // Create CSV content
-    const headers = ['Timestamp', 'Date', 'Time', 'Session ID', 'Session Name', 'School', 'Class (Instructor)', 'Period', 'Group', 'Location', 'Latitude', 'Longitude', 'INDOOR/OUTDOOR', 'PM 2.5 (µg/m³)', 'CO (ppm)', 'Temperature (°C)', 'Humidity (%)'];
-    
-    // Generate full second-by-second data for export
     const rows = [];
-    filteredData.forEach(row => {
+    filteredData.forEach((row) => {
       const detailed = generateDetailedData(row);
-      detailed.forEach(second => {
-        rows.push([
-          `${row.date} ${second.time}`,
-      row.date,
-          second.time,
-      row.sessionId,
-      row.sessionName,
-          row.school,
-          row.instructor,
-          row.period,
-          row.group,
-      row.location,
-          row.latitude,
-          row.longitude,
-          row.indoorOutdoor,
-          second.pm25,
-          second.co,
-          second.temp,
-          second.humidity
-        ]);
+      detailed.forEach((second) => {
+        const indoorOutdoorLabel =
+          row.indoorOutdoor === 'INDOOR' ? 'Indoor' : 'Outdoor';
+        const line = [
+          csvEscapeCell(`${row.date} ${second.time}`),
+          csvEscapeCell(row.date),
+          csvEscapeCell(second.time),
+          csvEscapeCell(row.sessionId),
+          csvEscapeCell(row.sessionName),
+          csvEscapeCell(row.school),
+          csvEscapeCell(row.instructor),
+          csvEscapeCell(row.period),
+          csvEscapeCell(row.group),
+          csvEscapeCell(row.location),
+          csvEscapeCell(row.latitude),
+          csvEscapeCell(row.longitude),
+          csvEscapeCell(indoorOutdoorLabel),
+          csvEscapeCell(second.pm25),
+          csvEscapeCell(second.co),
+          csvEscapeCell(second.temp),
+          csvEscapeCell(second.humidity),
+        ].join(',');
+        rows.push(line);
       });
     });
-    
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+
+    const csvContent = [SENSOR_CSV_EXPORT_HEADERS.join(','), ...rows].join('\n');
     
     // Download
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -447,18 +454,29 @@ const RawDataView = ({
     if (Array.isArray(row.detailedData) && row.detailedData.length > 0) {
       return row.detailedData;
     }
-    const detailed = [];
     const baseTime = new Date(`${row.date}T${row.time}`);
-    // Generate 60 seconds of data (1 minute of readings)
+    if (Number.isNaN(baseTime.getTime())) {
+      return [
+        {
+          id: `${row.id}-0`,
+          time: String(row.time || '—'),
+          pm25: row.pm25,
+          co: row.co,
+          temp: row.temp,
+          humidity: row.humidity,
+        },
+      ];
+    }
+    const detailed = [];
     for (let i = 0; i < 60; i++) {
       const time = new Date(baseTime.getTime() + i * 1000);
       detailed.push({
         id: `${row.id}-${i}`,
         time: time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        pm25: Math.max(0, row.pm25 + Math.floor(Math.random() * 5) - 2),
-        co: parseFloat((parseFloat(row.co) + (Math.random() * 0.1 - 0.05)).toFixed(2)),
-        temp: row.temp + Math.floor(Math.random() * 3) - 1,
-        humidity: Math.max(0, Math.min(100, row.humidity + Math.floor(Math.random() * 5) - 2))
+        pm25: row.pm25,
+        co: row.co,
+        temp: row.temp,
+        humidity: row.humidity,
       });
     }
     return detailed;
@@ -749,6 +767,15 @@ const RawDataView = ({
               <tr>
                 <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-12">
                 </th>
+                <th
+                  onClick={() => handleSort('capturedAt')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                >
+                  <div className="flex items-center gap-2">
+                    Timestamp
+                    <SortIcon columnKey="capturedAt" />
+                  </div>
+                </th>
                 <th 
                   onClick={() => handleSort('date')}
                   className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
@@ -768,25 +795,22 @@ const RawDataView = ({
                   </div>
                 </th>
                 <th 
+                  onClick={() => handleSort('sessionId')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    Session ID
+                    <SortIcon columnKey="sessionId" />
+                  </div>
+                </th>
+                <th 
                   onClick={() => handleSort('sessionName')}
                   className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    Session
+                    Session Name
                     <SortIcon columnKey="sessionName" />
                   </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('location')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    Location (Lat, Lng)
-                    <SortIcon columnKey="location" />
-                  </div>
-                </th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  INDOOR/OUTDOOR
                 </th>
                 <th 
                   onClick={() => handleSort('school')}
@@ -802,7 +826,7 @@ const RawDataView = ({
                   className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    Class
+                    Class (Instructor)
                     <SortIcon columnKey="instructor" />
                   </div>
                 </th>
@@ -825,6 +849,36 @@ const RawDataView = ({
                   </div>
                 </th>
                 <th 
+                  onClick={() => handleSort('location')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    Location
+                    <SortIcon columnKey="location" />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('latitude')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    Latitude
+                    <SortIcon columnKey="latitude" />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('longitude')}
+                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    Longitude
+                    <SortIcon columnKey="longitude" />
+                  </div>
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  INDOOR/OUTDOOR
+                </th>
+                <th 
                   onClick={() => {
                     setSelectedMetric('pm25');
                     handleSort('pm25');
@@ -834,7 +888,7 @@ const RawDataView = ({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    PM 2.5 (µg/m³)
+                    PM 2.5
                     <SortIcon columnKey="pm25" />
                   </div>
                 </th>
@@ -848,7 +902,7 @@ const RawDataView = ({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    CO (ppm)
+                    CO
                     <SortIcon columnKey="co" />
                   </div>
                 </th>
@@ -862,7 +916,7 @@ const RawDataView = ({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    Temp (°F)
+                    Temperature (°C)
                     <SortIcon columnKey="temp" />
                   </div>
                 </th>
@@ -876,7 +930,7 @@ const RawDataView = ({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    Humidity (%)
+                    Humidity
                     <SortIcon columnKey="humidity" />
                   </div>
                 </th>
@@ -901,24 +955,52 @@ const RawDataView = ({
                           <ChevronRight className={`w-4 h-4 text-gray-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                         </button>
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap font-mono text-xs">
+                        {formatSensorTimestamp(row.capturedAt)}
+                      </td>
                   <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.date}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{row.time}</td>
-                  
-                  {/* Session Name */}
+                  <td className="px-4 py-3 text-sm font-mono text-xs text-gray-800 max-w-[180px] truncate" title={String(row.sessionId ?? '')}>
+                    {row.sessionId}
+                  </td>
                   <td className="px-4 py-3 text-sm">
                     <span className="font-medium text-gray-900">{row.sessionName}</span>
                   </td>
-
-                  {/* Location */}
                   <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.school}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.instructor}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.period}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.group}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm max-w-[220px]">
+                    <span className="truncate block" title={String(row.location ?? '')}>{row.location || '—'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-mono">
                     <a
                       href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 hover:underline font-mono"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
                       title="Open in Google Maps"
                     >
-                      {row.latitude.toFixed(4)}, {row.longitude.toFixed(4)}
+                      {Number(row.latitude).toFixed(4)}
+                    </a>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-mono">
+                    <a
+                      href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                      title="Open in Google Maps"
+                    >
+                      {Number(row.longitude).toFixed(4)}
                     </a>
                   </td>
 
@@ -954,26 +1036,6 @@ const RawDataView = ({
                         )}
                       </button>
                     )}
-                  </td>
-
-                  {/* School */}
-                  <td className="px-4 py-3 text-sm">
-                    <span className="font-medium text-gray-900">{row.school}</span>
-                  </td>
-
-                  {/* Class */}
-                  <td className="px-4 py-3 text-sm">
-                    <span className="font-medium text-gray-900">{row.instructor}</span>
-                  </td>
-
-                  {/* Period */}
-                  <td className="px-4 py-3 text-sm">
-                    <span className="font-medium text-gray-900">{row.period}</span>
-                  </td>
-
-                  {/* Group */}
-                  <td className="px-4 py-3 text-sm">
-                    <span className="font-medium text-gray-900">{row.group}</span>
                   </td>
 
                   {/* PM 2.5 */}
@@ -1131,7 +1193,7 @@ const RawDataView = ({
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan="12" className="px-4 py-4 bg-gray-50 border-t-2 border-gray-300">
+                    <td colSpan="19" className="px-4 py-4 bg-gray-50 border-t-2 border-gray-300">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="font-semibold text-gray-900">Detailed Second-by-Second Data</h4>
@@ -1144,7 +1206,7 @@ const RawDataView = ({
                                 <th className="px-2 py-2 text-left font-semibold">Time</th>
                                 <th className="px-2 py-2 text-left font-semibold">PM 2.5</th>
                                 <th className="px-2 py-2 text-left font-semibold">CO</th>
-                                <th className="px-2 py-2 text-left font-semibold">Temp</th>
+                                <th className="px-2 py-2 text-left font-semibold">Temperature (°C)</th>
                                 <th className="px-2 py-2 text-left font-semibold">Humidity</th>
                               </tr>
                             </thead>

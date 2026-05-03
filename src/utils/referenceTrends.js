@@ -1,19 +1,19 @@
 /**
- * Reference “public / regional” trends for Analysis — same conceptual locations as the heat map,
+ * Reference “public / regional” trends for Analysis — Philadelphia-area pins,
  * clearly separate from your workspace measurements. Values are illustrative (not live EPA feeds).
  */
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // Baseline levels + coordinates for OpenAQ lookup (lat/lng ≈ heat map anchors).
 export const REFERENCE_LOCATIONS = [
-  { name: "Upper Manhattan", lat: 40.8448, lng: -73.9388, pm25: 8, co: 0.35, temp: 18, humidity: 42 },
-  { name: "Washington Heights (168th St)", lat: 40.84, lng: -73.94, pm25: 9, co: 0.35, temp: 17, humidity: 44 },
-  { name: "Central Park", lat: 40.7829, lng: -73.9654, pm25: 12, co: 0.4, temp: 20, humidity: 45 },
-  { name: "Midtown East", lat: 40.7549, lng: -73.968, pm25: 22, co: 0.8, temp: 22, humidity: 55 },
-  { name: "Midtown West", lat: 40.758, lng: -73.9855, pm25: 20, co: 0.7, temp: 21, humidity: 52 },
-  { name: "Chelsea", lat: 40.7465, lng: -73.9972, pm25: 18, co: 0.6, temp: 20, humidity: 50 },
-  { name: "Lower Manhattan", lat: 40.7074, lng: -74.0113, pm25: 10, co: 0.4, temp: 18, humidity: 43 },
-  { name: "Columbia Area", lat: 40.8075, lng: -73.9626, pm25: 11, co: 0.4, temp: 19, humidity: 46 },
+  { name: "Center City", lat: 39.9526, lng: -75.1652, pm25: 14, co: 0.45, temp: 72, humidity: 52 },
+  { name: "University City", lat: 39.9522, lng: -75.1932, pm25: 12, co: 0.42, temp: 71, humidity: 50 },
+  { name: "South Philadelphia", lat: 39.9279, lng: -75.1722, pm25: 16, co: 0.55, temp: 73, humidity: 54 },
+  { name: "Fishtown", lat: 39.9706, lng: -75.1345, pm25: 13, co: 0.4, temp: 70, humidity: 48 },
+  { name: "Germantown", lat: 40.0318, lng: -75.175, pm25: 11, co: 0.38, temp: 69, humidity: 47 },
+  { name: "Northeast Philadelphia", lat: 40.0736, lng: -75.014, pm25: 10, co: 0.35, temp: 68, humidity: 46 },
+  { name: "West Philadelphia", lat: 39.962, lng: -75.264, pm25: 13, co: 0.44, temp: 71, humidity: 51 },
+  { name: "Port Richmond", lat: 39.98, lng: -75.11, pm25: 15, co: 0.52, temp: 72, humidity: 53 },
 ];
 
 /**
@@ -21,7 +21,7 @@ export const REFERENCE_LOCATIONS = [
  */
 export function getReferenceWeekSeries(locationName, metricKey) {
   const loc =
-    REFERENCE_LOCATIONS.find((l) => l.name === locationName) || REFERENCE_LOCATIONS[2];
+    REFERENCE_LOCATIONS.find((l) => l.name === locationName) || REFERENCE_LOCATIONS[0];
   const base = Number(loc[metricKey]);
   if (Number.isNaN(base)) return WEEKDAYS.map((day) => ({ day, value: 0 }));
 

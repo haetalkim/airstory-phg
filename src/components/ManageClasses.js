@@ -17,7 +17,7 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
   const [joinCodes, setJoinCodes] = useState([]);
   const [newCode, setNewCode] = useState('');
   const [newCodeSchool, setNewCodeSchool] = useState('MTN12');
-  const [newCodeInstructor, setNewCodeInstructor] = useState('Shim');
+  const [newCodeInstructor, setNewCodeInstructor] = useState('Mr. Sikich');
   const [error, setError] = useState('');
   const [activeStudent, setActiveStudent] = useState(null);
   const [activeAction, setActiveAction] = useState('');

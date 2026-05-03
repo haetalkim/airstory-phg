@@ -1,0 +1,72 @@
+.logo-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  cursor: default;
+  user-select: none;
+}
+
+.word-air {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.air-text {
+  color: #4a90d9;
+}
+
+.story-container {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.story-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateX(-24px);
+  transition: none;
+}
+
+.s1 {
+  color: #4a90d9;
+}
+.s2 {
+  color: #3e9fcc;
+}
+.s3 {
+  color: #35afba;
+}
+.s4 {
+  color: #2dbfa0;
+}
+.s5 {
+  color: #28cc8b;
+}
+
+/* trigger on hover of the parent */
+.word-air:hover .story-letter {
+  opacity: 1;
+  transform: translateX(0px);
+  transition:
+    opacity 0.4s ease-out,
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+.word-air:hover .story-letter:nth-child(1) {
+  transition-delay: 0s;
+}
+.word-air:hover .story-letter:nth-child(2) {
+  transition-delay: 0.07s;
+}
+.word-air:hover .story-letter:nth-child(3) {
+  transition-delay: 0.14s;
+}
+.word-air:hover .story-letter:nth-child(4) {
+  transition-delay: 0.21s;
+}
+.word-air:hover .story-letter:nth-child(5) {
+  transition-delay: 0.28s;
+}
+

@@ -72,12 +72,15 @@ const accessibleGradient = [
   'rgba(255, 255, 255, 1)'
 ];
 
+/** OpenAQ query center: Philadelphia, PA (default when school code unknown). */
+const PHILLY = { city: 'Philadelphia, PA', lat: 39.9526, lng: -75.1652, radius: 15000 };
+
 const SCHOOL_CITY_CENTER = {
-  MTN12: { city: 'Manhattan, NY', lat: 40.7831, lng: -73.9712, radius: 12000 },
-  MTN15: { city: 'Manhattan, NY', lat: 40.7831, lng: -73.9712, radius: 12000 },
-  BRK08: { city: 'Brooklyn, NY', lat: 40.6782, lng: -73.9442, radius: 12000 },
-  QNS05: { city: 'Queens, NY', lat: 40.7282, lng: -73.7949, radius: 12000 },
-  DEFAULT: { city: 'Manhattan, NY', lat: 40.7831, lng: -73.9712, radius: 12000 },
+  MTN12: PHILLY,
+  MTN15: PHILLY,
+  BRK08: PHILLY,
+  QNS05: PHILLY,
+  DEFAULT: PHILLY,
 };
 
 const StatusInfoModal = ({ isOpen, onClose, theme }) => {
@@ -157,6 +160,7 @@ const HeatMapDashboard = ({
   const [displayMode, setDisplayMode] = useState('default'); // 'default' or 'accessible'
   const [, setMap] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [mapsLoadError, setMapsLoadError] = useState('');
   const [isCapturing, setIsCapturing] = useState(false);
   const screenshotRef = useRef(null);
   /** When set, map + heatmap use aggregated workspace measurements (real lat/lng from DB). */
@@ -468,7 +472,7 @@ const HeatMapDashboard = ({
       const lng = locations.reduce((s, p) => s + Number(p.lng), 0) / locations.length;
       if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
     }
-    return { lat: 40.758, lng: -73.9855 };
+    return { lat: PHILLY.lat, lng: PHILLY.lng };
   }, [workspaceHeatmap, workspaceId, locations, usingOpenAQHeatmap, openaqHeatmap]);
 
   // Transform location data to WeightedLocation format for HeatmapLayer
@@ -740,6 +744,17 @@ const HeatMapDashboard = ({
               <LoadScript
                 googleMapsApiKey={googleMapsApiKey}
                 libraries={GOOGLE_MAP_LIBRARIES}
+                onLoad={() => setMapsLoadError('')}
+                onError={() => {
+                  setMapsLoadError(
+                    'Google Maps failed to load. This is usually caused by an invalid API key, missing billing, or referrer restrictions for this domain.'
+                  );
+                }}
+                loadingElement={
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <p className="text-sm text-gray-600 font-medium">Loading map…</p>
+                  </div>
+                }
               >
                 <GoogleMap
                   mapContainerStyle={MAP_CONTAINER_STYLE}
@@ -776,6 +791,19 @@ const HeatMapDashboard = ({
                     </a>
                   </p>
                   </div>
+              </div>
+            )}
+
+            {mapsLoadError && (
+              <div className="absolute inset-0 bg-white/90 flex items-center justify-center z-20">
+                <div className="max-w-lg mx-auto px-6 py-5 bg-white border border-rose-200 rounded-2xl shadow-sm">
+                  <p className="text-base font-bold text-rose-700 mb-2">Map loading error</p>
+                  <p className="text-sm text-gray-700">{mapsLoadError}</p>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Tip: In Google Cloud Console, enable “Maps JavaScript API” and restrict the key to
+                    <span className="font-mono"> https://haetalkim.github.io/airstory/*</span>.
+                  </p>
+                </div>
               </div>
             )}
 
