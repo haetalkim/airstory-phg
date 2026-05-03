@@ -44,9 +44,9 @@ const AIR_FACTS = [
 
 const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) => {
   const [mode, setMode] = useState('student');
-  const [email, setEmail] = useState('jiin@tamgu.com');
-  const [password, setPassword] = useState('password');
-  const [fullName, setFullName] = useState('New User');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [signupInstructor, setSignupInstructor] = useState(filters.instructor || '');
   const [signupPeriod, setSignupPeriod] = useState(filters.period || 'P1');
@@ -69,10 +69,11 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
     setSignupStep(1);
     setMode(newMode);
     if (newMode === 'teacher') {
-      setEmail('shim@tamgu.com');
+      setEmail('sikich@tamgu.com');
     } else {
-      setEmail('jiin@tamgu.com');
+      setEmail('');
     }
+    setPassword('');
   };
 
   const handleLoginAttempt = async () => {
@@ -108,8 +109,13 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
       return;
     }
     setFormError('');
-    if (!isSignUp && ((mode === 'student' && (email === 'jiin@tamgu.com' || email === 'julia@tamgu.com') && password === 'password') ||
-        (mode === 'teacher' && email === 'shim@tamgu.com' && password === 'password'))) {
+    // Optional demo: teacher verification step before hitting the API (matches seeded Sikich account).
+    if (
+      !isSignUp &&
+      mode === 'teacher' &&
+      email.trim().toLowerCase() === 'sikich@tamgu.com' &&
+      password === 'sikich2026'
+    ) {
       setShowVerification(true);
     } else {
       if (isSignUp) {
@@ -180,16 +186,20 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
         <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-left space-y-4">
           <div>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{mode === 'student' ? 'Student Name' : 'Instructor Name'}</p>
-            <p className="text-lg font-bold text-gray-900">{mode === 'student' ? 'Jiin Kim' : 'Mr. Sikich'}</p>
+            <p className="text-lg font-bold text-gray-900">{fullName.trim() || email.trim() || '—'}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Access Level</p>
-            <p className="text-lg font-bold text-gray-900">{mode === 'student' ? 'Science 4B - Grade 4' : 'Campus Administrator'}</p>
+            <p className="text-lg font-bold text-gray-900">{mode === 'student' ? 'Student' : 'Instructor'}</p>
           </div>
           {mode === 'student' && (
             <div>
-               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Assigned Group</p>
-               <p className="text-lg font-bold text-blue-600 font-mono">Group {filters.group.replace('G', '')} ({filters.school}-{filters.instructor}-{filters.period})</p>
+               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Sign-up selection</p>
+               <p className="text-lg font-bold text-blue-600 font-mono">
+                 {signupPeriod} • {signupGroup}
+                 {joinConfig?.schoolCode ? ` • ${joinConfig.schoolCode}` : ''}
+                 {signupInstructor ? ` • ${signupInstructor}` : ''}
+               </p>
             </div>
           )}
         </div>

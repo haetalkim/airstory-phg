@@ -144,6 +144,14 @@ export default function App() {
         group: profile?.group_code || "",
         studentId: profile?.student_code || prev.studentId,
       }));
+      if (isTeacherRole) {
+        setFilters((prev) => ({
+          ...prev,
+          school: profile?.school_code != null && profile.school_code !== "" ? profile.school_code : prev.school,
+          instructor:
+            profile?.instructor != null && profile.instructor !== "" ? profile.instructor : prev.instructor,
+        }));
+      }
       if (!isTeacherRole) {
         const profileSnap = [
           profile?.school_code || "",
@@ -309,7 +317,7 @@ export default function App() {
         email,
         password,
         fullName,
-        workspaceName: mode === "student" ? "Demo Sensor Platform Workspace" : `${fullName || "User"} Workspace`,
+        workspaceName: mode === "student" ? "Air Story class" : `${fullName || "User"} Workspace`,
         role: mode === "teacher" ? "teacher" : "student",
         schoolCode: filters.school,
         instructor: instructor || filters.instructor,
@@ -600,7 +608,7 @@ export default function App() {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-20">
         <div className="max-w-7xl mx-auto px-6 py-6 text-center text-sm text-gray-600">
-          <p>&copy; 2025 Air Story. All rights reserved.</p>
+          <p>&copy; 2026 Air Story. All rights reserved.</p>
         </div>
       </footer>
     </div>

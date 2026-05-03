@@ -415,6 +415,7 @@ const MyPage = ({
                   onChange={(e) => setTempFilters({ ...tempFilters, state: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
+                  <option value="PA">Pennsylvania</option>
                   <option value="NY">New York</option>
                   <option value="CA">California</option>
                   <option value="TX">Texas</option>

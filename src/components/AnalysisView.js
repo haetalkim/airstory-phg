@@ -18,7 +18,12 @@ const ComparisonModal = ({
   metricThemes,
   currentFilters,
   workspaceGroups,
+  comparisonSchoolCodes,
 }) => {
+  const schoolChipList =
+    comparisonSchoolCodes?.length > 0
+      ? comparisonSchoolCodes
+      : ['PHG01', 'MTN12', 'MTN15', 'BRK08', 'QNS20', 'BRX03'];
   const groupButtonList =
     workspaceGroups?.length > 0
       ? workspaceGroups
@@ -166,7 +171,7 @@ const ComparisonModal = ({
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-3">Select Schools to Compare</h4>
                 <div className="flex flex-wrap gap-2">
-                  {['MTN12', 'MTN15', 'BRK08', 'QNS20', 'BRX03'].map((school) => (
+                  {schoolChipList.map((school) => (
                     <button
                       key={school}
                       onClick={() => toggleSchoolSelection(school)}
@@ -704,6 +709,12 @@ const AnalysisView = ({
     return ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];
   }, [classStructure, filters.period]);
 
+  const comparisonSchoolCodes = useMemo(() => {
+    const fromFile = [...new Set(imported.map((r) => r.school).filter(Boolean))];
+    const merged = [...new Set([filters.school, ...fromFile, 'PHG01'])].filter(Boolean);
+    return merged.sort();
+  }, [imported, filters.school]);
+
   useEffect(() => {
     if (!availableCompareGroups.length) {
       setCompareGroup('');
@@ -849,7 +860,7 @@ const AnalysisView = ({
           </p>
           <p className="text-sm text-gray-500">
             We no longer show placeholder charts — the Analysis page only uses <strong>your</strong> workspace data.
-            When you have data, you can compare it to a <strong>reference location trend</strong> (simulated NYC-area
+            When you have data, you can compare it to a <strong>reference location trend</strong> (illustrative Philadelphia-area
             baselines for class discussion, not live regulatory feeds).
           </p>
         </div>
@@ -1326,7 +1337,7 @@ const AnalysisView = ({
                   <span className="text-blue-600 mt-0.5">•</span>
                   <span>
                     On <strong>Overview</strong>, use <strong>Your recent week vs reference location</strong> to contrast
-                    classroom data with a simulated NYC-area baseline.
+                    classroom data with a Philadelphia-area reference baseline.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
@@ -1364,6 +1375,7 @@ const AnalysisView = ({
         metricThemes={metricThemes}
         currentFilters={filters}
         workspaceGroups={workspaceGroupsForCompare}
+        comparisonSchoolCodes={comparisonSchoolCodes}
       />
 
       <TrendModal

@@ -32,7 +32,7 @@ export default function ManageClasses({
   const [draftGroup, setDraftGroup] = useState('G1');
   const [busy, setBusy] = useState(false);
   const [periodCount, setPeriodCount] = useState(1);
-  const [groupCount, setGroupCount] = useState(4);
+  const [groupCount, setGroupCount] = useState(6);
 
   const generateRandomCode = () => {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

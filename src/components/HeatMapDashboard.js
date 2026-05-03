@@ -76,6 +76,7 @@ const accessibleGradient = [
 const PHILLY = { city: 'Philadelphia, PA', lat: 39.9526, lng: -75.1652, radius: 15000 };
 
 const SCHOOL_CITY_CENTER = {
+  PHG01: PHILLY,
   MTN12: PHILLY,
   MTN15: PHILLY,
   BRK08: PHILLY,
