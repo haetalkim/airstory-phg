@@ -33,6 +33,7 @@ const RawDataView = ({
   theme,
   metricThemes,
   onImportedDataChanged,
+  classStructure,
 }) => {
   const [rawData, setRawData] = useState(getImportedMeasurements());
   const [loadingBackend, setLoadingBackend] = useState(false);
@@ -159,8 +160,26 @@ const RawDataView = ({
           .map((d) => d.group))
       .filter(Boolean)
   )].sort();
-  const normalizedPeriods = allPeriods.length ? allPeriods : ['P1'];
-  const normalizedGroups = [...new Set([...(allGroups || []), 'G1', 'G2', 'G3', 'G4'])].sort();
+
+  const structurePeriods = classStructure?.periods?.length ? classStructure.periods : [];
+  const periodForGroups =
+    selectedPeriod ||
+    filters.period ||
+    structurePeriods[0] ||
+    'P1';
+  const structureGroups =
+    classStructure?.groupsByPeriod && periodForGroups
+      ? classStructure.groupsByPeriod[periodForGroups] || []
+      : [];
+
+  const normalizedPeriods = [...new Set([...structurePeriods, ...allPeriods])].sort();
+  const effectivePeriods = normalizedPeriods.length ? normalizedPeriods : ['P1'];
+
+  const normalizedGroups = [...new Set([...structureGroups, ...allGroups])].sort();
+  const effectiveGroups =
+    normalizedGroups.length > 0
+      ? normalizedGroups
+      : [...new Set([...(allGroups || []), 'G1', 'G2', 'G3', 'G4'])].sort();
 
   // Filter data
   let filteredData = rawData.filter(row => {
@@ -599,7 +618,7 @@ const RawDataView = ({
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
               <option value="">Select Period</option>
-              {normalizedPeriods.map(p => <option key={p} value={p}>{p === viewerProfile?.period ? `${p} (My Period)` : p}</option>)}
+              {effectivePeriods.map(p => <option key={p} value={p}>{p === viewerProfile?.period ? `${p} (My Period)` : p}</option>)}
             </select>
           </div>
 
@@ -616,7 +635,7 @@ const RawDataView = ({
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
             >
               <option value="">Select Group</option>
-              {normalizedGroups.map(g => <option key={g} value={g}>{g === viewerProfile?.group ? `${g} (My Team)` : g}</option>)}
+              {effectiveGroups.map(g => <option key={g} value={g}>{g === viewerProfile?.group ? `${g} (My Team)` : g}</option>)}
             </select>
           </div>
         </div>

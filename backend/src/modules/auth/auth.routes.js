@@ -6,6 +6,7 @@ import { env } from "../../config/env.js";
 import { requireAuth, requireWorkspaceRole, signAccessToken, signRefreshToken } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import {
+  changePasswordSchema,
   createJoinCodeSchema,
   getJoinCodeConfigSchema,
   loginSchema,
@@ -214,6 +215,24 @@ router.post("/login", validate(loginSchema), async (req, res, next) => {
       [user.id, auth.refreshToken]
     );
     res.json(auth);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/change-password", requireAuth, validate(changePasswordSchema), async (req, res, next) => {
+  try {
+    const { email, newPassword } = req.validated.body;
+    const tokenEmail = String(req.user.email || "")
+      .trim()
+      .toLowerCase();
+    if (tokenEmail !== email) {
+      return res.status(403).json({ error: "Email must match your signed-in account" });
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, req.user.userId]);
+    await pool.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [req.user.userId]);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

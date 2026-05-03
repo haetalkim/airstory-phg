@@ -35,6 +35,16 @@ export const loginSchema = z.object({
   query: z.object({}).passthrough(),
 });
 
+/** Logged-in user only; email must match JWT (confirmation field). */
+export const changePasswordSchema = z.object({
+  body: z.object({
+    email: normalizedEmail,
+    newPassword: z.string().min(8),
+  }),
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+});
+
 export const createJoinCodeSchema = z.object({
   body: z.object({
     code: z.string().trim().toUpperCase().regex(joinCodePattern, "Code must be 5 letters/numbers."),

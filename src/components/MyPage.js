@@ -1,13 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { User, Settings, HelpCircle, Shield, LogOut, Edit2, Save, X } from 'lucide-react';
-import { getMe, getRoster } from '../api/auth';
+import { getMe, getRoster, changePassword } from '../api/auth';
 
-const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, theme, onLogout }) => {
+const MyPage = ({
+  workspaceId,
+  userRole,
+  viewerProfile,
+  filters,
+  setFilters,
+  theme,
+  onLogout,
+  classStructure,
+}) => {
+  const isTeacherRole = userRole === 'teacher' || userRole === 'owner';
   const [isEditing, setIsEditing] = useState(false);
   const [tempFilters, setTempFilters] = useState({ ...filters });
   const [groupMembers, setGroupMembers] = useState([]);
   const [instructor, setInstructor] = useState({ name: 'Mr. Sikich', role: 'Instructor', id: 'INST001' });
   const [me, setMe] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordEmail, setPasswordEmail] = useState('');
+  const [passwordNew, setPasswordNew] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
+
+  const profileInitials = () => {
+    const name = (viewerProfile.displayName || me?.user?.full_name || '').trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts.length === 1 && parts[0].length >= 2) return parts[0].slice(0, 2).toUpperCase();
+    return isTeacherRole ? 'IN' : 'ST';
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +65,39 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
       cancelled = true;
     };
   }, [workspaceId]);
+
+  const periodEditOptions = useMemo(() => {
+    if (classStructure?.periods?.length) return classStructure.periods;
+    return ['P1', 'P2', 'P3', 'P4'];
+  }, [classStructure]);
+
+  const groupEditNums = useMemo(() => {
+    const n =
+      typeof classStructure?.groupCount === 'number' && classStructure.groupCount > 0
+        ? classStructure.groupCount
+        : 6;
+    return Array.from({ length: n }, (_, i) => i + 1);
+  }, [classStructure]);
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    if (!passwordEmail.trim() || !passwordNew || passwordNew.length < 8) {
+      setPasswordError('Use your account email and a new password (at least 8 characters).');
+      return;
+    }
+    try {
+      setPasswordBusy(true);
+      await changePassword(passwordEmail.trim().toLowerCase(), passwordNew);
+      setShowPasswordModal(false);
+      setPasswordNew('');
+      onLogout();
+    } catch (err) {
+      setPasswordError(err.message || 'Could not update password.');
+    } finally {
+      setPasswordBusy(false);
+    }
+  };
 
   const groupedStructure = useMemo(() => {
     const map = {};
@@ -85,11 +141,17 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
                 className="w-24 h-24 mx-auto rounded-full flex items-center justify-center text-3xl font-bold text-white mb-4"
                 style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primary}CC 100%)` }}
               >
-                {(viewerProfile.studentId || filters.studentId || 'STU000').slice(3)}
+                {isTeacherRole ? profileInitials() : (viewerProfile.studentId || filters.studentId || 'STU000').slice(3)}
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">{viewerProfile.studentId || filters.studentId}</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">
+                {isTeacherRole
+                  ? viewerProfile.displayName || me?.user?.full_name || 'Instructor'
+                  : viewerProfile.studentId || filters.studentId}
+              </h2>
               <p className="text-sm text-gray-600">
-                {viewerProfile.school || filters.school} - {viewerProfile.instructor || filters.instructor} - {viewerProfile.period || filters.period} - Group {(viewerProfile.group || filters.group || '').replace('G', '')}
+                {isTeacherRole
+                  ? `${viewerProfile.school || filters.school} • ${viewerProfile.instructor || filters.instructor || 'Instructor'}`
+                  : `${viewerProfile.school || filters.school} - ${viewerProfile.instructor || filters.instructor} - ${viewerProfile.period || filters.period} - Group ${(viewerProfile.group || filters.group || '').replace('G', '')}`}
               </p>
             </div>
 
@@ -184,21 +246,29 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Student ID</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  {isTeacherRole ? 'Instructor / staff ID' : 'Student ID'}
+                </label>
                 <input
                   type="text"
-                  value={filters.studentId}
+                  value={
+                    isTeacherRole
+                      ? viewerProfile.studentId || filters.studentId || me?.user?.email || '—'
+                      : filters.studentId
+                  }
                   disabled
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed"
                 />
-                <p className="text-xs text-gray-500 mt-1">Student ID cannot be changed</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {isTeacherRole ? 'Shown for your records; edit placement in Manage Classes for students.' : 'Student ID cannot be changed'}
+                </p>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
                 <input
                   type="email"
-                  value={me?.user?.email || "jiin@tamgu.edu"}
+                  value={me?.user?.email || ''}
                   disabled
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed"
                 />
@@ -206,7 +276,16 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-                <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordError('');
+                    setPasswordNew('');
+                    setPasswordEmail(me?.user?.email || '');
+                    setShowPasswordModal(true);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                >
                   Change Password
                 </button>
               </div>
@@ -365,20 +444,26 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Period</label>
-                <input
-                  type="text"
-                  value={tempFilters.period}
+                <select
+                  value={tempFilters.period || periodEditOptions[0] || 'P1'}
                   onChange={(e) => setTempFilters({ ...tempFilters, period: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                >
+                  {periodEditOptions.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Group</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {[1, 2, 3, 4, 5, 6].map((num) => (
+                  {groupEditNums.map((num) => (
                     <button
                       key={num}
+                      type="button"
                       onClick={() => setTempFilters({ ...tempFilters, group: `G${num}` })}
                       className={`py-2 rounded-lg text-sm font-medium transition-all ${
                         tempFilters.group === `G${num}`
@@ -408,6 +493,65 @@ const MyPage = ({ workspaceId, userRole, viewerProfile, filters, setFilters, the
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPasswordModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => !passwordBusy && setShowPasswordModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-md w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`${theme.bg} text-white p-6 rounded-t-2xl flex items-center justify-between`}>
+              <h3 className="text-xl font-bold">Change password</h3>
+              <button
+                type="button"
+                onClick={() => !passwordBusy && setShowPasswordModal(false)}
+                className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handlePasswordSubmit} className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Confirm your email and choose a new password. You will be signed out and can log in again.
+              </p>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={passwordEmail}
+                  onChange={(e) => setPasswordEmail(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoComplete="username"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">New password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={passwordNew}
+                  onChange={(e) => setPasswordNew(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoComplete="new-password"
+                />
+              </div>
+              {passwordError ? <p className="text-sm text-red-600">{passwordError}</p> : null}
+              <button
+                type="submit"
+                disabled={passwordBusy}
+                className={`w-full py-3 rounded-lg font-semibold text-white ${theme.bg} ${theme.hover} disabled:opacity-50`}
+              >
+                {passwordBusy ? 'Updating…' : 'Update password'}
+              </button>
+            </form>
           </div>
         </div>
       )}

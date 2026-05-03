@@ -12,6 +12,17 @@ export async function login(email, password) {
   return data;
 }
 
+/** Requires Bearer token; email must match signed-in user. Invalidates refresh tokens. */
+export async function changePassword(email, newPassword) {
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  return apiRequest("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ email: normalizedEmail, newPassword }),
+  });
+}
+
 export async function register({
   email,
   password,

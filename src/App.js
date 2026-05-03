@@ -6,7 +6,13 @@ import AnalysisView from "./components/AnalysisView";
 import MyPage from "./components/MyPage";
 import ManageClasses from "./components/ManageClasses";
 import { MapPin, Table, BarChart3, User, LogOut, Users } from "lucide-react";
-import { login as loginApi, register as registerApi, getMe, logout as logoutApi } from "./api/auth";
+import {
+  login as loginApi,
+  register as registerApi,
+  getMe,
+  logout as logoutApi,
+  getClassStructure,
+} from "./api/auth";
 import { getStoredAuth } from "./api/http";
 import { getMeasurements } from "./api/data";
 import {
@@ -99,6 +105,26 @@ export default function App() {
     group: "",
     studentId: "",
   });
+  /** Workspace class grid from API (Manage Classes); drives period/group dropdowns app-wide. */
+  const [classStructure, setClassStructure] = useState(null);
+
+  const refreshClassStructure = useCallback(async (workspaceIdOverride) => {
+    const wid = workspaceIdOverride ?? workspaceId;
+    if (!wid) {
+      setClassStructure(null);
+      return;
+    }
+    try {
+      const s = await getClassStructure(wid);
+      setClassStructure(s);
+    } catch {
+      setClassStructure(null);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    refreshClassStructure();
+  }, [refreshClassStructure]);
 
   const syncFromMe = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -144,6 +170,15 @@ export default function App() {
             group: profile?.group_code || "",
             studentId: profile?.student_code || prev.studentId,
           }));
+        }
+      }
+      const wid = me?.memberships?.[0]?.workspace_id;
+      if (wid) {
+        try {
+          const s = await getClassStructure(wid);
+          setClassStructure(s);
+        } catch {
+          /* leave previous structure */
         }
       }
     } catch {
@@ -359,6 +394,22 @@ export default function App() {
   };
 
   const isTeacher = userRole === "teacher" || userRole === "owner";
+
+  const teacherNavInitials = () => {
+    const name = (viewerProfile.displayName || "").trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    if (parts.length === 1 && parts[0].length >= 2) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    if (parts.length === 1 && parts[0].length === 1) {
+      return `${parts[0]}•`.toUpperCase();
+    }
+    return "IN";
+  };
+
   const navItems = isTeacher
     ? [
         { id: 'manageclasses', label: 'Manage Classes', icon: Users },
@@ -473,7 +524,9 @@ export default function App() {
                 </div>
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center border-2 border-white shadow-md">
                   <span className="text-white text-sm font-semibold">
-                    {isTeacher ? "T" : (viewerProfile.studentId || filters.studentId || "STU000").slice(3)}
+                    {isTeacher
+                      ? teacherNavInitials()
+                      : (viewerProfile.studentId || filters.studentId || "STU000").slice(3)}
                   </span>
                 </div>
               </div>
@@ -507,6 +560,7 @@ export default function App() {
             theme={currentTheme}
             metricThemes={METRIC_THEMES}
             onImportedDataChanged={handleImportedDataChanged}
+            classStructure={classStructure}
           />
         )}
         {activeSection === 'analysis' && (
@@ -517,6 +571,7 @@ export default function App() {
             theme={currentTheme}
             metricThemes={METRIC_THEMES}
             importedDataVersion={importedDataVersion}
+            classStructure={classStructure}
           />
         )}
         {activeSection === 'mypage' && (
@@ -528,10 +583,17 @@ export default function App() {
             setFilters={setFilters}
             theme={currentTheme}
             onLogout={handleLogout}
+            classStructure={classStructure}
           />
         )}
         {activeSection === 'manageclasses' && isTeacher && (
-          <ManageClasses workspaceId={workspaceId} theme={currentTheme} onGroupSelect={handleTeacherSelectGroup} />
+          <ManageClasses
+            workspaceId={workspaceId}
+            theme={currentTheme}
+            onGroupSelect={handleTeacherSelectGroup}
+            viewerProfile={viewerProfile}
+            onClassStructureChanged={() => refreshClassStructure()}
+          />
         )}
       </main>
 

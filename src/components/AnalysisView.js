@@ -10,7 +10,19 @@ const OPENAQ_REFERENCE_METRICS = ['pm25', 'co', 'temp', 'humidity'];
 
 const COMPARISON_PALETTE = ['#3B82F6', '#EF4444', '#10B981', '#8B5CF6', '#F59E0B', '#6366F1', '#EC4899', '#14B8A6'];
 
-const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes, currentFilters }) => {
+const ComparisonModal = ({
+  isOpen,
+  onClose,
+  selectedMetric,
+  theme,
+  metricThemes,
+  currentFilters,
+  workspaceGroups,
+}) => {
+  const groupButtonList =
+    workspaceGroups?.length > 0
+      ? workspaceGroups
+      : ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];
   const [comparisonType, setComparisonType] = useState('location'); // 'group', 'school', 'location', 'time'
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [selectedSchools, setSelectedSchools] = useState([]);
@@ -132,7 +144,7 @@ const ComparisonModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes,
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-3">Select Groups to Compare</h4>
                 <div className="flex flex-wrap gap-2">
-                  {['G1', 'G2', 'G3', 'G4', 'G5', 'G6'].map(group => (
+                  {groupButtonList.map((group) => (
                     <button
                       key={group}
                       onClick={() => toggleGroupSelection(group)}
@@ -478,7 +490,15 @@ const TrendModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes, dail
   );
 };
 
-const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metricThemes, importedDataVersion }) => {
+const AnalysisView = ({
+  selectedMetric,
+  setSelectedMetric,
+  filters,
+  theme,
+  metricThemes,
+  importedDataVersion,
+  classStructure,
+}) => {
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
@@ -662,9 +682,27 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
   }, [schoolScopeData, selectedMetric]);
 
   const availableCompareGroups = useMemo(() => {
-    const groups = [...new Set(classScopeData.map((r) => r.group).filter(Boolean))].sort();
-    return groups.filter((g) => g !== filters.group);
-  }, [classScopeData, filters.group]);
+    const fromData = [...new Set(classScopeData.map((r) => r.group).filter(Boolean))];
+    const period = filters.period || classStructure?.periods?.[0];
+    const fromWorkspace =
+      classStructure?.groupsByPeriod && period
+        ? classStructure.groupsByPeriod[period] || []
+        : [];
+    const merged = [...new Set([...fromWorkspace, ...fromData])].sort();
+    return merged.filter((g) => g !== filters.group);
+  }, [classScopeData, filters.group, filters.period, classStructure]);
+
+  const workspaceGroupsForCompare = useMemo(() => {
+    const p = filters.period || classStructure?.periods?.[0];
+    if (classStructure?.groupsByPeriod && p) {
+      const g = classStructure.groupsByPeriod[p];
+      if (g?.length) return g;
+    }
+    if (classStructure?.groupCount) {
+      return Array.from({ length: classStructure.groupCount }, (_, i) => `G${i + 1}`);
+    }
+    return ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];
+  }, [classStructure, filters.period]);
 
   useEffect(() => {
     if (!availableCompareGroups.length) {
@@ -1325,6 +1363,7 @@ const AnalysisView = ({ selectedMetric, setSelectedMetric, filters, theme, metri
         theme={theme}
         metricThemes={metricThemes}
         currentFilters={filters}
+        workspaceGroups={workspaceGroupsForCompare}
       />
 
       <TrendModal

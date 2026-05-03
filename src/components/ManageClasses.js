@@ -12,12 +12,18 @@ import {
   updateStudentPlacement,
 } from '../api/auth';
 
-export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
+export default function ManageClasses({
+  workspaceId,
+  theme,
+  onGroupSelect,
+  viewerProfile,
+  onClassStructureChanged,
+}) {
   const [members, setMembers] = useState([]);
   const [joinCodes, setJoinCodes] = useState([]);
   const [newCode, setNewCode] = useState('');
-  const [newCodeSchool, setNewCodeSchool] = useState('PHG01');
-  const [newCodeInstructor, setNewCodeInstructor] = useState('Mr. Sikich');
+  const [newCodeSchool, setNewCodeSchool] = useState(viewerProfile?.school || '');
+  const [newCodeInstructor, setNewCodeInstructor] = useState(viewerProfile?.instructor || '');
   const [error, setError] = useState('');
   const [activeStudent, setActiveStudent] = useState(null);
   const [activeAction, setActiveAction] = useState('');
@@ -60,6 +66,11 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
+  useEffect(() => {
+    if (viewerProfile?.school) setNewCodeSchool(viewerProfile.school);
+    if (viewerProfile?.instructor) setNewCodeInstructor(viewerProfile.instructor);
+  }, [viewerProfile?.school, viewerProfile?.instructor]);
+
   const groups = useMemo(() => {
     const periods = Array.from({ length: periodCount || 1 }, (_, i) => `P${i + 1}`);
     const groupsForPeriod = Array.from({ length: groupCount || 4 }, (_, i) => `G${i + 1}`);
@@ -92,6 +103,7 @@ export default function ManageClasses({ workspaceId, theme, onGroupSelect }) {
       setPeriodCount(updated.periodCount || Number(periodCount));
       setGroupCount(updated.groupCount || Number(groupCount));
       setError('');
+      onClassStructureChanged?.();
     } catch (e) {
       setError(e.message || 'Failed to update class structure.');
     } finally {
