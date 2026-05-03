@@ -1,8 +1,8 @@
 name: Deploy GitHub Pages (Air Quality Tracker)
 
-# Canonical frontend: repo root (`src/`). Builds and pushes `build/` to branch `gh-pages`
-# (same result as `npm run deploy`). Works when Pages source is **Deploy from branch → gh-pages**.
-# The older `deploy-pages` artifact flow only updates the site if Pages source is **GitHub Actions**.
+# Build from repo root. Uses GitHub’s Pages artifact flow — requires:
+# Settings → Pages → Source = **GitHub Actions** (not “Deploy from branch”).
+# If you prefer updating only the `gh-pages` branch, use `npm run deploy` locally instead.
 on:
   push:
     branches: [main]
@@ -17,14 +17,16 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: github-pages-deploy
+  group: pages
   cancel-in-progress: true
 
 jobs:
-  build-and-publish:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -45,9 +47,18 @@ jobs:
           REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL || 'https://air-sensor-api.onrender.com/api' }}
         run: npm run build
 
-      - name: Publish to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
-          force_orphan: false
+          path: build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
