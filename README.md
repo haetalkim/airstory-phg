@@ -16,7 +16,7 @@ Air quality classroom platform: React dashboard + Express/Postgres API.
 - **CI:** push to `main` runs [.github/workflows/deploy-gh-pages.yml](.github/workflows/deploy-gh-pages.yml) (see **[docs/GITHUB_PAGES.md](docs/GITHUB_PAGES.md)** for secrets + troubleshooting).
 - **Manual:** `npm run deploy` uses `scripts/deploy-github-pages.sh` and **`CACHE_DIR`** outside the repo. Set `REACT_APP_API_BASE_URL` in `.env` before deploy (baked into the static build).
 
-GitHub: **Settings → Pages** — use **GitHub Actions** as the source when deploying via the workflow artifact.
+GitHub: **Settings → Pages** — source **Deploy from branch** → **`gh-pages`** / **`/(root)`** (the CI workflow pushes the built site to that branch).
 
 **Vercel:** not required if you only use Pages. If `git push` still triggers Vercel builds, disconnect the project in Vercel (see **`docs/VERCEL.md` → “GitHub Pages만 쓸 때”**).
 

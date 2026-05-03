@@ -12,8 +12,8 @@ If the live site shows old behavior (e.g. Manhattan map, missing Raw Data fixes)
 
 Workflow: [.github/workflows/deploy-gh-pages.yml](../.github/workflows/deploy-gh-pages.yml).
 
-- Triggers on push to `main` when `src/`, `public/`, `package.json`, `package-lock.json`, Tailwind/PostCSS configs, or the workflow file change.
-- Runs `npm ci` and `npm run build` at the **repo root**, uploads `build/` to GitHub Pages.
+- Triggers on push to `main` when `src/`, `public/`, `package.json`, `package-lock.json`, Tailwind/PostCSS configs, or the workflow file change (also **Actions → Run workflow**).
+- Runs `npm ci` and `npm run build` at the **repo root**, then pushes **`build/` to the `gh-pages` branch** (same as local `npm run deploy`).
 
 ### Optional repository secret
 
@@ -27,7 +27,10 @@ GitHub: **Settings → Secrets and variables → Actions → New repository secr
 
 **Settings → Pages → Build and deployment**
 
-- Source: **GitHub Actions** (not “Deploy from a branch” only—Actions uploads the artifact).
+- Source: **Deploy from a branch**
+- Branch: **`gh-pages`** / **`/(root)`**
+
+If the live site never updates after green Actions runs, this branch/source pairing is usually wrong—or you were previously using **GitHub Actions** as the Pages source (different from pushing to `gh-pages`). Pick **one**: branch **`gh-pages`** matches this workflow.
 
 ### Backend checklist (feature parity)
 
