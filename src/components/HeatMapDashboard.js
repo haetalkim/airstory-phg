@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Info, Download, Share2 } from 'lucide-react';
-import { GoogleMap, LoadScript, HeatmapLayer } from '@react-google-maps/api';
+import { GoogleMap, LoadScript, HeatmapLayer, Marker, InfoWindow } from '@react-google-maps/api';
 import html2canvas from 'html2canvas';
 import { getImportedMeasurements } from '../utils/importedData';
 import { getHeatmapPoints } from '../api/data';
@@ -77,6 +77,15 @@ const accessibleGradient = [
  * (Avoids legacy per-school centers that still pointed at NYC / Manhattan in older builds.)
  */
 const PROGRAM_REGION = { city: 'Philadelphia, PA', lat: 39.9526, lng: -75.1652, radius: 15000 };
+
+/** Program partner school — 1400 W Olney Ave, Philadelphia, PA (approx. entrance). */
+const PHILADELPHIA_HS_FOR_GIRLS = Object.freeze({
+  name: 'Philadelphia High School for Girls',
+  shortLabel: 'PHSG',
+  address: '1400 W Olney Ave, Philadelphia, PA 19141',
+  lat: 40.03625,
+  lng: -75.14504,
+});
 
 const StatusInfoModal = ({ isOpen, onClose, theme }) => {
   if (!isOpen) return null;
@@ -156,6 +165,7 @@ const HeatMapDashboard = ({
   const [, setMap] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [mapsLoadError, setMapsLoadError] = useState('');
+  const [schoolPinOpen, setSchoolPinOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const screenshotRef = useRef(null);
   /** When set, map + heatmap use aggregated workspace measurements (real lat/lng from DB). */
@@ -758,6 +768,44 @@ const HeatMapDashboard = ({
                       options={heatmapOptions}
                     />
                   )}
+                  {isLoaded && (
+                    <>
+                      <Marker
+                        position={{
+                          lat: PHILADELPHIA_HS_FOR_GIRLS.lat,
+                          lng: PHILADELPHIA_HS_FOR_GIRLS.lng,
+                        }}
+                        zIndex={1000}
+                        title={PHILADELPHIA_HS_FOR_GIRLS.name}
+                        onClick={() => setSchoolPinOpen(true)}
+                        options={{
+                          label: {
+                            text: PHILADELPHIA_HS_FOR_GIRLS.shortLabel,
+                            color: '#ffffff',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                          },
+                        }}
+                      />
+                      {schoolPinOpen && (
+                        <InfoWindow
+                          position={{
+                            lat: PHILADELPHIA_HS_FOR_GIRLS.lat,
+                            lng: PHILADELPHIA_HS_FOR_GIRLS.lng,
+                          }}
+                          onCloseClick={() => setSchoolPinOpen(false)}
+                        >
+                          <div className="max-w-[240px] pr-1">
+                            <p className="font-bold text-gray-900 text-sm leading-snug">
+                              {PHILADELPHIA_HS_FOR_GIRLS.name}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">{PHILADELPHIA_HS_FOR_GIRLS.address}</p>
+                            <p className="text-[10px] text-gray-500 mt-2">Partner school (program pin)</p>
+                          </div>
+                        </InfoWindow>
+                      )}
+                    </>
+                  )}
                 </GoogleMap>
               </LoadScript>
             ) : (
@@ -825,7 +873,7 @@ const HeatMapDashboard = ({
           </div>
           
           <p className="text-xs text-gray-500 mt-4 text-center">
-            * Real geography with anonymized sensor locations • Hover over heat zones for details
+            * OpenAQ heat zones • Blue pin: {PHILADELPHIA_HS_FOR_GIRLS.name} (tap for details)
           </p>
         </div>
 
