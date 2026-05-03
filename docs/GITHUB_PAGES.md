@@ -12,6 +12,8 @@ If the live site shows old behavior (e.g. Manhattan map, missing Raw Data fixes)
 
 Workflow: [.github/workflows/deploy-gh-pages.yml](../.github/workflows/deploy-gh-pages.yml).
 
+Do **not** keep GitHub’s template workflow that uploads **`path: '.'`** (whole repo) to Pages — Create React App’s `index.html` lives in **`build/`** after `npm run build`, so that template makes the site **404**.
+
 - Triggers on push to `main` when `src/`, `public/`, `package.json`, `package-lock.json`, Tailwind/PostCSS configs, or the workflow file change (also **Actions → Run workflow**).
 - Runs `npm ci` and `npm run build` at the **repo root**, uploads `build/` as a Pages artifact, then **`actions/deploy-pages`** publishes it.
 
