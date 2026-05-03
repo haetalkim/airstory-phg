@@ -87,6 +87,13 @@ const PHILADELPHIA_HS_FOR_GIRLS = Object.freeze({
   lng: -75.14504,
 });
 
+/** Zoom when jumping to the partner school from the map control. */
+const SCHOOL_FOCUS_ZOOM = 16;
+
+/** Inline SVG (Lucide-style graduation cap) for the custom map control — avoids ReactDOM on the control node. */
+const SCHOOL_MAP_CONTROL_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>';
+
 const StatusInfoModal = ({ isOpen, onClose, theme }) => {
   if (!isOpen) return null;
 
@@ -168,6 +175,8 @@ const HeatMapDashboard = ({
   const [schoolPinOpen, setSchoolPinOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const screenshotRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const schoolMapControlRef = useRef(null);
   /** When set, map + heatmap use aggregated workspace measurements (real lat/lng from DB). */
   const [workspaceHeatmap, setWorkspaceHeatmap] = useState(null);
   const [openaqHeatmap, setOpenaqHeatmap] = useState(null);
@@ -497,11 +506,62 @@ const HeatMapDashboard = ({
   }), [displayMode]);
 
   const onMapLoad = useCallback((mapInstance) => {
+    mapInstanceRef.current = mapInstance;
     setMap(mapInstance);
     setIsLoaded(true);
+
+    if (!window.google?.maps?.ControlPosition) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.alignItems = 'center';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.title = `Go to ${PHILADELPHIA_HS_FOR_GIRLS.name}`;
+    btn.setAttribute('aria-label', `Center map on ${PHILADELPHIA_HS_FOR_GIRLS.name}`);
+    btn.innerHTML = SCHOOL_MAP_CONTROL_SVG;
+    Object.assign(btn.style, {
+      backgroundColor: '#fff',
+      border: 'none',
+      borderRadius: '2px',
+      boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+      cursor: 'pointer',
+      margin: '10px',
+      padding: '9px',
+      width: '40px',
+      height: '40px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    });
+
+    btn.addEventListener('click', () => {
+      mapInstance.panTo({
+        lat: PHILADELPHIA_HS_FOR_GIRLS.lat,
+        lng: PHILADELPHIA_HS_FOR_GIRLS.lng,
+      });
+      mapInstance.setZoom(SCHOOL_FOCUS_ZOOM);
+      setSchoolPinOpen(true);
+    });
+
+    wrapper.appendChild(btn);
+    mapInstance.controls[window.google.maps.ControlPosition.RIGHT_TOP].insertAt(0, wrapper);
+    schoolMapControlRef.current = wrapper;
   }, []);
 
   const onMapUnmount = useCallback(() => {
+    const mapInstance = mapInstanceRef.current;
+    const controlEl = schoolMapControlRef.current;
+    if (mapInstance && controlEl && window.google?.maps?.ControlPosition) {
+      const slot = mapInstance.controls[window.google.maps.ControlPosition.RIGHT_TOP];
+      const arr = slot?.getArray?.() || [];
+      const idx = arr.indexOf(controlEl);
+      if (idx >= 0) slot.removeAt(idx);
+    }
+    schoolMapControlRef.current = null;
+    mapInstanceRef.current = null;
     setMap(null);
     setIsLoaded(false);
   }, []);
@@ -873,7 +933,7 @@ const HeatMapDashboard = ({
           </div>
           
           <p className="text-xs text-gray-500 mt-4 text-center">
-            * OpenAQ heat zones • Blue pin: {PHILADELPHIA_HS_FOR_GIRLS.name} (tap for details)
+            * OpenAQ heat zones • Graduation control (top-right): jump to {PHILADELPHIA_HS_FOR_GIRLS.shortLabel} • Pin: tap for details
           </p>
         </div>
 
