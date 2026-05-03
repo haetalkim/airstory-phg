@@ -342,7 +342,7 @@ const LandingPage = ({ onLogin, onRegister, filters, authError, authLoading }) =
                                 type="text"
                                 value={signupInstructor}
                                 onChange={(e) => setSignupInstructor(e.target.value)}
-                                placeholder="e.g. Mr. Sikich"
+                                placeholder="Class instructor name (as on your roster)"
                                 className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
                               />
                             </div>

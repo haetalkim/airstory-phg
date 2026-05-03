@@ -119,3 +119,15 @@ export const getJoinCodeConfigSchema = z.object({
   }),
   query: z.object({}).passthrough(),
 });
+
+/** Signed-in user updates their own row in user_profiles (school / class name / placement). */
+export const updateMyProfileSchema = z.object({
+  body: z.object({
+    schoolCode: z.string().max(64).optional(),
+    instructor: z.string().max(160).optional(),
+    period: z.string().max(16).optional(),
+    groupCode: z.string().max(16).optional(),
+  }),
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+});

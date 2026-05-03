@@ -15,6 +15,7 @@ import {
   resetStudentPasswordSchema,
   toggleJoinCodeSchema,
   updateClassStructureSchema,
+  updateMyProfileSchema,
   updateStudentPlacementSchema,
 } from "./auth.schemas.js";
 
@@ -286,6 +287,38 @@ router.get("/me", requireAuth, async (req, res) => {
     memberships: wsResult.rows,
     profile: profileResult.rows[0] || null,
   });
+});
+
+router.patch("/me/profile", requireAuth, validate(updateMyProfileSchema), async (req, res, next) => {
+  try {
+    const body = req.validated.body;
+    const existing = await pool.query(
+      `SELECT workspace_id, school_code, instructor, period, group_code
+       FROM user_profiles
+       WHERE user_id = $1
+       LIMIT 1`,
+      [req.user.userId]
+    );
+    if (!existing.rowCount) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+    const row = existing.rows[0];
+    const schoolCode = body.schoolCode !== undefined ? body.schoolCode : row.school_code;
+    const instructor = body.instructor !== undefined ? body.instructor : row.instructor;
+    const period = body.period !== undefined ? body.period : row.period;
+    const groupCode = body.groupCode !== undefined ? body.groupCode : row.group_code;
+
+    const updated = await pool.query(
+      `UPDATE user_profiles
+       SET school_code = $1, instructor = $2, period = $3, group_code = $4
+       WHERE user_id = $5 AND workspace_id = $6
+       RETURNING workspace_id, school_code, instructor, period, group_code, student_code`,
+      [schoolCode, instructor, period, groupCode, req.user.userId, row.workspace_id]
+    );
+    res.json({ profile: updated.rows[0] });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get(

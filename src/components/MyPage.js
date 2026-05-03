@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { User, Settings, HelpCircle, Shield, LogOut, Edit2, Save, X } from 'lucide-react';
-import { getMe, getRoster, changePassword } from '../api/auth';
+import { getMe, getRoster, changePassword, updateMyProfile } from '../api/auth';
 import { periodsFromClassStructure } from '../utils/classStructure';
 
 const MyPage = ({
@@ -12,6 +12,7 @@ const MyPage = ({
   theme,
   onLogout,
   classStructure,
+  onProfileSaved,
 }) => {
   const isTeacherRole = userRole === 'teacher' || userRole === 'owner';
   const [isEditing, setIsEditing] = useState(false);
@@ -24,6 +25,8 @@ const MyPage = ({
   const [passwordNew, setPasswordNew] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState('');
+  const [profileSaveBusy, setProfileSaveBusy] = useState(false);
 
   const profileInitials = () => {
     const name = (viewerProfile.displayName || me?.user?.full_name || '').trim();
@@ -114,9 +117,24 @@ const MyPage = ({
     return map;
   }, [groupMembers]);
 
-  const handleSave = () => {
-    setFilters(tempFilters);
-    setIsEditing(false);
+  const handleSave = async () => {
+    setProfileSaveError('');
+    setProfileSaveBusy(true);
+    try {
+      await updateMyProfile({
+        schoolCode: tempFilters.school,
+        instructor: tempFilters.instructor,
+        period: tempFilters.period,
+        groupCode: tempFilters.group,
+      });
+      setFilters(tempFilters);
+      setIsEditing(false);
+      await onProfileSaved?.();
+    } catch (e) {
+      setProfileSaveError(e.message || 'Could not save profile.');
+    } finally {
+      setProfileSaveBusy(false);
+    }
   };
 
   const handleCancel = () => {
@@ -185,7 +203,12 @@ const MyPage = ({
             </div>
 
             <button
-              onClick={() => setIsEditing(true)}
+              type="button"
+              onClick={() => {
+                setTempFilters({ ...filters });
+                setProfileSaveError('');
+                setIsEditing(true);
+              }}
               className={`w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 ${theme.bg} ${theme.hover} text-white font-medium rounded-lg transition-all`}
             >
               <Edit2 className="w-4 h-4" />
@@ -483,19 +506,28 @@ const MyPage = ({
               </div>
             </div>
 
+            {profileSaveError ? (
+              <div className="px-6 pb-2">
+                <p className="text-sm text-red-600">{profileSaveError}</p>
+              </div>
+            ) : null}
             <div className="p-6 border-t border-gray-200 flex gap-3">
               <button
+                type="button"
                 onClick={handleCancel}
-                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+                disabled={profileSaveBusy}
+                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleSave}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 ${theme.bg} ${theme.hover} text-white font-semibold rounded-lg transition-colors`}
+                disabled={profileSaveBusy}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 ${theme.bg} ${theme.hover} text-white font-semibold rounded-lg transition-colors disabled:opacity-50`}
               >
                 <Save className="w-4 h-4" />
-                Save Changes
+                {profileSaveBusy ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
           </div>

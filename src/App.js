@@ -150,6 +150,8 @@ export default function App() {
           school: profile?.school_code != null && profile.school_code !== "" ? profile.school_code : prev.school,
           instructor:
             profile?.instructor != null && profile.instructor !== "" ? profile.instructor : prev.instructor,
+          period: profile?.period != null && profile.period !== "" ? profile.period : prev.period,
+          group: profile?.group_code != null && profile.group_code !== "" ? profile.group_code : prev.group,
         }));
       }
       if (!isTeacherRole) {
@@ -592,6 +594,7 @@ export default function App() {
             theme={currentTheme}
             onLogout={handleLogout}
             classStructure={classStructure}
+            onProfileSaved={syncFromMe}
           />
         )}
         {activeSection === 'manageclasses' && isTeacher && (

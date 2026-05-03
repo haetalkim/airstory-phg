@@ -66,9 +66,10 @@ export default function ManageClasses({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
+  // Join-code defaults always follow the teacher's saved profile (not stale typed values like old Shim/MTN12).
   useEffect(() => {
-    if (viewerProfile?.school) setNewCodeSchool(viewerProfile.school);
-    if (viewerProfile?.instructor) setNewCodeInstructor(viewerProfile.instructor);
+    setNewCodeSchool(viewerProfile?.school ?? '');
+    setNewCodeInstructor(viewerProfile?.instructor ?? '');
   }, [viewerProfile?.school, viewerProfile?.instructor]);
 
   const groups = useMemo(() => {

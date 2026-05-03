@@ -65,6 +65,19 @@ export async function getMe() {
   return apiRequest("/auth/me");
 }
 
+/** Persist school code, class (instructor) name, period, group on the signed-in user's profile. */
+export async function updateMyProfile({ schoolCode, instructor, period, groupCode } = {}) {
+  const body = {};
+  if (schoolCode !== undefined) body.schoolCode = schoolCode;
+  if (instructor !== undefined) body.instructor = instructor;
+  if (period !== undefined) body.period = period;
+  if (groupCode !== undefined) body.groupCode = groupCode;
+  return apiRequest("/auth/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function getRoster(workspaceId) {
   return apiRequest(`/auth/workspaces/${workspaceId}/roster`);
 }

@@ -24,7 +24,7 @@ const ComparisonModal = ({
   const schoolChipList =
     comparisonSchoolCodes?.length > 0
       ? comparisonSchoolCodes
-      : ['PHG01', 'MTN12', 'MTN15', 'BRK08', 'QNS20', 'BRX03'];
+      : [...new Set([currentFilters?.school, 'PHG01'].filter(Boolean))];
   const groupButtonList =
     workspaceGroups?.length > 0
       ? workspaceGroups
