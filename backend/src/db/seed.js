@@ -1,21 +1,25 @@
 import bcrypt from "bcryptjs";
 import { pool } from "./pool.js";
 
+/** Single-class seed: Philadelphia PHG01, teacher Sikich, no sessions/measurements (ready for CSV import).
+ * Join codes are not seeded—teachers create them in Manage Classes (random 5-character generator). */
+const WORKSPACE_NAME = "PHG01 — Philadelphia";
+const SCHOOL_CODE = "PHG01";
+const INSTRUCTOR_NAME = "Mr. Sikich";
+
 async function run() {
   await pool.query("BEGIN");
   try {
     const demoUsers = [
       {
-        email: "shim@tamgu.com",
+        email: "sikich@tamgu.com",
         fullName: "Mr. Sikich",
-        password: "password",
-        role: "teacher",
+        password: "sikich2026",
+        role: "owner",
         groupCode: "INSTRUCTOR",
         period: "P1",
         studentCode: "INST001",
       },
-      { email: "jiin@tamgu.com", fullName: "Jiin", password: "password", role: "student", groupCode: "G1", period: "P1", studentCode: "STU003" },
-      { email: "julia@tamgu.com", fullName: "Julia", password: "password", role: "student", groupCode: "G4", period: "P1", studentCode: "STU019" },
     ];
 
     const userIds = {};
@@ -33,22 +37,19 @@ async function run() {
       userIds[user.email] = userRes.rows[0].id;
     }
 
-    const instructorId = userIds["shim@tamgu.com"];
-    const workspaceName = "Demo Sensor Platform Workspace";
+    const teacherId = userIds["sikich@tamgu.com"];
 
     let workspaceId;
-    const existingWs = await pool.query(
-      `SELECT id FROM workspaces WHERE name = $1 LIMIT 1`,
-      [workspaceName]
-    );
+    const existingWs = await pool.query(`SELECT id FROM workspaces WHERE name = $1 LIMIT 1`, [WORKSPACE_NAME]);
     if (existingWs.rowCount) {
       workspaceId = existingWs.rows[0].id;
+      await pool.query(`UPDATE workspaces SET created_by = $1 WHERE id = $2`, [teacherId, workspaceId]);
     } else {
       const wsRes = await pool.query(
         `INSERT INTO workspaces (name, created_by)
          VALUES ($1, $2)
          RETURNING id`,
-        [workspaceName, instructorId]
+        [WORKSPACE_NAME, teacherId]
       );
       workspaceId = wsRes.rows[0].id;
     }
@@ -73,39 +74,45 @@ async function run() {
     for (const user of demoUsers) {
       await pool.query(
         `INSERT INTO user_profiles (user_id, workspace_id, school_code, instructor, period, group_code, student_code)
-         VALUES ($1, $2, 'MTN12', 'Mr. Sikich', $3, $4, $5)`,
-        [userIds[user.email], workspaceId, user.period || "P1", user.groupCode === "INSTRUCTOR" ? "" : user.groupCode, user.studentCode || user.email.split("@")[0].toUpperCase()]
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          userIds[user.email],
+          workspaceId,
+          SCHOOL_CODE,
+          INSTRUCTOR_NAME,
+          user.period || "P1",
+          user.groupCode === "INSTRUCTOR" ? "" : user.groupCode,
+          user.studentCode || user.email.split("@")[0].toUpperCase(),
+        ]
       );
     }
 
     await pool.query(`DELETE FROM join_codes WHERE workspace_id = $1`, [workspaceId]);
+
     await pool.query(
       `INSERT INTO workspace_class_structures (workspace_id, period_count, group_count, updated_by, updated_at)
-       VALUES ($1, 1, 4, $2, NOW())
+       VALUES ($1, 1, 6, $2, NOW())
        ON CONFLICT (workspace_id)
        DO UPDATE SET period_count = EXCLUDED.period_count, group_count = EXCLUDED.group_count, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
-      [workspaceId, instructorId]
+      [workspaceId, teacherId]
     );
 
-    await pool.query(
-      `DELETE FROM measurement_edits WHERE workspace_id = $1`,
-      [workspaceId]
-    );
+    await pool.query(`DELETE FROM measurement_edits WHERE workspace_id = $1`, [workspaceId]);
     await pool.query(`DELETE FROM measurements WHERE workspace_id = $1`, [workspaceId]);
     await pool.query(`DELETE FROM sessions WHERE workspace_id = $1`, [workspaceId]);
-
-    // Start with no measurements/sessions so class can import fresh data.
 
     await pool.query("COMMIT");
     console.log("Seed complete.");
     console.log({
       workspaceId,
-      personas: demoUsers.map((u) => ({
-        email: u.email,
-        password: u.password,
-        role: u.role,
-        group: u.groupCode,
-      })),
+      workspaceName: WORKSPACE_NAME,
+      location: "Philadelphia, PA (school code PHG01; app defaults use PA)",
+      teacher: {
+        email: "sikich@tamgu.com",
+        password: "sikich2026",
+        role: "owner",
+      },
+      joinCodes: "(none) — open Manage Classes → generate a random 5-char code (or type one) → create. Share that with students.",
     });
   } catch (error) {
     await pool.query("ROLLBACK");
