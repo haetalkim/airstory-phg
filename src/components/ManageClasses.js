@@ -274,13 +274,13 @@ export default function ManageClasses({
           <input
             value={newCodeSchool}
             onChange={(e) => setNewCodeSchool(e.target.value)}
-            placeholder="School code"
+            placeholder="PHG01"
             className="px-4 py-2 border border-gray-300 rounded-lg"
           />
           <input
             value={newCodeInstructor}
             onChange={(e) => setNewCodeInstructor(e.target.value)}
-            placeholder="Instructor"
+            placeholder="Mr. Sikich"
             className="px-4 py-2 border border-gray-300 rounded-lg"
           />
           <button onClick={handleCreateCode} className={`${theme.bg} ${theme.hover} text-white rounded-lg px-4 py-2`}>
@@ -296,6 +296,7 @@ export default function ManageClasses({
           </button>
           <p className="text-xs text-gray-500 mt-2">
             Share one class code. Students use this code to join your class, then choose their own period and group during signup.
+            School code and instructor above default from My Page; edit here if needed, then click <strong>Create Code</strong>—codes appear in the list below only after you create them.
           </p>
         </div>
         <div className="space-y-2">
@@ -313,7 +314,11 @@ export default function ManageClasses({
               </button>
             </div>
           ))}
-          {!joinCodes.length && <p className="text-sm text-gray-500">No join codes yet.</p>}
+          {!joinCodes.length && (
+            <p className="text-sm text-gray-500">
+              No join codes yet. Fill the five-character code (or random generate), confirm PHG01 / instructor name, then click Create Code.
+            </p>
+          )}
         </div>
       </div>
 

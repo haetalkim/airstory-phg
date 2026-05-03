@@ -1,10 +1,16 @@
 name: Deploy GitHub Pages (Air Quality Tracker)
 
+# Canonical frontend lives at repo root (`src/`, `package.json`). Do not build `air-quality-tracker/`.
 on:
   push:
     branches: [main]
     paths:
-      - "air-quality-tracker/**"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tailwind.config.js"
+      - "postcss.config.js"
       - ".github/workflows/deploy-gh-pages.yml"
   workflow_dispatch: {}
 
@@ -20,9 +26,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: air-quality-tracker
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,18 +35,21 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: air-quality-tracker/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install
         run: npm ci
 
       - name: Build
+        env:
+          # Optional repo secret; falls back to production API when unset (see docs/GITHUB_PAGES.md).
+          REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL || 'https://air-sensor-api.onrender.com/api' }}
         run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: air-quality-tracker/build
+          path: build
 
   deploy:
     needs: build
@@ -55,4 +61,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

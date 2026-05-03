@@ -1,5 +1,7 @@
 # Deploy on Render (API + Postgres) + Vercel (website)
 
+For **GitHub Pages** (static site from this repo’s root `src/`), see **[GITHUB_PAGES.md](GITHUB_PAGES.md)** — API URL, CI, and keeping the live bundle in sync with `main`.
+
 You will have **three URLs**:
 
 1. **Vercel** — React app (you already have this)  
