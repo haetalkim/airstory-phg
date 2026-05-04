@@ -11,7 +11,7 @@ import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import { groupsForPeriodFromStructure, periodsFromClassStructure } from '../utils/classStructure';
 import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
 import { apiRequest } from '../api/http';
-import { groupsMatch, periodsMatch } from '../utils/hierarchyTokens';
+import { groupsMatch, periodsMatch, schoolsMatch } from '../utils/hierarchyTokens';
 
 /** Metrics we try to load from OpenAQ near the reference pin (when a sensor exists). */
 const OPENAQ_REFERENCE_METRICS = ['pm25', 'co', 'temp', 'humidity'];
@@ -557,7 +557,7 @@ const AnalysisView = ({
     // matches the gating already applied below in classScopeData and was the
     // cause of "Analysis shows NO DATA even after a CSV import".
     return pool.filter((row) => {
-      if (filters.school && !isBlankHierarchyField(row.school) && row.school !== filters.school)
+      if (filters.school && !schoolsMatch(filters.school, row.school))
         return false;
       if (
         filters.instructor &&
@@ -575,7 +575,7 @@ const AnalysisView = ({
 
   const classScopeData = useMemo(() => {
     return imported.filter((row) => {
-      if (filters.school && !isBlankHierarchyField(row.school) && row.school !== filters.school)
+      if (filters.school && !schoolsMatch(filters.school, row.school))
         return false;
       if (
         filters.instructor &&
@@ -590,7 +590,7 @@ const AnalysisView = ({
 
   const schoolScopeData = useMemo(() => {
     return imported.filter((row) => {
-      if (filters.school && !isBlankHierarchyField(row.school) && row.school !== filters.school)
+      if (filters.school && !schoolsMatch(filters.school, row.school))
         return false;
       return true;
     });

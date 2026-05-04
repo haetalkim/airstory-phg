@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { KeyRound, GraduationCap } from 'lucide-react';
 import { getClassStructure, getRoster, updateClassStructure } from '../api/auth';
 import { getMeasurements } from '../api/data';
+import { normalizeGroupToken, normalizePeriodToken } from '../utils/hierarchyTokens';
 
 export default function ManageClasses({
   workspaceId,
@@ -79,8 +80,8 @@ export default function ManageClasses({
         if (cancelled) return;
         const seen = {};
         (result?.measurements || []).forEach((m) => {
-          const period = m.period || '';
-          const group = m.group_code || '';
+          const period = normalizePeriodToken(m.period || 'P1');
+          const group = normalizeGroupToken(m.group_code || m.group || '');
           const sid = m.session_id || m.session_code || '';
           if (!sid) return;
           const key = `${period} ${group}`;

@@ -44,3 +44,16 @@ export function periodsMatch(filterVal, rowVal) {
   if (isBlankHierarchyValue(rowVal)) return true;
   return normalizePeriodToken(f) === normalizePeriodToken(rowVal);
 }
+
+/**
+ * PHG variant: teacher profile often uses school code "PHG01", while imported
+ * historical rows may carry a human-readable school name. Treat PHG01 as
+ * "the PHG workspace" and do not filter it out.
+ */
+export function schoolsMatch(filterVal, rowVal) {
+  const f = String(filterVal ?? "").trim();
+  if (!f) return true;
+  if (f.toUpperCase() === "PHG01") return true;
+  if (isBlankHierarchyValue(rowVal)) return true;
+  return String(rowVal).trim() === f;
+}

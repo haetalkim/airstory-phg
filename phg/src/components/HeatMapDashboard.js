@@ -3,7 +3,7 @@ import { Info, Download, Share2 } from 'lucide-react';
 import { GoogleMap, LoadScript, HeatmapLayer, Marker, InfoWindow } from '@react-google-maps/api';
 import html2canvas from 'html2canvas';
 import { getImportedMeasurements } from '../utils/importedData';
-import { groupsMatch, periodsMatch } from '../utils/hierarchyTokens';
+import { groupsMatch, periodsMatch, schoolsMatch } from '../utils/hierarchyTokens';
 import { getHeatmapPoints } from '../api/data';
 import { apiRequest } from '../api/http';
 
@@ -235,7 +235,7 @@ const HeatMapDashboard = ({
   const importedPoints = useMemo(() => {
     return importedMeasurements
       .filter((row) => {
-        if (filters.school && row.school && row.school !== filters.school) return false;
+        if (filters.school && row.school && !schoolsMatch(filters.school, row.school)) return false;
         if (filters.instructor && row.instructor && row.instructor !== filters.instructor) return false;
         if (filters.period && row.period && !periodsMatch(filters.period, row.period)) return false;
         if (filters.group && row.group && !groupsMatch(filters.group, row.group)) return false;
@@ -457,14 +457,14 @@ const HeatMapDashboard = ({
     const sourceForSchoolAndGroup = filteredImported;
 
     // School Average (based on current filters)
-    const schoolData = sourceForSchoolAndGroup.filter(item => item.school === filters.school);
+    const schoolData = sourceForSchoolAndGroup.filter(item => schoolsMatch(filters.school, item.school));
     const schoolAvg = schoolData.length > 0
       ? Math.round(schoolData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / schoolData.length)
       : null;
 
     // Group Average (based on current filters)
     const groupData = sourceForSchoolAndGroup.filter(
-      (item) => groupsMatch(filters.group, item.group) && item.school === filters.school
+      (item) => groupsMatch(filters.group, item.group) && schoolsMatch(filters.school, item.school)
     );
     const groupAvg = groupData.length > 0
       ? Math.round(groupData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / groupData.length)

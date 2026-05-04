@@ -19,7 +19,7 @@ import {
   periodsFromClassStructure,
 } from '../utils/classStructure';
 import { getStudentContext, PHG_SCHOOL_CODE } from '../utils/studentContext';
-import { groupsMatch, periodsMatch } from '../utils/hierarchyTokens';
+import { groupsMatch, periodsMatch, schoolsMatch } from '../utils/hierarchyTokens';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import {
   SENSOR_CSV_EXPORT_HEADERS,
@@ -228,8 +228,7 @@ const RawDataView = ({
     const matchesLocation = locationFilter === 'all' || row.location === locationFilter;
     const matchesSession = sessionFilter === 'all' || row.sessionId === sessionFilter;
     
-    const matchesSchool =
-      !selectedSchool || isBlankHierarchyField(row.school) || row.school === selectedSchool;
+    const matchesSchool = !selectedSchool || schoolsMatch(selectedSchool, row.school);
     const matchesInstructor =
       !selectedInstructor || isBlankHierarchyField(row.instructor) || row.instructor === selectedInstructor;
     const matchesPeriod =
@@ -352,7 +351,7 @@ const RawDataView = ({
       const importContext = {
         school: filters.school || studentCtx?.school || PHG_SCHOOL_CODE,
         instructor: filters.instructor || '',
-        period: filters.period || '',
+        period: filters.period || (isPhgStudent ? 'P1' : ''),
         group: filters.group || studentCtx?.group || '',
       };
       const withContext = (row) => ({
