@@ -20,7 +20,8 @@ export const PHG_SCHOOL_CODE = "PHG01";
 
 /** Shared backend account that all PHG student browsers silently log into. */
 export const PHG_STUDENT_EMAIL =
-  process.env.REACT_APP_PHG_STUDENT_EMAIL || "phg-students@airstory.local";
+  process.env.REACT_APP_PHG_STUDENT_EMAIL?.trim() ||
+  "phg-students@airstory.local";
 
 /**
  * NOT a real user secret — it's a known credential that just satisfies the
@@ -29,7 +30,8 @@ export const PHG_STUDENT_EMAIL =
  * group. Keep it readable; rotate via env if desired.
  */
 export const PHG_STUDENT_PASSWORD =
-  process.env.REACT_APP_PHG_STUDENT_PASSWORD || "phg-students-2026";
+  process.env.REACT_APP_PHG_STUDENT_PASSWORD?.trim() ||
+  "phg-students-2026";
 
 /** Allowed group codes shown on the landing page. */
 export const PHG_GROUP_CODES = Object.freeze(["G1", "G2", "G3", "G4"]);

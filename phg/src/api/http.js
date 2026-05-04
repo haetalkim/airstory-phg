@@ -44,8 +44,17 @@ export function setStoredAuth(auth) {
 }
 
 const PHG_SHARED_EMAIL = (
-  process.env.REACT_APP_PHG_STUDENT_EMAIL || "phg-students@airstory.local"
+  process.env.REACT_APP_PHG_STUDENT_EMAIL?.trim() || "phg-students@airstory.local"
 ).toLowerCase();
+
+/** These routes must not send an old Bearer token (expired teacher JWT breaks some deployments). */
+function isPublicAuthPath(path) {
+  return (
+    path === "/auth/login" ||
+    path === "/auth/register" ||
+    path === "/auth/refresh"
+  );
+}
 
 export async function apiRequest(path, options = {}) {
   const auth = getStoredAuth();
@@ -53,7 +62,9 @@ export async function apiRequest(path, options = {}) {
     "Content-Type": "application/json",
     ...(options.headers || {}),
   };
-  if (auth?.accessToken) headers.Authorization = `Bearer ${auth.accessToken}`;
+  if (auth?.accessToken && !isPublicAuthPath(path)) {
+    headers.Authorization = `Bearer ${auth.accessToken}`;
+  }
 
   let response;
   try {
@@ -75,7 +86,11 @@ export async function apiRequest(path, options = {}) {
     throw err;
   }
 
-  if (response.status === 401 && !options.skipAuthRetry) {
+  if (
+    response.status === 401 &&
+    !options.skipAuthRetry &&
+    !isPublicAuthPath(path)
+  ) {
     const tokenEmail = String(auth?.user?.email || "")
       .trim()
       .toLowerCase();
@@ -83,8 +98,10 @@ export async function apiRequest(path, options = {}) {
       try {
         const { login } = await import("./auth.js");
         await login(
-          process.env.REACT_APP_PHG_STUDENT_EMAIL || "phg-students@airstory.local",
-          process.env.REACT_APP_PHG_STUDENT_PASSWORD || "phg-students-2026"
+          process.env.REACT_APP_PHG_STUDENT_EMAIL?.trim() ||
+            "phg-students@airstory.local",
+          process.env.REACT_APP_PHG_STUDENT_PASSWORD?.trim() ||
+            "phg-students-2026"
         );
         return apiRequest(path, { ...options, skipAuthRetry: true });
       } catch {

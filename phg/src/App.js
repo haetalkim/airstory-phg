@@ -13,7 +13,7 @@ import {
   logout as logoutApi,
   getClassStructure,
 } from "./api/auth";
-import { getStoredAuth } from "./api/http";
+import { getStoredAuth, setStoredAuth } from "./api/http";
 import { getMeasurements } from "./api/data";
 import {
   setImportedMeasurements,
@@ -447,6 +447,8 @@ export default function App() {
     setAuthLoading(true);
     setStudentContext({ group, school: PHG_SCHOOL_CODE });
     try {
+      // Drop any stale session (e.g. teacher JWT) so /auth/login is not paired with a bad Bearer.
+      setStoredAuth(null);
       const session = await loginApi(PHG_STUDENT_EMAIL, PHG_STUDENT_PASSWORD);
       let me = null;
       try {
