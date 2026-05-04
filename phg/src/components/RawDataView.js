@@ -387,7 +387,8 @@ const RawDataView = ({
       if (workspaceId && stampedRawRows.length) {
         const payloadRows = stampedRawRows.map((r) => ({
           capturedAt: r.capturedAt,
-          sessionCode: r.sessionId || 'SESSION',
+          // One CSV import = one cloud session (so Manage Classes shows 1 session, not 40).
+          sessionCode: importBatchId,
           sessionName: r.sessionName || 'Imported Session',
           sessionNotes: r.sessionNotes || '',
           location: r.location || '',

@@ -64,11 +64,10 @@ const LandingPage = ({
 }) => {
   const [mode, setMode] = useState('student');
   const [email, setEmail] = useState('');
+  const [teacherLastName, setTeacherLastName] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [showVerification, setShowVerification] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [formError, setFormError] = useState('');
   const randomAirFact = useMemo(
     () => AIR_FACTS[Math.floor(Math.random() * AIR_FACTS.length)],
@@ -79,8 +78,10 @@ const LandingPage = ({
     setFormError('');
     setMode(newMode);
     if (newMode === 'teacher') {
-      setEmail('sikich@tamgu.com');
+      setTeacherLastName('sikich');
+      setEmail('sikich@tamgu.com'); // internal; not shown in UI
     } else {
+      setTeacherLastName('');
       setEmail('');
     }
     setPassword('');
@@ -88,38 +89,27 @@ const LandingPage = ({
 
   const handleTeacherSubmit = () => {
     setFormError('');
+    const last = String(teacherLastName || '').trim().toLowerCase();
+    const mappedEmail = last === 'sikich' ? 'sikich@tamgu.com' : '';
+    if (!mappedEmail) {
+      setFormError('Enter your last name (e.g. sikich).');
+      return;
+    }
     if (
-      !isSignUp &&
-      email.trim().toLowerCase() === 'sikich@tamgu.com' &&
+      mappedEmail === 'sikich@tamgu.com' &&
       password === 'sikich2026'
     ) {
       setShowVerification(true);
       return;
     }
-    if (isSignUp) {
-      onRegister({
-        email,
-        password,
-        fullName,
-        mode: 'teacher',
-      });
-    } else {
-      onLogin({ email, password, mode: 'teacher' });
-    }
+    onLogin({ email: mappedEmail, password, mode: 'teacher' });
   };
 
   const confirmVerification = () => {
     setShowVerification(false);
-    if (isSignUp) {
-      onRegister({
-        email,
-        password,
-        fullName,
-        mode: 'teacher',
-      });
-    } else {
-      onLogin({ email, password, mode: 'teacher' });
-    }
+    const last = String(teacherLastName || '').trim().toLowerCase();
+    const mappedEmail = last === 'sikich' ? 'sikich@tamgu.com' : '';
+    onLogin({ email: mappedEmail, password, mode: 'teacher' });
   };
 
   const handleGroupClick = (group) => {
@@ -162,7 +152,7 @@ const LandingPage = ({
         <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-left space-y-4">
           <div>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Instructor Name</p>
-            <p className="text-lg font-bold text-gray-900">{fullName.trim() || email.trim() || '—'}</p>
+            <p className="text-lg font-bold text-gray-900">{teacherLastName.trim() || email.trim() || '—'}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Access Level</p>
@@ -308,32 +298,21 @@ const LandingPage = ({
                     <Users size={40} />
                   </div>
                   <h3 className="text-2xl font-black text-gray-900">
-                    {isSignUp ? 'Create Account' : 'Instructor Login'}
+                    Instructor Login
                   </h3>
                   <p className="text-gray-500 font-medium mt-1">
-                    {isSignUp ? 'Set up your instructor account.' : 'Enter your school credentials to begin.'}
+                    Enter your teacher credentials to begin.
                   </p>
                 </div>
 
                 <div className="space-y-4">
-                  {isSignUp && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
-                      <input
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-                      />
-                    </div>
-                  )}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Last Name</label>
                     <input
-                      type="email"
-                      placeholder="name@school.edu"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      type="text"
+                      placeholder="sikich"
+                      value={teacherLastName}
+                      onChange={(e) => setTeacherLastName(e.target.value)}
                       className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
                     />
                   </div>
@@ -350,19 +329,10 @@ const LandingPage = ({
                 </div>
 
                 <Button onClick={handleTeacherSubmit} className="w-full py-4 text-lg">
-                  {isSignUp ? 'Create Account' : 'Access Dashboard'}
+                  Access Dashboard
                   <ArrowRight size={22} className="ml-1" />
                 </Button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormError('');
-                    setIsSignUp((prev) => !prev);
-                  }}
-                  className="w-full text-sm text-blue-600 hover:text-blue-700 font-semibold"
-                >
-                  {isSignUp ? 'Already have an account? Log in' : 'Need an account? Sign up'}
-                </button>
+                {/* PHG: keep teacher login simple; signup disabled for now. */}
                 {authError && (
                   <p className="text-sm text-red-600 text-center font-medium">{authError}</p>
                 )}
