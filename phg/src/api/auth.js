@@ -12,6 +12,16 @@ export async function login(email, password) {
   return data;
 }
 
+/** PHG: no password — server issues JWT for the shared classroom account. */
+export async function loginPhgOpenSession() {
+  const data = await apiRequest("/auth/phg-session", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  setStoredAuth(data);
+  return data;
+}
+
 /** Requires Bearer token; email must match signed-in user. Invalidates refresh tokens. */
 export async function changePassword(email, newPassword) {
   const normalizedEmail = String(email || "")

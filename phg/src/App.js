@@ -8,6 +8,7 @@ import ManageClasses from "./components/ManageClasses";
 import { MapPin, Table, BarChart3, User, LogOut, Users } from "lucide-react";
 import {
   login as loginApi,
+  loginPhgOpenSession,
   register as registerApi,
   getMe,
   logout as logoutApi,
@@ -24,7 +25,6 @@ import {
   PHG_GROUP_CODES,
   PHG_SCHOOL_CODE,
   PHG_STUDENT_EMAIL,
-  PHG_STUDENT_PASSWORD,
   clearStudentContext,
   getStudentContext,
   setStudentContext,
@@ -447,9 +447,8 @@ export default function App() {
     setAuthLoading(true);
     setStudentContext({ group, school: PHG_SCHOOL_CODE });
     try {
-      // Drop any stale session (e.g. teacher JWT) so /auth/login is not paired with a bad Bearer.
       setStoredAuth(null);
-      const session = await loginApi(PHG_STUDENT_EMAIL, PHG_STUDENT_PASSWORD);
+      const session = await loginPhgOpenSession();
       let me = null;
       try {
         me = await getMe();

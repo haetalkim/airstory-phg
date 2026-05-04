@@ -52,7 +52,8 @@ function isPublicAuthPath(path) {
   return (
     path === "/auth/login" ||
     path === "/auth/register" ||
-    path === "/auth/refresh"
+    path === "/auth/refresh" ||
+    path === "/auth/phg-session"
   );
 }
 
@@ -96,13 +97,8 @@ export async function apiRequest(path, options = {}) {
       .toLowerCase();
     if (tokenEmail === PHG_SHARED_EMAIL) {
       try {
-        const { login } = await import("./auth.js");
-        await login(
-          process.env.REACT_APP_PHG_STUDENT_EMAIL?.trim() ||
-            "phg-students@airstory.local",
-          process.env.REACT_APP_PHG_STUDENT_PASSWORD?.trim() ||
-            "phg-students-2026"
-        );
+        const { loginPhgOpenSession } = await import("./auth.js");
+        await loginPhgOpenSession();
         return apiRequest(path, { ...options, skipAuthRetry: true });
       } catch {
         /* fall through to error handling */
