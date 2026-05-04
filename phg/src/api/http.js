@@ -43,6 +43,10 @@ export function setStoredAuth(auth) {
   localStorage.setItem("air_auth", JSON.stringify(auth));
 }
 
+const PHG_SHARED_EMAIL = (
+  process.env.REACT_APP_PHG_STUDENT_EMAIL || "phg-students@airstory.local"
+).toLowerCase();
+
 export async function apiRequest(path, options = {}) {
   const auth = getStoredAuth();
   const headers = {
@@ -69,6 +73,24 @@ export async function apiRequest(path, options = {}) {
       );
     }
     throw err;
+  }
+
+  if (response.status === 401 && !options.skipAuthRetry) {
+    const tokenEmail = String(auth?.user?.email || "")
+      .trim()
+      .toLowerCase();
+    if (tokenEmail === PHG_SHARED_EMAIL) {
+      try {
+        const { login } = await import("./auth.js");
+        await login(
+          process.env.REACT_APP_PHG_STUDENT_EMAIL || "phg-students@airstory.local",
+          process.env.REACT_APP_PHG_STUDENT_PASSWORD || "phg-students-2026"
+        );
+        return apiRequest(path, { ...options, skipAuthRetry: true });
+      } catch {
+        /* fall through to error handling */
+      }
+    }
   }
 
   if (!response.ok) {

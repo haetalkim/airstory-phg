@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, X, MapPin } from 'lucide-react';
-import { getImportedMeasurements, isBlankHierarchyField } from '../utils/importedData';
+import {
+  getImportedMeasurements,
+  isBlankHierarchyField,
+  setImportedMeasurements,
+} from '../utils/importedData';
+import { getMeasurements } from '../api/data';
+import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import { groupsForPeriodFromStructure, periodsFromClassStructure } from '../utils/classStructure';
 import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
 import { apiRequest } from '../api/http';
@@ -503,7 +509,9 @@ const AnalysisView = ({
   theme,
   metricThemes,
   importedDataVersion,
+  onImportedDataChanged,
   classStructure,
+  workspaceId,
 }) => {
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
@@ -519,6 +527,28 @@ const AnalysisView = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [importedDataVersion]
   );
+
+  useEffect(() => {
+    if (!workspaceId) return undefined;
+    let cancelled = false;
+    (async () => {
+      if (getImportedMeasurements().length > 0) return;
+      try {
+        const result = await getMeasurements(workspaceId, { limit: 10000 });
+        if (cancelled) return;
+        const mapped = workspaceMeasurementsToDisplayRows(result.measurements || []);
+        if (mapped.length) {
+          setImportedMeasurements(mapped);
+          onImportedDataChanged?.();
+        }
+      } catch {
+        /* keep empty state */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, onImportedDataChanged]);
   const scopedData = useMemo(() => {
     const pool = imported.length ? imported : [];
     // Use isBlankHierarchyField on every hierarchy field so rows with empty

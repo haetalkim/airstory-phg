@@ -711,12 +711,14 @@ export default function App() {
         )}
         {activeSection === 'analysis' && (
           <AnalysisView
+            workspaceId={workspaceId}
             selectedMetric={selectedMetric}
             setSelectedMetric={setSelectedMetric}
             filters={filters}
             theme={currentTheme}
             metricThemes={METRIC_THEMES}
             importedDataVersion={importedDataVersion}
+            onImportedDataChanged={handleImportedDataChanged}
             classStructure={classStructure}
           />
         )}
@@ -772,7 +774,6 @@ export default function App() {
             workspaceId={workspaceId}
             theme={currentTheme}
             onGroupSelect={handleTeacherSelectGroup}
-            viewerProfile={viewerProfile}
             onClassStructureChanged={(next) => {
               if (next && typeof next === "object") setClassStructure(next);
               else refreshClassStructure();

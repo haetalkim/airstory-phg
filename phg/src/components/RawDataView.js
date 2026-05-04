@@ -11,12 +11,14 @@ import {
   normalizeIndoorOutdoor,
   isBlankHierarchyField,
   uniqueHierarchyFromImportedRows,
+  collapseGroupKeyForRow,
 } from '../utils/importedData';
 import {
   compareHierarchyToken,
   groupsForPeriodFromStructure,
   periodsFromClassStructure,
 } from '../utils/classStructure';
+import { getStudentContext, PHG_SCHOOL_CODE } from '../utils/studentContext';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import {
   SENSOR_CSV_EXPORT_HEADERS,
@@ -119,6 +121,14 @@ const RawDataView = ({
   useEffect(() => {
     loadFromBackend();
   }, [loadFromBackend]);
+
+  // PHG students: don’t hide imported rows behind “today” / a single session chip.
+  useEffect(() => {
+    if (!isPhgStudent) return;
+    setDateFilter('all');
+    setLocationFilter('all');
+    setSessionFilter('all');
+  }, [isPhgStudent]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -274,16 +284,6 @@ const RawDataView = ({
     });
   }
 
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
-  React.useEffect(() => {
-    setCurrentPage((prev) => Math.min(prev, totalPages));
-  }, [totalPages]);
-  const paginatedData = filteredData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
   const handleSort = (key) => {
     setSortConfig({
       key,
@@ -346,7 +346,8 @@ const RawDataView = ({
     try {
       const text = await file.text();
       const rawRows = parseImportedCsvRaw(text);
-      const imported = parseImportedCsv(text);
+      const importBatchId = `csv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const imported = parseImportedCsv(text, importBatchId);
       importGenerationRef.current += 1;
       // Always show imported data in UI immediately.
       setRawData(imported);
@@ -362,10 +363,10 @@ const RawDataView = ({
       const inferred = uniqueHierarchyFromImportedRows(imported);
       setFilters((prev) => ({
         ...prev,
-        school: inferred.school,
-        instructor: inferred.instructor,
-        period: inferred.period,
-        group: inferred.group,
+        school: inferred.school || (isPhgStudent ? prev.school : ''),
+        instructor: inferred.instructor || (isPhgStudent ? prev.instructor : ''),
+        period: inferred.period || (isPhgStudent ? prev.period : ''),
+        group: inferred.group || (isPhgStudent ? prev.group : ''),
       }));
 
       if (workspaceId && rawRows.length) {
@@ -528,40 +529,50 @@ const RawDataView = ({
     }));
   };
 
-  const toggleSessionExpansion = (sessionId) => {
+  const toggleSessionExpansion = (groupKey) => {
     setExpandedSessions((prev) => ({
       ...prev,
-      [sessionId]: !prev[sessionId],
+      [groupKey]: !prev[groupKey],
     }));
   };
 
   /**
-   * Group paginated rows by sessionId so each CSV import renders as one
-   * collapsible chevron row. Order is preserved by first-seen sessionId so
-   * the table feels stable under sorting / filtering.
+   * One collapsible row per CSV import (importBatchId) or per API session
+   * (sess:…). Built from the full filtered set — pagination applies to these
+   * groups, not to raw chunk rows (so one import never splits across pages).
    */
   const sessionGroups = React.useMemo(() => {
     const order = [];
     const map = new Map();
-    paginatedData.forEach((row) => {
-      const sid = row.sessionId || `__row_${row.id}`;
-      if (!map.has(sid)) {
-        order.push(sid);
-        map.set(sid, {
-          sessionId: sid,
-          sessionName: row.sessionName,
-          school: row.school,
-          instructor: row.instructor,
-          period: row.period,
-          group: row.group,
-          location: row.location,
+    filteredData.forEach((row) => {
+      const gkey = collapseGroupKeyForRow(row);
+      if (!map.has(gkey)) {
+        order.push(gkey);
+        const sample = row;
+        map.set(gkey, {
+          groupKey: gkey,
+          sessionId: sample.sessionId,
+          sessionName: sample.sessionName,
+          school: sample.school,
+          instructor: sample.instructor,
+          period: sample.period,
+          group: sample.group,
+          location: sample.location,
           rows: [],
         });
       }
-      map.get(sid).rows.push(row);
+      map.get(gkey).rows.push(row);
     });
-    return order.map((sid) => {
-      const g = map.get(sid);
+    return order.map((gkey) => {
+      const g = map.get(gkey);
+      const sample = g.rows[0];
+      g.school = sample.school;
+      g.instructor = sample.instructor;
+      g.period = sample.period;
+      g.group = sample.group;
+      g.sessionName = sample.sessionName;
+      g.sessionId = sample.sessionId;
+      g.location = sample.location;
       const dates = g.rows.map((r) => r.date).filter(Boolean);
       const uniqueDates = Array.from(new Set(dates));
       const uniqueLocations = Array.from(
@@ -596,7 +607,16 @@ const RawDataView = ({
         avgHumidity: avg("humidity"),
       };
     });
-  }, [paginatedData]);
+  }, [filteredData]);
+
+  const totalGroupPages = Math.max(1, Math.ceil(sessionGroups.length / itemsPerPage));
+  React.useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalGroupPages));
+  }, [totalGroupPages]);
+  const paginatedSessionGroups = sessionGroups.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="space-y-6">
@@ -676,7 +696,11 @@ const RawDataView = ({
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <select
                 value={selectedGroup}
-                onChange={(e) => setSelectedGroup(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSelectedGroup(v);
+                  setFilters((prev) => ({ ...prev, group: v }));
+                }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
               >
                 <option value="">All Groups</option>
@@ -751,8 +775,11 @@ const RawDataView = ({
         {/* Results Summary */}
         <div className="mt-4 flex items-center justify-between text-sm">
           <p className="text-gray-600">
-            Showing <span className="font-semibold text-gray-900">{paginatedData.length}</span> of{' '}
-            <span className="font-semibold text-gray-900">{filteredData.length}</span> records
+            Showing <span className="font-semibold text-gray-900">{paginatedSessionGroups.length}</span> import
+            {paginatedSessionGroups.length === 1 ? '' : 's'} / session
+            {paginatedSessionGroups.length === 1 ? '' : 's'} (page of{' '}
+            <span className="font-semibold text-gray-900">{sessionGroups.length}</span> total) ·{' '}
+            <span className="font-semibold text-gray-900">{filteredData.length}</span> data rows
           </p>
           {(searchTerm || dateFilter !== 'all' || locationFilter !== 'all' || sessionFilter !== 'all' || selectedSchool || selectedInstructor || selectedPeriod || selectedGroup) && (
             <button
@@ -761,10 +788,34 @@ const RawDataView = ({
                 setDateFilter('all');
                 setLocationFilter('all');
                 setSessionFilter('all');
+                if (isPhgStudent) {
+                  const ctx = getStudentContext();
+                  const g = ctx?.group || '';
+                  const school = ctx?.school || PHG_SCHOOL_CODE;
+                  setSelectedSchool(school);
+                  setSelectedInstructor('');
+                  setSelectedPeriod('');
+                  setSelectedGroup(g);
+                  setFilters((prev) => ({
+                    ...prev,
+                    school,
+                    instructor: '',
+                    period: '',
+                    group: g,
+                  }));
+                  return;
+                }
                 setSelectedSchool('');
                 setSelectedInstructor('');
                 setSelectedPeriod('');
                 setSelectedGroup('');
+                setFilters((prev) => ({
+                  ...prev,
+                  school: '',
+                  instructor: '',
+                  period: '',
+                  group: '',
+                }));
               }}
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
@@ -975,49 +1026,69 @@ const RawDataView = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sessionGroups.map((session) => {
-                const sessionExpanded = !!expandedSessions[session.sessionId];
+              {paginatedSessionGroups.map((session) => {
+                const gk = session.groupKey;
+                const sessionExpanded = !!expandedSessions[gk];
                 const fmt = (n) => (n == null ? '—' : Number.isInteger(n) ? n : Number(n).toFixed(2));
+                const h = (v) => (v != null && String(v).trim() !== '' ? String(v) : '—');
                 return (
-                  <React.Fragment key={`session-${session.sessionId}`}>
+                  <React.Fragment key={`grp-${gk}`}>
                     <tr
-                      onClick={() => toggleSessionExpansion(session.sessionId)}
+                      onClick={() => toggleSessionExpansion(gk)}
                       className="bg-blue-50 hover:bg-blue-100 cursor-pointer border-y-2 border-blue-200"
                     >
                       <td colSpan={19} className="px-4 py-3">
-                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-                          <ChevronRight
-                            className={`w-5 h-5 text-blue-700 transition-transform ${sessionExpanded ? 'rotate-90' : ''}`}
-                          />
-                          <span className="font-semibold text-gray-900">
-                            {session.sessionName || 'Imported Session'}
-                          </span>
-                          <span className="text-xs font-mono text-gray-500 truncate max-w-[200px]" title={String(session.sessionId)}>
-                            {session.sessionId}
-                          </span>
-                          <span className="text-xs text-gray-600">{session.dateRange}</span>
-                          <span className="text-xs text-gray-600">{session.locationLabel}</span>
-                          {session.group && (
-                            <span className="text-xs font-semibold text-blue-700">
-                              {session.group}
-                              {session.period ? ` · ${session.period}` : ''}
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
+                            <ChevronRight
+                              className={`w-5 h-5 text-blue-700 transition-transform shrink-0 ${sessionExpanded ? 'rotate-90' : ''}`}
+                            />
+                            <span className="font-semibold text-gray-900">
+                              {session.sessionName || 'Imported Session'}
                             </span>
-                          )}
-                          <span className="text-xs text-gray-500 ml-auto">
-                            {session.totalReadings} {session.totalReadings === 1 ? 'row' : 'rows'}
-                          </span>
-                          <span className="text-xs text-gray-700">
-                            PM2.5 <span className="font-semibold">{fmt(session.avgPm25)}</span>
-                          </span>
-                          <span className="text-xs text-gray-700">
-                            CO <span className="font-semibold">{fmt(session.avgCo)}</span>
-                          </span>
-                          <span className="text-xs text-gray-700">
-                            T <span className="font-semibold">{fmt(session.avgTemp)}</span>°C
-                          </span>
-                          <span className="text-xs text-gray-700">
-                            RH <span className="font-semibold">{fmt(session.avgHumidity)}</span>%
-                          </span>
+                            <span className="text-xs font-mono text-gray-500 truncate max-w-[200px]" title={String(session.sessionId)}>
+                              {session.sessionId}
+                            </span>
+                            <span className="text-xs text-gray-500 ml-auto">
+                              {session.totalReadings} minute row{session.totalReadings === 1 ? '' : 's'} (expand for detail)
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700 pl-8">
+                            <span>
+                              <span className="font-bold text-gray-500 uppercase tracking-wide">School</span>{' '}
+                              <span className="font-semibold text-gray-900">{h(session.school)}</span>
+                            </span>
+                            <span>
+                              <span className="font-bold text-gray-500 uppercase tracking-wide">Class</span>{' '}
+                              <span className="font-semibold text-gray-900">{h(session.instructor)}</span>
+                            </span>
+                            <span>
+                              <span className="font-bold text-gray-500 uppercase tracking-wide">Period</span>{' '}
+                              <span className="font-semibold text-gray-900">{h(session.period)}</span>
+                            </span>
+                            <span>
+                              <span className="font-bold text-gray-500 uppercase tracking-wide">Group</span>{' '}
+                              <span className="font-semibold text-blue-800">{h(session.group)}</span>
+                            </span>
+                            <span className="text-gray-600">{session.dateRange}</span>
+                            <span className="text-gray-600 max-w-[240px] truncate" title={session.locationLabel}>
+                              {session.locationLabel}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700 pl-8">
+                            <span>
+                              PM2.5 <span className="font-semibold">{fmt(session.avgPm25)}</span>
+                            </span>
+                            <span>
+                              CO <span className="font-semibold">{fmt(session.avgCo)}</span>
+                            </span>
+                            <span>
+                              T <span className="font-semibold">{fmt(session.avgTemp)}</span>°C
+                            </span>
+                            <span>
+                              RH <span className="font-semibold">{fmt(session.avgHumidity)}</span>%
+                            </span>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -1330,7 +1401,7 @@ const RawDataView = ({
         <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-700">
-              Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
+              Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalGroupPages}</span>
             </p>
             <div className="flex gap-2">
               <button
@@ -1341,8 +1412,8 @@ const RawDataView = ({
                 Previous
               </button>
               <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(Math.min(totalGroupPages, currentPage + 1))}
+                disabled={currentPage === totalGroupPages}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 Next

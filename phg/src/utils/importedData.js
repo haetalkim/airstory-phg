@@ -72,6 +72,15 @@ export function uniqueHierarchyFromImportedRows(rows) {
   return out;
 }
 
+/** One summary row per CSV import uses importBatchId; API rows use `sess:` + sessionId. */
+export function collapseGroupKeyForRow(row) {
+  if (row?.collapseGroupKey) return String(row.collapseGroupKey);
+  if (row?.importBatchId) return String(row.importBatchId);
+  const sid = String(row?.sessionId ?? "").trim();
+  if (sid) return `sess:${sid}`;
+  return `row:${row?.id ?? "unknown"}`;
+}
+
 export function setImportedMeasurements(data) {
   localStorage.setItem(IMPORTED_MEASUREMENTS_KEY, JSON.stringify(data || []));
 }
@@ -167,8 +176,13 @@ export function parseImportedCsvRaw(csvText) {
   return rawRows.sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt));
 }
 
-export function parseImportedCsv(csvText) {
+/**
+ * @param {string} csvText
+ * @param {string | null} importBatchId - Same id for every row from one file so Raw Data shows one chevron row per import.
+ */
+export function parseImportedCsv(csvText, importBatchId = null) {
   const rawRows = parseImportedCsvRaw(csvText);
+  const batchKey = importBatchId ? String(importBatchId) : null;
   // Collapse second-level sensor rows into minute-level chunks that can be expanded in the table.
   const byChunk = new Map();
   rawRows.forEach((row) => {
@@ -240,31 +254,37 @@ export function parseImportedCsv(csvText) {
     });
   });
 
-  const rows = Array.from(byChunk.values()).map((agg) => ({
-    id: agg.id,
-    date: agg.date,
-    time: agg.time,
-    sessionId: agg.sessionId,
-    sessionName: agg.sessionName,
-    sessionNotes: agg.sessionNotes,
-    location: agg.location,
-    latitude: agg.latitude,
-    longitude: agg.longitude,
-    indoorOutdoor: agg.indoorOutdoor,
-    school: agg.school,
-    instructor: agg.instructor,
-    period: agg.period,
-    group: agg.group,
-    pm25: Math.round(agg.pm25Sum / Math.max(agg.count, 1)),
-    co: (agg.coSum / Math.max(agg.count, 1)).toFixed(2),
-    temp: Math.round(agg.tempSum / Math.max(agg.count, 1)),
-    humidity: Math.round(agg.humiditySum / Math.max(agg.count, 1)),
-    photos: agg.photos,
-    edits: agg.edits,
-    source: agg.source,
-    capturedAt: agg.capturedAt,
-    detailedData: agg.detailedData.sort((a, b) => a.time.localeCompare(b.time)),
-  }));
+  const rows = Array.from(byChunk.values()).map((agg) => {
+    const collapseGroupKey =
+      batchKey || `sess:${String(agg.sessionId || "").trim() || agg.id}`;
+    return {
+      id: agg.id,
+      date: agg.date,
+      time: agg.time,
+      sessionId: agg.sessionId,
+      sessionName: agg.sessionName,
+      sessionNotes: agg.sessionNotes,
+      location: agg.location,
+      latitude: agg.latitude,
+      longitude: agg.longitude,
+      indoorOutdoor: agg.indoorOutdoor,
+      school: agg.school,
+      instructor: agg.instructor,
+      period: agg.period,
+      group: agg.group,
+      pm25: Math.round(agg.pm25Sum / Math.max(agg.count, 1)),
+      co: (agg.coSum / Math.max(agg.count, 1)).toFixed(2),
+      temp: Math.round(agg.tempSum / Math.max(agg.count, 1)),
+      humidity: Math.round(agg.humiditySum / Math.max(agg.count, 1)),
+      photos: agg.photos,
+      edits: agg.edits,
+      source: agg.source,
+      capturedAt: agg.capturedAt,
+      detailedData: agg.detailedData.sort((a, b) => a.time.localeCompare(b.time)),
+      importBatchId: batchKey,
+      collapseGroupKey,
+    };
+  });
 
   return rows.sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt));
 }

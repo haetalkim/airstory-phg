@@ -16,6 +16,7 @@ export function mapApiMeasurementsToFlatRows(measurements) {
     sessionId: m.session_id || m.session_code || "SESSION",
     sessionName: m.session_name || m.session_code || "Session",
     sessionNotes: m.session_notes || "",
+    importBatchId: null,
     location: m.location_name || "Unknown",
     latitude:
       m.latitude != null && m.latitude !== ""
@@ -61,12 +62,18 @@ export function groupMeasurementRowsForDisplay(rows) {
     ].join("|");
 
     if (!byChunk.has(key)) {
+      const sid = String(row.sessionId || "").trim();
+      const collapseGroupKey =
+        row.importBatchId != null && row.importBatchId !== ""
+          ? String(row.importBatchId)
+          : `sess:${sid || row.id}`;
       byChunk.set(key, {
         ...row,
         id: `chunk-${row.id}`,
         date: minuteBucket.toISOString().split("T")[0],
         time: minuteBucket.toTimeString().slice(0, 5),
         capturedAt: minuteBucket.toISOString(),
+        collapseGroupKey,
         count: 0,
         pm25Sum: 0,
         coSum: 0,
@@ -104,6 +111,9 @@ export function groupMeasurementRowsForDisplay(rows) {
       temp: Math.round(agg.tempSum / Math.max(agg.count, 1)),
       humidity: Math.round(agg.humiditySum / Math.max(agg.count, 1)),
       detailedData: agg.detailedData.sort((a, b) => a.time.localeCompare(b.time)),
+      collapseGroupKey:
+        agg.collapseGroupKey ||
+        (agg.importBatchId ? String(agg.importBatchId) : `sess:${String(agg.sessionId || "").trim() || agg.id}`),
     }))
     .sort((a, b) => new Date(b.capturedAt) - new Date(a.capturedAt));
 }
