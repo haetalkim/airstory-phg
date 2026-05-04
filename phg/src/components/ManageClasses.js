@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { KeyRound, GraduationCap, LockKeyhole, Trash2, MoveRight, X, UserCog } from 'lucide-react';
+import { KeyRound, GraduationCap, LockKeyhole, Trash2, MoveRight, UserCog } from 'lucide-react';
 import {
   createJoinCode,
   getClassStructure,
