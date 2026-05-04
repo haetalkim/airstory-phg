@@ -1238,21 +1238,21 @@ const AnalysisView = ({
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold mb-1" style={{ color: theme.primary }}>{avgValue}</p>
+                <p className="text-4xl font-bold mb-1" style={{ color: theme.primary }}>{fmt(avgValue)}</p>
                 <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Min</span>
-                  <span className="font-semibold text-green-600">{Math.round(minValue)}</span>
+                  <span className="font-semibold text-green-600">{fmt(minValue)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Max</span>
-                  <span className="font-semibold text-orange-600">{Math.round(maxValue)}</span>
+                  <span className="font-semibold text-orange-600">{fmt(maxValue)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Range</span>
-                  <span className="font-semibold text-gray-900">{Math.round(maxValue - minValue)}</span>
+                  <span className="font-semibold text-gray-900">{fmt(maxValue - minValue)}</span>
                 </div>
               </div>
             </div>
@@ -1266,7 +1266,7 @@ const AnalysisView = ({
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-purple-600 mb-1">{classAverage ?? 'NO DATA'}</p>
+                <p className="text-4xl font-bold text-purple-600 mb-1">{classAverage == null ? 'NO DATA' : fmt(classAverage)}</p>
                 {classAverage != null && (
                   <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
                 )}
@@ -1280,8 +1280,8 @@ const AnalysisView = ({
                   <span className="font-semibold text-gray-900">
                     {classAverage != null
                       ? avgValue <= classAverage
-                        ? `${Math.abs(avgValue - classAverage)} lower`
-                        : `${Math.abs(avgValue - classAverage)} higher`
+                        ? `${fmt(Math.abs(avgValue - classAverage))} lower`
+                        : `${fmt(Math.abs(avgValue - classAverage))} higher`
                       : 'NO DATA'}
                   </span>
                 </div>
@@ -1297,22 +1297,22 @@ const AnalysisView = ({
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-slate-700 mb-1">{cityAverage ?? 'NO DATA'}</p>
+                <p className="text-4xl font-bold text-slate-700 mb-1">{cityAverage == null ? 'NO DATA' : fmt(cityAverage)}</p>
                 {cityAverage != null && (
                   <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
                 )}
               </div>
               <div className="space-y-2 text-sm">
                 <p className="text-xs text-gray-500">
-                  Philadelphia-area reference line (OpenAQ when available, else simulated trend).
+                  Philadelphia-area reference line from <strong>OpenAQ</strong> when available (else simulated). Not based on your classroom measurements.
                 </p>
                 <div className="flex justify-between">
                   <span className="text-gray-600">vs your group</span>
                   <span className="font-semibold text-gray-900">
                     {cityAverage != null
                       ? avgValue <= cityAverage
-                        ? `${Math.abs(avgValue - cityAverage)} lower`
-                        : `${Math.abs(avgValue - cityAverage)} higher`
+                        ? `${fmt(Math.abs(avgValue - cityAverage))} lower`
+                        : `${fmt(Math.abs(avgValue - cityAverage))} higher`
                       : 'NO DATA'}
                   </span>
                 </div>
@@ -1326,7 +1326,7 @@ const AnalysisView = ({
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">Your recent week comparison</h3>
                 <p className="text-xs text-gray-500">
-                  Compare your filtered data with OpenAQ, another group, class average, or school average.
+                  Compare your data with another group, class average, or <strong>city reference</strong> (OpenAQ-based, not your measurements).
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -1440,7 +1440,7 @@ const AnalysisView = ({
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600 mt-0.5">•</span>
-                  <span>Use the compare mode selector above to switch between OpenAQ, other groups, class, and school.</span>
+                  <span>Use the compare selector above to switch between other groups, class average, and city reference.</span>
                 </li>
               </ul>
             </div>
