@@ -601,10 +601,11 @@ const RawDataView = ({
           {loadingBackend && <p className="text-xs text-gray-500 mt-1">Loading backend data...</p>}
           {importError && <p className="text-xs text-red-600 mt-1">{importError}</p>}
           {rawData.length > 0 && filteredData.length === 0 && (
-            <p className="text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              {rawData.length} row(s) loaded but none match the current filters. Try &quot;Reset Hierarchy&quot;
-              below, clear Search / Session / Date filters, or note CSV rows with blank School/Period/Group now
-              show under any selection.
+            <p className="text-sm text-amber-900 mt-2 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 leading-relaxed">
+              <span className="font-semibold">Nothing registered for your group in this view yet.</span>{' '}
+              {isPhgStudent
+                ? 'Import a CSV above, or switch to another group in the filter bar — your pick!'
+                : 'Try importing data, or adjust the group and other filters so they match what’s in your file.'}
             </p>
           )}
         </div>
@@ -802,10 +803,14 @@ const RawDataView = ({
           <div className="px-6 py-16 text-center border-b border-gray-200">
             {rawData.length > 0 ? (
               <>
-                <p className="text-lg font-semibold text-gray-800">No rows match your filters</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Data is loaded ({rawData.length} chunk{rawData.length === 1 ? "" : "s"}). Use Reset Hierarchy / Clear
-                  Filters, or import matched your group in the CSV (e.g. G4 vs G1 in Team Data).
+                <p className="text-lg font-semibold text-gray-800">Nothing here for this group yet</p>
+                <p className="text-sm text-gray-600 mt-2 max-w-md mx-auto">
+                  {isPhgStudent
+                    ? 'There’s no data under your current group filter. Import a CSV or choose another group to see rows.'
+                    : 'No rows match your current filters. Import a CSV or widen the group / hierarchy filters.'}{' '}
+                  <span className="text-gray-500">
+                    ({rawData.length} row{rawData.length === 1 ? '' : 's'} loaded elsewhere in the dataset.)
+                  </span>
                 </p>
               </>
             ) : (
