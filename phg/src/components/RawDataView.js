@@ -618,7 +618,10 @@ const RawDataView = ({
           {importError && <p className="text-xs text-red-600 mt-1">{importError}</p>}
           {rawData.length > 0 && filteredData.length === 0 && (
             <p className="text-sm text-amber-900 mt-2 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 leading-relaxed">
-              <span className="font-semibold">Nothing registered for your group in this view yet.</span>{' '}
+              <span className="font-semibold">
+                Nothing registered for this group in this view yet
+                {selectedGroup ? ` (${selectedGroup})` : ''}.
+              </span>{' '}
               {isPhgStudent
                 ? 'Import a CSV above, or switch to another group in the filter bar — your pick!'
                 : 'Try importing data, or adjust the group and other filters so they match what’s in your file.'}
