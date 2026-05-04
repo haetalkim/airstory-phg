@@ -514,12 +514,14 @@ const AnalysisView = ({
   classStructure,
   workspaceId,
 }) => {
+  const isCo = selectedMetric === 'co';
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
   const [compareMode, setCompareMode] = useState('group'); // group | class | city
   const [compareGroup, setCompareGroup] = useState('');
   const [referenceLocation, setReferenceLocation] = useState(REFERENCE_LOCATIONS[0]?.name || 'Center City');
+  const [seriesMode, setSeriesMode] = useState('daily'); // daily | points
   const [openaqPoints, setOpenaqPoints] = useState(null);
   const [openaqMeta, setOpenaqMeta] = useState({ status: 'idle', message: '' });
 
@@ -689,10 +691,41 @@ const AnalysisView = ({
     });
   }, [weekData, referenceLocation, selectedMetric, openaqByDate]);
 
+  const pointSeries = useMemo(() => {
+    if (!scopedData.length) return [];
+    const points = scopedData
+      .map((row) => {
+        const ts = row.capturedAt
+          ? new Date(row.capturedAt)
+          : new Date(`${row.date || '1970-01-01'}T${row.time || '00:00'}`);
+        const t = ts.getTime();
+        const value = Number(row[selectedMetric] ?? 0);
+        if (Number.isNaN(t) || !Number.isFinite(value)) return null;
+        return {
+          ts: t,
+          label: ts.toLocaleString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          value,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.ts - b.ts);
+
+    const MAX_POINTS = 700;
+    if (points.length <= MAX_POINTS) return points;
+    const step = Math.ceil(points.length / MAX_POINTS);
+    return points.filter((_, idx) => idx % step === 0);
+  }, [scopedData, selectedMetric]);
+
   const stats = useMemo(() => {
     const allValues = monthData.map((d) => Number(d.value));
     if (!allValues.length) return null;
-    const avgValue = Math.round(allValues.reduce((sum, val) => sum + val, 0) / allValues.length);
+    const rawAvg = allValues.reduce((sum, val) => sum + val, 0) / allValues.length;
+    const avgValue = isCo ? Number(rawAvg.toFixed(2)) : Math.round(rawAvg);
     const minValue = Math.min(...allValues);
     const maxValue = Math.max(...allValues);
     const sortedValues = [...allValues].sort((a, b) => a - b);
@@ -701,22 +734,23 @@ const AnalysisView = ({
       allValues.reduce((sum, val) => sum + Math.pow(val - avgValue, 2), 0) / allValues.length
     ).toFixed(2);
     return { avgValue, minValue, maxValue, medianValue, standardDeviation, allValues };
-  }, [monthData]);
+  }, [monthData, isCo]);
 
   const classAverage = useMemo(() => {
     const schoolRows = classScopeData;
     if (!schoolRows.length) return null;
-    return Math.round(
-      schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length
-    );
-  }, [classScopeData, selectedMetric]);
+    const rawAvg =
+      schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length;
+    return isCo ? Number(rawAvg.toFixed(2)) : Math.round(rawAvg);
+  }, [classScopeData, selectedMetric, isCo]);
 
   // City/reference average: uses the same OpenAQ/simulated reference line shown in Overview.
   const cityAverage = useMemo(() => {
     const refs = weekCompareData.map((d) => Number(d.reference)).filter((n) => Number.isFinite(n));
     if (!refs.length) return null;
-    return Math.round(refs.reduce((a, b) => a + b, 0) / refs.length);
-  }, [weekCompareData]);
+    const rawAvg = refs.reduce((a, b) => a + b, 0) / refs.length;
+    return isCo ? Number(rawAvg.toFixed(2)) : Math.round(rawAvg);
+  }, [weekCompareData, isCo]);
 
   const availableCompareGroups = useMemo(() => {
     const fromData = [...new Set(classScopeData.map((r) => r.group).filter(Boolean))];
@@ -795,6 +829,12 @@ const AnalysisView = ({
   const medianValue = stats?.medianValue ?? 0;
   const standardDeviation = stats?.standardDeviation ?? '0';
   const allValues = stats?.allValues ?? [];
+
+  const fmt = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    return isCo ? n.toFixed(2) : Math.round(n);
+  };
 
   return (
     <div className="space-y-6">
@@ -894,25 +934,25 @@ const AnalysisView = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-2xl p-6 shadow-lg border-2 transition-all" style={{ borderColor: theme.primary }}>
           <p className="text-sm font-semibold text-gray-600 mb-2">AVERAGE (MEAN)</p>
-          <p className="text-4xl font-bold mb-1" style={{ color: theme.primary }}>{avgValue}</p>
+          <p className="text-4xl font-bold mb-1" style={{ color: theme.primary }}>{fmt(avgValue)}</p>
           <p className="text-sm text-gray-500">{metricThemes[selectedMetric].unit}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-purple-200">
           <p className="text-sm font-semibold text-gray-600 mb-2">MEDIAN</p>
-          <p className="text-4xl font-bold text-purple-600 mb-1">{Math.round(medianValue)}</p>
+          <p className="text-4xl font-bold text-purple-600 mb-1">{fmt(medianValue)}</p>
           <p className="text-sm text-gray-500">{metricThemes[selectedMetric].unit}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-green-200">
           <p className="text-sm font-semibold text-gray-600 mb-2">MINIMUM</p>
-          <p className="text-4xl font-bold text-green-600 mb-1">{Math.round(minValue)}</p>
+          <p className="text-4xl font-bold text-green-600 mb-1">{fmt(minValue)}</p>
           <p className="text-sm text-gray-500">{metricThemes[selectedMetric].unit}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-orange-200">
           <p className="text-sm font-semibold text-gray-600 mb-2">MAXIMUM</p>
-          <p className="text-4xl font-bold text-orange-600 mb-1">{Math.round(maxValue)}</p>
+          <p className="text-4xl font-bold text-orange-600 mb-1">{fmt(maxValue)}</p>
           <p className="text-sm text-gray-500">{metricThemes[selectedMetric].unit}</p>
         </div>
 
@@ -1010,8 +1050,45 @@ const AnalysisView = ({
 
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900 mb-1">Your measurements over time</h2>
-          <p className="text-xs text-gray-500 mb-4">Daily average for the selected metric (all days in your current filter).</p>
-          {monthData.length >= 2 ? (
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <p className="text-xs text-gray-500">
+              {seriesMode === 'daily'
+                ? 'Daily average for the selected metric (all days in your current filter).'
+                : 'Session points (downsampled) — all measurements in your current filter.'}
+            </p>
+            <select
+              value={seriesMode}
+              onChange={(e) => setSeriesMode(e.target.value)}
+              className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
+            >
+              <option value="daily">Daily averages</option>
+              <option value="points">Session points</option>
+            </select>
+          </div>
+          {seriesMode === 'points' ? (
+            pointSeries.length >= 2 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={pointSeries}>
+                  <XAxis dataKey="label" stroke="#9CA3AF" style={{ fontSize: '12px' }} tickLine={false} axisLine={false} minTickGap={24} />
+                  <YAxis stroke="#9CA3AF" style={{ fontSize: '13px' }} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                      padding: '12px',
+                    }}
+                    formatter={(value) => fmt(value)}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="value" name="Session points" stroke={theme.primary} strokeWidth={2} dot={{ r: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-500 py-8 text-center">Not enough points yet for a session chart.</p>
+            )
+          ) : monthData.length >= 2 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthData}>
                 <XAxis
