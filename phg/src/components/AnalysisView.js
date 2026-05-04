@@ -11,6 +11,7 @@ import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import { groupsForPeriodFromStructure, periodsFromClassStructure } from '../utils/classStructure';
 import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
 import { apiRequest } from '../api/http';
+import { groupsMatch, periodsMatch } from '../utils/hierarchyTokens';
 
 /** Metrics we try to load from OpenAQ near the reference pin (when a sensor exists). */
 const OPENAQ_REFERENCE_METRICS = ['pm25', 'co', 'temp', 'humidity'];
@@ -564,10 +565,8 @@ const AnalysisView = ({
         row.instructor !== filters.instructor
       )
         return false;
-      if (filters.period && !isBlankHierarchyField(row.period) && row.period !== filters.period)
-        return false;
-      if (filters.group && !isBlankHierarchyField(row.group) && row.group !== filters.group)
-        return false;
+      if (filters.period && !periodsMatch(filters.period, row.period)) return false;
+      if (filters.group && !groupsMatch(filters.group, row.group)) return false;
       return true;
     });
   }, [imported, filters]);
@@ -584,8 +583,7 @@ const AnalysisView = ({
         row.instructor !== filters.instructor
       )
         return false;
-      if (filters.period && !isBlankHierarchyField(row.period) && row.period !== filters.period)
-        return false;
+      if (filters.period && !periodsMatch(filters.period, row.period)) return false;
       return true;
     });
   }, [imported, filters.school, filters.instructor, filters.period]);
@@ -783,7 +781,9 @@ const AnalysisView = ({
     const dayKeys = weekData.map((d) => d.date);
     let comparisonSeries = [];
     if (compareMode === 'group' && compareGroup) {
-      comparisonSeries = makeDailySeries(classScopeData.filter((r) => r.group === compareGroup));
+      comparisonSeries = makeDailySeries(
+        classScopeData.filter((r) => groupsMatch(compareGroup, r.group))
+      );
     } else if (compareMode === 'class') {
       comparisonSeries = makeDailySeries(classScopeData);
     } else if (compareMode === 'school') {

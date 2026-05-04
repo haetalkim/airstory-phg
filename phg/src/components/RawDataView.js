@@ -19,6 +19,7 @@ import {
   periodsFromClassStructure,
 } from '../utils/classStructure';
 import { getStudentContext, PHG_SCHOOL_CODE } from '../utils/studentContext';
+import { groupsMatch, periodsMatch } from '../utils/hierarchyTokens';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import {
   SENSOR_CSV_EXPORT_HEADERS,
@@ -232,9 +233,8 @@ const RawDataView = ({
     const matchesInstructor =
       !selectedInstructor || isBlankHierarchyField(row.instructor) || row.instructor === selectedInstructor;
     const matchesPeriod =
-      !selectedPeriod || isBlankHierarchyField(row.period) || row.period === selectedPeriod;
-    const matchesGroup =
-      !selectedGroup || isBlankHierarchyField(row.group) || row.group === selectedGroup;
+      !selectedPeriod || periodsMatch(selectedPeriod, row.period);
+    const matchesGroup = !selectedGroup || groupsMatch(selectedGroup, row.group);
     
     const matchesDate = () => {
       if (dateFilter === 'all') return true;

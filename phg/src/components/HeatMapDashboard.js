@@ -3,6 +3,7 @@ import { Info, Download, Share2 } from 'lucide-react';
 import { GoogleMap, LoadScript, HeatmapLayer, Marker, InfoWindow } from '@react-google-maps/api';
 import html2canvas from 'html2canvas';
 import { getImportedMeasurements } from '../utils/importedData';
+import { groupsMatch, periodsMatch } from '../utils/hierarchyTokens';
 import { getHeatmapPoints } from '../api/data';
 import { apiRequest } from '../api/http';
 
@@ -236,8 +237,8 @@ const HeatMapDashboard = ({
       .filter((row) => {
         if (filters.school && row.school && row.school !== filters.school) return false;
         if (filters.instructor && row.instructor && row.instructor !== filters.instructor) return false;
-        if (filters.period && row.period && row.period !== filters.period) return false;
-        if (filters.group && row.group && row.group !== filters.group) return false;
+        if (filters.period && row.period && !periodsMatch(filters.period, row.period)) return false;
+        if (filters.group && row.group && !groupsMatch(filters.group, row.group)) return false;
         return true;
       })
       .map((row) => {
@@ -463,7 +464,7 @@ const HeatMapDashboard = ({
 
     // Group Average (based on current filters)
     const groupData = sourceForSchoolAndGroup.filter(
-      item => item.group === filters.group && item.school === filters.school
+      (item) => groupsMatch(filters.group, item.group) && item.school === filters.school
     );
     const groupAvg = groupData.length > 0
       ? Math.round(groupData.reduce((sum, item) => sum + parseFloat(item[metric]), 0) / groupData.length)

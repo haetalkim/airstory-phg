@@ -1,3 +1,5 @@
+import { normalizeGroupToken, normalizePeriodToken } from "./hierarchyTokens";
+
 const IMPORTED_MEASUREMENTS_KEY = "air_imported_measurements_v1";
 
 function normalizeHeader(value) {
@@ -85,8 +87,8 @@ export function collapseGroupKeyForRow(row) {
     String(row?.sessionName ?? "").trim().toLowerCase(),
     String(row?.school ?? "").trim().toLowerCase(),
     String(row?.instructor ?? "").trim().toLowerCase(),
-    String(row?.period ?? "").trim().toLowerCase(),
-    String(row?.group ?? "").trim().toLowerCase(),
+    normalizePeriodToken(row?.period ?? "").toLowerCase(),
+    normalizeGroupToken(row?.group ?? "").toLowerCase(),
     String(row?.date ?? "").trim(),
   ];
   if (metaParts.some(Boolean)) {
