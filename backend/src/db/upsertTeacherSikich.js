@@ -1,9 +1,9 @@
 /**
- * Idempotent: creates or updates the Sikich teacher account + PHG01 workspace membership.
- * Safe to run on production — does NOT delete sessions, measurements, join codes, or students.
+ * Idempotent: Sikich teacher + PHG01 workspace + shared "PHG students" login used by the
+ * phg/ static site (silent JWT for group buttons). Safe on production — does NOT delete
+ * sessions, measurements, join codes, or other students.
  *
- * Use when login fails because the DB was never seeded or uses an older demo user only.
- * Run: `npm run db:upsert-teacher` (same DATABASE_URL as the API, e.g. Render Shell).
+ * Runs automatically on `npm start` after migrations. Manual: `npm run db:upsert-teacher`.
  */
 import bcrypt from "bcryptjs";
 import { pool } from "./pool.js";
@@ -18,6 +18,16 @@ const TEACHER = {
   role: "owner",
   period: "P1",
   studentCode: "INST001",
+};
+
+/** Same defaults as phg/src/utils/studentContext.js — all group buttons share this JWT. */
+const PHG_SHARED_STUDENT = {
+  email: "phg-students@airstory.local",
+  fullName: "PHG Students",
+  password: "phg-students-2026",
+  role: "student",
+  period: "P1",
+  studentCode: "PHGSTU",
 };
 
 async function run() {
@@ -89,10 +99,55 @@ async function run() {
       [workspaceId, teacherId]
     );
 
+    const phgHash = await bcrypt.hash(PHG_SHARED_STUDENT.password, 10);
+    const phgUserRes = await pool.query(
+      `INSERT INTO users (email, password_hash, full_name)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (email) DO UPDATE SET
+         password_hash = EXCLUDED.password_hash,
+         full_name = EXCLUDED.full_name
+       RETURNING id`,
+      [PHG_SHARED_STUDENT.email, phgHash, PHG_SHARED_STUDENT.fullName]
+    );
+    const phgUserId = phgUserRes.rows[0].id;
+
+    await pool.query(
+      `INSERT INTO workspace_memberships (workspace_id, user_id, role)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+      [workspaceId, phgUserId, PHG_SHARED_STUDENT.role]
+    );
+
+    await pool.query(
+      `INSERT INTO user_profiles (user_id, workspace_id, school_code, instructor, period, group_code, student_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (user_id) DO UPDATE SET
+         workspace_id = EXCLUDED.workspace_id,
+         school_code = EXCLUDED.school_code,
+         instructor = EXCLUDED.instructor,
+         period = EXCLUDED.period,
+         group_code = EXCLUDED.group_code,
+         student_code = EXCLUDED.student_code,
+         updated_at = NOW()`,
+      [
+        phgUserId,
+        workspaceId,
+        SCHOOL_CODE,
+        INSTRUCTOR_NAME,
+        PHG_SHARED_STUDENT.period,
+        "",
+        PHG_SHARED_STUDENT.studentCode,
+      ]
+    );
+
     await pool.query("COMMIT");
-    console.log("Upsert complete. Teacher can log in with:", {
-      email: TEACHER.email,
-      password: TEACHER.password,
+    console.log("Upsert complete.", {
+      teacher: { email: TEACHER.email, password: TEACHER.password },
+      phgSharedStudent: {
+        email: PHG_SHARED_STUDENT.email,
+        password: PHG_SHARED_STUDENT.password,
+        note: "PHG site group buttons log in with this account",
+      },
       workspaceId,
       workspaceName: WORKSPACE_NAME,
     });
