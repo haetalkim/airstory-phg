@@ -515,6 +515,7 @@ const AnalysisView = ({
   workspaceId,
 }) => {
   const isCo = selectedMetric === 'co';
+  const CO_DECIMALS = 3;
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
@@ -602,8 +603,14 @@ const AnalysisView = ({
     });
     return Object.entries(byDate)
       .sort((a, b) => new Date(a[0]) - new Date(b[0]))
-      .map(([date, agg]) => ({ date, value: Number((agg.sum / agg.count).toFixed(2)) }));
-  }, [scopedData, selectedMetric]);
+      .map(([date, agg]) => {
+        const raw = agg.sum / agg.count;
+        return {
+          date,
+          value: Number((isCo ? raw.toFixed(CO_DECIMALS) : raw.toFixed(2))),
+        };
+      });
+  }, [scopedData, selectedMetric, isCo]);
 
   const weekData = useMemo(() => {
     if (!monthData.length) return [];
@@ -725,7 +732,7 @@ const AnalysisView = ({
     const allValues = monthData.map((d) => Number(d.value));
     if (!allValues.length) return null;
     const rawAvg = allValues.reduce((sum, val) => sum + val, 0) / allValues.length;
-    const avgValue = isCo ? Number(rawAvg.toFixed(2)) : Math.round(rawAvg);
+    const avgValue = isCo ? Number(rawAvg.toFixed(CO_DECIMALS)) : Math.round(rawAvg);
     const minValue = Math.min(...allValues);
     const maxValue = Math.max(...allValues);
     const sortedValues = [...allValues].sort((a, b) => a - b);
@@ -741,7 +748,7 @@ const AnalysisView = ({
     if (!schoolRows.length) return null;
     const rawAvg =
       schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length;
-    return isCo ? Number(rawAvg.toFixed(2)) : Math.round(rawAvg);
+    return isCo ? Number(rawAvg.toFixed(CO_DECIMALS)) : Math.round(rawAvg);
   }, [classScopeData, selectedMetric, isCo]);
 
   // City/reference average: uses the same OpenAQ/simulated reference line shown in Overview.
@@ -749,7 +756,7 @@ const AnalysisView = ({
     const refs = weekCompareData.map((d) => Number(d.reference)).filter((n) => Number.isFinite(n));
     if (!refs.length) return null;
     const rawAvg = refs.reduce((a, b) => a + b, 0) / refs.length;
-    return isCo ? Number(rawAvg.toFixed(2)) : Math.round(rawAvg);
+    return isCo ? Number(rawAvg.toFixed(CO_DECIMALS)) : Math.round(rawAvg);
   }, [weekCompareData, isCo]);
 
   const availableCompareGroups = useMemo(() => {
@@ -833,7 +840,7 @@ const AnalysisView = ({
   const fmt = (v) => {
     const n = Number(v);
     if (!Number.isFinite(n)) return '—';
-    return isCo ? n.toFixed(2) : Math.round(n);
+    return isCo ? n.toFixed(CO_DECIMALS) : Math.round(n);
   };
 
   return (
