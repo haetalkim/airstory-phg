@@ -105,11 +105,9 @@ const RawDataView = ({
       const result = await getMeasurements(workspaceId, { limit: 10000 });
       if (genAtStart !== importGenerationRef.current) return;
       const mapped = workspaceMeasurementsToDisplayRows(result.measurements || []);
-      if (mapped.length) {
-        setRawData(mapped);
-        setImportedMeasurements(mapped);
-        onImportedDataChanged?.();
-      }
+      setRawData(mapped);
+      setImportedMeasurements(mapped);
+      onImportedDataChanged?.();
     } catch {
       // Fall back to imported CSV data when backend is unavailable.
     } finally {
@@ -427,11 +425,19 @@ const RawDataView = ({
 
   const handleClearImportedData = async () => {
     try {
+      // Cancel any in-flight backend load/import so UI doesn't "reappear" later.
+      importGenerationRef.current += 1;
       if (workspaceId) {
         await clearWorkspaceMeasurements(workspaceId);
       }
       clearImportedMeasurements();
+      setImportedMeasurements([]);
       setRawData([]);
+      setExpandedRows({});
+      setExpandedSessions({});
+      setEditedCells({});
+      setEditingNotes(null);
+      setEditingCell({ rowId: null, field: null });
       onImportedDataChanged?.();
       setImportError('');
     } catch (error) {
