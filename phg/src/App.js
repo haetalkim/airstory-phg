@@ -488,17 +488,6 @@ export default function App() {
     }
   };
 
-  /**
-   * Group switcher in the navbar — students can hop groups without logging
-   * out / back in. Updates studentContext + the active filter; no API call.
-   */
-  const handleSwitchGroup = (group) => {
-    if (!PHG_GROUP_CODES.includes(group)) return;
-    setStudentContext({ group, school: PHG_SCHOOL_CODE });
-    setViewerProfile((prev) => ({ ...prev, group }));
-    setFilters((prev) => ({ ...prev, group }));
-  };
-
   const currentTheme = METRIC_THEMES[selectedMetric];
 
   const handleTeacherSelectGroup = ({ period, group }) => {
@@ -633,26 +622,20 @@ export default function App() {
             {!isPublicMode && (
               <div className="flex items-center gap-4">
                 {isPhgStudent ? (
-                  <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1" role="group" aria-label="Switch group">
-                    {PHG_GROUP_CODES.map((g) => {
-                      const active = (viewerProfile.group || filters.group) === g;
-                      return (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => handleSwitchGroup(g)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            active
-                              ? "bg-blue-600 text-white shadow"
-                              : "text-gray-600 hover:bg-white hover:text-blue-600"
-                          }`}
-                          aria-pressed={active}
-                          title={`Switch to ${g}`}
-                        >
-                          {g}
-                        </button>
-                      );
-                    })}
+                  <div className="flex items-center gap-3 flex-wrap justify-end">
+                    <span className="text-sm text-gray-600">
+                      <span className="font-bold text-gray-900">
+                        {viewerProfile.group || filters.group || "—"}
+                      </span>
+                      <span className="text-gray-500 ml-1.5 hidden sm:inline">· your team</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="px-4 py-2 rounded-lg text-sm font-semibold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 transition-colors"
+                    >
+                      Change groups
+                    </button>
                   </div>
                 ) : (
                   <>
@@ -749,9 +732,9 @@ export default function App() {
                   </h3>
                   <p className="text-sm text-gray-600 leading-relaxed">
                     PHG students don't sign in individually, so personal profile,
-                    password, and account settings aren't needed here. Use the
-                    <span className="font-semibold text-gray-900"> group switcher </span>
-                    in the top-right to change groups.
+                    password, and account settings aren't needed here. Use
+                    <span className="font-semibold text-gray-900"> Change groups </span>
+                    in the top-right to return to the landing page and pick another team.
                   </p>
                 </div>
               </div>
