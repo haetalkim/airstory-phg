@@ -348,10 +348,26 @@ const RawDataView = ({
       const rawRows = parseImportedCsvRaw(text);
       const importBatchId = `csv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       const imported = parseImportedCsv(text, importBatchId);
+      const studentCtx = isPhgStudent ? getStudentContext() : null;
+      const importContext = {
+        school: filters.school || studentCtx?.school || PHG_SCHOOL_CODE,
+        instructor: filters.instructor || '',
+        period: filters.period || '',
+        group: filters.group || studentCtx?.group || '',
+      };
+      const withContext = (row) => ({
+        ...row,
+        school: row.school || importContext.school,
+        instructor: row.instructor || importContext.instructor,
+        period: row.period || importContext.period,
+        group: row.group || importContext.group,
+      });
+      const stampedImported = imported.map(withContext);
+      const stampedRawRows = rawRows.map(withContext);
       importGenerationRef.current += 1;
       // Always show imported data in UI immediately.
-      setRawData(imported);
-      setImportedMeasurements(imported);
+      setRawData(stampedImported);
+      setImportedMeasurements(stampedImported);
       onImportedDataChanged?.();
       setImportError('');
       // Historical CSVs are often hidden by "today" or session chips; widen filters after import.
@@ -360,7 +376,7 @@ const RawDataView = ({
       setSessionFilter('all');
       setSearchTerm('');
 
-      const inferred = uniqueHierarchyFromImportedRows(imported);
+      const inferred = uniqueHierarchyFromImportedRows(stampedImported);
       setFilters((prev) => ({
         ...prev,
         school: inferred.school || (isPhgStudent ? prev.school : ''),
@@ -369,8 +385,8 @@ const RawDataView = ({
         group: inferred.group || (isPhgStudent ? prev.group : ''),
       }));
 
-      if (workspaceId && rawRows.length) {
-        const payloadRows = rawRows.map((r) => ({
+      if (workspaceId && stampedRawRows.length) {
+        const payloadRows = stampedRawRows.map((r) => ({
           capturedAt: r.capturedAt,
           sessionCode: r.sessionId || 'SESSION',
           sessionName: r.sessionName || 'Imported Session',
