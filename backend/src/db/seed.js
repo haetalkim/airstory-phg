@@ -20,6 +20,19 @@ async function run() {
         period: "P1",
         studentCode: "INST001",
       },
+      // Shared "PHG students" account: the airstory/phg variant silently signs
+      // every student browser into this single account so CSV uploads + reads
+      // can hit the existing JWT-protected endpoints without showing a login
+      // form. Per-group attribution is stamped client-side onto each row.
+      {
+        email: "phg-students@airstory.local",
+        fullName: "PHG Students",
+        password: "phg-students-2026",
+        role: "student",
+        groupCode: "",
+        period: "P1",
+        studentCode: "PHGSTU",
+      },
     ];
 
     const userIds = {};
