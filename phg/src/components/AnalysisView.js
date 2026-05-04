@@ -517,7 +517,7 @@ const AnalysisView = ({
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
-  const [compareMode, setCompareMode] = useState('openaq'); // openaq | group | class | school
+  const [compareMode, setCompareMode] = useState('group'); // group | class | city
   const [compareGroup, setCompareGroup] = useState('');
   const [referenceLocation, setReferenceLocation] = useState(REFERENCE_LOCATIONS[0]?.name || 'Center City');
   const [openaqPoints, setOpenaqPoints] = useState(null);
@@ -587,14 +587,6 @@ const AnalysisView = ({
       return true;
     });
   }, [imported, filters.school, filters.instructor, filters.period]);
-
-  const schoolScopeData = useMemo(() => {
-    return imported.filter((row) => {
-      if (filters.school && !schoolsMatch(filters.school, row.school))
-        return false;
-      return true;
-    });
-  }, [imported, filters.school]);
 
   const monthData = useMemo(() => {
     if (!scopedData.length) return [];
@@ -719,13 +711,12 @@ const AnalysisView = ({
     );
   }, [classScopeData, selectedMetric]);
 
-  const schoolAverage = useMemo(() => {
-    const schoolRows = schoolScopeData;
-    if (!schoolRows.length) return null;
-    return Math.round(
-      schoolRows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / schoolRows.length
-    );
-  }, [schoolScopeData, selectedMetric]);
+  // City/reference average: uses the same OpenAQ/simulated reference line shown in Overview.
+  const cityAverage = useMemo(() => {
+    const refs = weekCompareData.map((d) => Number(d.reference)).filter((n) => Number.isFinite(n));
+    if (!refs.length) return null;
+    return Math.round(refs.reduce((a, b) => a + b, 0) / refs.length);
+  }, [weekCompareData]);
 
   const availableCompareGroups = useMemo(() => {
     const fromData = [...new Set(classScopeData.map((r) => r.group).filter(Boolean))];
@@ -774,7 +765,7 @@ const AnalysisView = ({
         .map(([date, agg]) => ({ date, value: Number((agg.sum / agg.count).toFixed(2)) }));
     };
 
-    if (compareMode === 'openaq') {
+    if (compareMode === 'city') {
       return weekCompareData.map((d) => ({ day: d.label, yours: d.yours, comparison: d.reference }));
     }
 
@@ -786,8 +777,6 @@ const AnalysisView = ({
       );
     } else if (compareMode === 'class') {
       comparisonSeries = makeDailySeries(classScopeData);
-    } else if (compareMode === 'school') {
-      comparisonSeries = makeDailySeries(schoolScopeData);
     }
     const comparisonByDate = Object.fromEntries(comparisonSeries.map((d) => [d.date, d.value]));
 
@@ -798,7 +787,7 @@ const AnalysisView = ({
         yours: d.value,
         comparison: comparisonByDate[d.date] ?? null,
       }));
-  }, [weekData, weekCompareData, compareMode, compareGroup, classScopeData, schoolScopeData, selectedMetric]);
+  }, [weekData, weekCompareData, compareMode, compareGroup, classScopeData, selectedMetric]);
 
   const avgValue = stats?.avgValue ?? 0;
   const minValue = stats?.minValue ?? 0;
@@ -1163,10 +1152,10 @@ const AnalysisView = ({
         <div className="space-y-6">
           {/* Quick Comparison Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Your Group */}
+            {/* Group Average */}
             <div className={`bg-white rounded-2xl p-6 shadow-lg border-2`} style={{ borderColor: theme.primary }}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Your Group</h3>
+                <h3 className="text-lg font-bold text-gray-900">Group Average</h3>
                 <span className={`px-3 py-1 ${theme.bg} text-white text-sm font-semibold rounded-full`}>
                   G{filters.group.replace('G', '')}
                 </span>
@@ -1222,31 +1211,31 @@ const AnalysisView = ({
               </div>
             </div>
 
-            {/* School Average */}
-            <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-blue-200">
+            {/* City Average (reference) */}
+            <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-slate-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">School Average</h3>
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full">
-                  {filters.school}
+                <h3 className="text-lg font-bold text-gray-900">City Average</h3>
+                <span className="px-3 py-1 bg-slate-100 text-slate-700 text-sm font-semibold rounded-full">
+                  Reference
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-blue-600 mb-1">{schoolAverage ?? 'NO DATA'}</p>
-                {schoolAverage != null && (
+                <p className="text-4xl font-bold text-slate-700 mb-1">{cityAverage ?? 'NO DATA'}</p>
+                {cityAverage != null && (
                   <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
                 )}
               </div>
               <div className="space-y-2 text-sm">
                 <p className="text-xs text-gray-500">
-                  Average for your school code across imported rows (all classes/groups in file).
+                  Philadelphia-area reference line (OpenAQ when available, else simulated trend).
                 </p>
                 <div className="flex justify-between">
                   <span className="text-gray-600">vs your group</span>
                   <span className="font-semibold text-gray-900">
-                    {schoolAverage != null
-                      ? avgValue <= schoolAverage
-                        ? `${Math.abs(avgValue - schoolAverage)} lower`
-                        : `${Math.abs(avgValue - schoolAverage)} higher`
+                    {cityAverage != null
+                      ? avgValue <= cityAverage
+                        ? `${Math.abs(avgValue - cityAverage)} lower`
+                        : `${Math.abs(avgValue - cityAverage)} higher`
                       : 'NO DATA'}
                   </span>
                 </div>
@@ -1269,10 +1258,9 @@ const AnalysisView = ({
                   onChange={(e) => setCompareMode(e.target.value)}
                   className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
                 >
-                  <option value="openaq">vs OpenAQ reference</option>
                   <option value="group">vs another group</option>
                   <option value="class">vs class average</option>
-                  <option value="school">vs school average</option>
+                  <option value="city">vs city reference</option>
                 </select>
                 {compareMode === 'group' && (
                   <select
@@ -1325,13 +1313,11 @@ const AnalysisView = ({
                   type="monotone"
                   dataKey="comparison"
                   name={
-                    compareMode === 'openaq'
-                      ? 'OpenAQ / reference'
-                      : compareMode === 'group'
+                    compareMode === 'group'
                         ? `Group ${compareGroup || ''}`
                         : compareMode === 'class'
                           ? 'Class average'
-                          : 'School average'
+                          : 'City reference'
                   }
                   stroke="#64748b"
                   strokeWidth={2}
