@@ -111,6 +111,14 @@ async function run() {
     );
     const phgUserId = phgUserRes.rows[0].id;
 
+    // Dedicated shared account: keep it in THIS workspace only, so the PHG
+    // static site doesn't randomly land in an older workspace (and "lose"
+    // data / class structure).
+    await pool.query(
+      `DELETE FROM workspace_memberships WHERE user_id = $1 AND workspace_id <> $2`,
+      [phgUserId, workspaceId]
+    );
+
     await pool.query(
       `INSERT INTO workspace_memberships (workspace_id, user_id, role)
        VALUES ($1, $2, $3)

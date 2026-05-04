@@ -212,7 +212,12 @@ router.post("/phg-session", async (req, res, next) => {
     const user = userResult.rows[0];
 
     const wsResult = await pool.query(
-      `SELECT workspace_id FROM workspace_memberships WHERE user_id = $1 ORDER BY workspace_id LIMIT 1`,
+      `SELECT wm.workspace_id
+       FROM workspace_memberships wm
+       JOIN workspaces w ON w.id = wm.workspace_id
+       WHERE wm.user_id = $1
+       ORDER BY w.created_at DESC
+       LIMIT 1`,
       [user.id]
     );
     const workspaceId = wsResult.rows[0]?.workspace_id || null;
@@ -250,7 +255,12 @@ router.post("/login", validate(loginSchema), async (req, res, next) => {
     if (!valid) return res.status(401).json({ error: "Invalid credentials" });
 
     const wsResult = await pool.query(
-      `SELECT workspace_id FROM workspace_memberships WHERE user_id = $1 ORDER BY workspace_id LIMIT 1`,
+      `SELECT wm.workspace_id
+       FROM workspace_memberships wm
+       JOIN workspaces w ON w.id = wm.workspace_id
+       WHERE wm.user_id = $1
+       ORDER BY w.created_at DESC
+       LIMIT 1`,
       [user.id]
     );
     const workspaceId = wsResult.rows[0]?.workspace_id || null;

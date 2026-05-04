@@ -18,7 +18,6 @@ import { getStoredAuth, setStoredAuth } from "./api/http";
 import { getMeasurements } from "./api/data";
 import {
   setImportedMeasurements,
-  clearImportedMeasurements,
 } from "./utils/importedData";
 import { workspaceMeasurementsToDisplayRows } from "./utils/measurementRows";
 import {
@@ -259,11 +258,13 @@ export default function App() {
         const prev = serverMeasurementCountRef.current;
 
         if (mc === 0) {
-          if (prev !== null && prev > 0) {
-            clearImportedMeasurements();
-            setImportedDataVersion((v) => v + 1);
-          }
+          // Never auto-delete local cache just because the server returned 0:
+          // the shared PHG account may temporarily point at a different workspace
+          // (or the API may cold-start). Raw Data "Clear Data" already handles
+          // wiping cloud + cache intentionally.
           serverMeasurementCountRef.current = 0;
+          setImportedMeasurements([]);
+          setImportedDataVersion((v) => v + 1);
           return;
         }
 
