@@ -573,38 +573,9 @@ const RawDataView = ({
       g.sessionName = sample.sessionName;
       g.sessionId = sample.sessionId;
       g.location = sample.location;
-      const dates = g.rows.map((r) => r.date).filter(Boolean);
-      const uniqueDates = Array.from(new Set(dates));
-      const uniqueLocations = Array.from(
-        new Set(g.rows.map((r) => r.location).filter(Boolean))
-      );
-      const totalReadings = g.rows.length;
-      const avg = (key) => {
-        const nums = g.rows
-          .map((r) => Number(r[key]))
-          .filter((n) => Number.isFinite(n));
-        if (!nums.length) return null;
-        return nums.reduce((a, b) => a + b, 0) / nums.length;
-      };
       return {
         ...g,
-        dateRange:
-          uniqueDates.length === 0
-            ? "—"
-            : uniqueDates.length === 1
-              ? uniqueDates[0]
-              : `${uniqueDates[0]} → ${uniqueDates[uniqueDates.length - 1]}`,
-        locationLabel:
-          uniqueLocations.length === 0
-            ? "—"
-            : uniqueLocations.length === 1
-              ? uniqueLocations[0]
-              : `${uniqueLocations.length} locations`,
-        totalReadings,
-        avgPm25: avg("pm25"),
-        avgCo: avg("co"),
-        avgTemp: avg("temp"),
-        avgHumidity: avg("humidity"),
+        totalReadings: g.rows.length,
       };
     });
   }, [filteredData]);
@@ -1029,67 +1000,104 @@ const RawDataView = ({
               {paginatedSessionGroups.map((session) => {
                 const gk = session.groupKey;
                 const sessionExpanded = !!expandedSessions[gk];
-                const fmt = (n) => (n == null ? '—' : Number.isInteger(n) ? n : Number(n).toFixed(2));
-                const h = (v) => (v != null && String(v).trim() !== '' ? String(v) : '—');
+                const rep = session.rows[0];
+                const n = session.totalReadings;
                 return (
                   <React.Fragment key={`grp-${gk}`}>
                     <tr
                       onClick={() => toggleSessionExpansion(gk)}
-                      className="bg-blue-50 hover:bg-blue-100 cursor-pointer border-y-2 border-blue-200"
+                      className="bg-blue-50 hover:bg-blue-100 cursor-pointer border-y border-blue-200"
                     >
-                      <td colSpan={19} className="px-4 py-3">
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
-                            <ChevronRight
-                              className={`w-5 h-5 text-blue-700 transition-transform shrink-0 ${sessionExpanded ? 'rotate-90' : ''}`}
-                            />
-                            <span className="font-semibold text-gray-900">
-                              {session.sessionName || 'Imported Session'}
-                            </span>
-                            <span className="text-xs font-mono text-gray-500 truncate max-w-[200px]" title={String(session.sessionId)}>
-                              {session.sessionId}
-                            </span>
-                            <span className="text-xs text-gray-500 ml-auto">
-                              {session.totalReadings} minute row{session.totalReadings === 1 ? '' : 's'} (expand for detail)
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700 pl-8">
-                            <span>
-                              <span className="font-bold text-gray-500 uppercase tracking-wide">School</span>{' '}
-                              <span className="font-semibold text-gray-900">{h(session.school)}</span>
-                            </span>
-                            <span>
-                              <span className="font-bold text-gray-500 uppercase tracking-wide">Class</span>{' '}
-                              <span className="font-semibold text-gray-900">{h(session.instructor)}</span>
-                            </span>
-                            <span>
-                              <span className="font-bold text-gray-500 uppercase tracking-wide">Period</span>{' '}
-                              <span className="font-semibold text-gray-900">{h(session.period)}</span>
-                            </span>
-                            <span>
-                              <span className="font-bold text-gray-500 uppercase tracking-wide">Group</span>{' '}
-                              <span className="font-semibold text-blue-800">{h(session.group)}</span>
-                            </span>
-                            <span className="text-gray-600">{session.dateRange}</span>
-                            <span className="text-gray-600 max-w-[240px] truncate" title={session.locationLabel}>
-                              {session.locationLabel}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700 pl-8">
-                            <span>
-                              PM2.5 <span className="font-semibold">{fmt(session.avgPm25)}</span>
-                            </span>
-                            <span>
-                              CO <span className="font-semibold">{fmt(session.avgCo)}</span>
-                            </span>
-                            <span>
-                              T <span className="font-semibold">{fmt(session.avgTemp)}</span>°C
-                            </span>
-                            <span>
-                              RH <span className="font-semibold">{fmt(session.avgHumidity)}</span>%
-                            </span>
-                          </div>
-                        </div>
+                      <td className="px-4 py-3 align-middle">
+                        <ChevronRight
+                          className={`w-4 h-4 text-blue-700 transition-transform inline-block ${sessionExpanded ? 'rotate-90' : ''}`}
+                          aria-hidden
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap font-mono text-xs align-middle">
+                        {formatSensorTimestamp(rep.capturedAt)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 font-medium align-middle">{rep.date}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">{rep.time}</td>
+                      <td className="px-4 py-3 text-sm font-mono text-xs text-gray-800 max-w-[180px] truncate align-middle" title={String(rep.sessionId ?? '')}>
+                        {rep.sessionId}
+                      </td>
+                      <td className="px-4 py-3 text-sm align-middle">
+                        <span className="font-medium text-gray-900">{rep.sessionName}</span>
+                        {n > 1 && (
+                          <span className="ml-2 text-xs font-semibold text-blue-700">+{n - 1}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm align-middle">
+                        <span className="font-medium text-gray-900">{rep.school}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm align-middle">
+                        <span className="font-medium text-gray-900">{rep.instructor}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm align-middle">
+                        <span className="font-medium text-gray-900">{rep.period}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm align-middle">
+                        <span className="font-medium text-gray-900">{rep.group}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm max-w-[220px] align-middle">
+                        <span className="truncate block" title={String(rep.location ?? '')}>{rep.location || '—'}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono align-middle">
+                        {rep.latitude != null && rep.longitude != null && Number.isFinite(Number(rep.latitude)) && Number.isFinite(Number(rep.longitude)) ? (
+                          <a
+                            href={`https://www.google.com/maps?q=${rep.latitude},${rep.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {Number(rep.latitude).toFixed(4)}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono align-middle">
+                        {rep.latitude != null && rep.longitude != null && Number.isFinite(Number(rep.latitude)) && Number.isFinite(Number(rep.longitude)) ? (
+                          <a
+                            href={`https://www.google.com/maps?q=${rep.latitude},${rep.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {Number(rep.longitude).toFixed(4)}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm align-middle">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          rep.indoorOutdoor === 'INDOOR' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {rep.indoorOutdoor}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3 text-sm font-semibold align-middle ${selectedMetric === 'pm25' ? 'bg-blue-100/80' : ''}`}>
+                        {rep.pm25}
+                      </td>
+                      <td className={`px-4 py-3 text-sm font-semibold align-middle ${selectedMetric === 'co' ? 'bg-purple-100/80' : ''}`}>
+                        {rep.co}
+                      </td>
+                      <td className={`px-4 py-3 text-sm font-semibold align-middle ${selectedMetric === 'temp' ? 'bg-orange-100/80' : ''}`}>
+                        {rep.temp}
+                      </td>
+                      <td className={`px-4 py-3 text-sm font-semibold align-middle ${selectedMetric === 'humidity' ? 'bg-cyan-100/80' : ''}`}>
+                        {rep.humidity}
+                      </td>
+                      <td className="px-4 py-3 text-sm max-w-xs align-middle text-gray-600">
+                        {rep.sessionNotes ? (
+                          <span className="truncate block" title={rep.sessionNotes}>{rep.sessionNotes}</span>
+                        ) : (
+                          <span className="text-gray-400">{n > 1 ? `Expand for ${n} rows` : '—'}</span>
+                        )}
                       </td>
                     </tr>
                     {sessionExpanded && session.rows.map((row, idx) => {

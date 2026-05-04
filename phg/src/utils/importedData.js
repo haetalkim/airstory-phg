@@ -72,10 +72,26 @@ export function uniqueHierarchyFromImportedRows(rows) {
   return out;
 }
 
-/** One summary row per CSV import uses importBatchId; API rows use `sess:` + sessionId. */
+/**
+ * One Raw Data summary row per:
+ * - CSV file: importBatchId (unique per import)
+ * - Same class session from API/DB: bundle of session name + hierarchy + date
+ *   (avoids one CSV → many UUID session_ids splitting into duplicate blue rows)
+ * - Else: per session_id
+ */
 export function collapseGroupKeyForRow(row) {
-  if (row?.collapseGroupKey) return String(row.collapseGroupKey);
   if (row?.importBatchId) return String(row.importBatchId);
+  const metaParts = [
+    String(row?.sessionName ?? "").trim().toLowerCase(),
+    String(row?.school ?? "").trim().toLowerCase(),
+    String(row?.instructor ?? "").trim().toLowerCase(),
+    String(row?.period ?? "").trim().toLowerCase(),
+    String(row?.group ?? "").trim().toLowerCase(),
+    String(row?.date ?? "").trim(),
+  ];
+  if (metaParts.some(Boolean)) {
+    return `bundle:${metaParts.join("\u0001")}`;
+  }
   const sid = String(row?.sessionId ?? "").trim();
   if (sid) return `sess:${sid}`;
   return `row:${row?.id ?? "unknown"}`;
