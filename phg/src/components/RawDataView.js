@@ -151,18 +151,9 @@ const RawDataView = ({
     return { id, name: session.sessionName };
   });
   
-  const rosterSchools = rosterRows.map((m) => m.school_code).filter(Boolean);
-  const rosterInstructors = rosterRows.map((m) => m.instructor).filter(Boolean);
   const rosterPeriods = rosterRows.map((m) => m.period).filter(Boolean);
   const rosterGroups = rosterRows.map((m) => m.group_code).filter(Boolean);
 
-  const allSchools = [...new Set((rosterSchools.length ? rosterSchools : rawData.map((d) => d.school)).filter(Boolean))].sort();
-  const allInstructors = [...new Set(
-    (rosterInstructors.length ? rosterRows.filter((m) => !selectedSchool || m.school_code === selectedSchool).map((m) => m.instructor) : rawData
-      .filter((d) => !selectedSchool || d.school === selectedSchool)
-      .map((d) => d.instructor))
-      .filter(Boolean)
-  )].sort();
   const allPeriods = [...new Set(
     (rosterPeriods.length
       ? rosterRows
@@ -202,13 +193,6 @@ const RawDataView = ({
     allPeriods[0] ||
     'P1';
   const structureGroups = groupsForPeriodFromStructure(resolvedClassStructure, periodForGroups);
-
-  const mergedPeriods = [...new Set([...structurePeriods, ...allPeriods])];
-  const effectivePeriods = structurePeriods.length
-    ? [...structurePeriods].sort(compareHierarchyToken)
-    : mergedPeriods.length
-      ? mergedPeriods.sort(compareHierarchyToken)
-      : ['P1'];
 
   const mergedGroups = [...new Set([...structureGroups, ...allGroups])];
   const effectiveGroups = structureGroups.length

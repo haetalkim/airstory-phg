@@ -5,11 +5,8 @@ import {
   getClassStructure,
   getJoinCodes,
   getRoster,
-  removeStudent,
-  resetStudentPassword,
   setJoinCodeActive,
   updateClassStructure,
-  updateStudentPlacement,
 } from '../api/auth';
 import { getMeasurements } from '../api/data';
 
@@ -26,11 +23,6 @@ export default function ManageClasses({
   const [newCodeSchool, setNewCodeSchool] = useState(viewerProfile?.school || '');
   const [newCodeInstructor, setNewCodeInstructor] = useState(viewerProfile?.instructor || '');
   const [error, setError] = useState('');
-  const [activeStudent, setActiveStudent] = useState(null);
-  const [activeAction, setActiveAction] = useState('');
-  const [draftPassword, setDraftPassword] = useState('');
-  const [draftPeriod, setDraftPeriod] = useState('P1');
-  const [draftGroup, setDraftGroup] = useState('G1');
   const [busy, setBusy] = useState(false);
   const [periodCount, setPeriodCount] = useState(1);
   const [groupCount, setGroupCount] = useState(6);
@@ -187,63 +179,8 @@ export default function ManageClasses({
     }
   };
 
-  const handleResetPassword = async (student) => {
-    if (!draftPassword) return;
-    try {
-      setBusy(true);
-      await resetStudentPassword(workspaceId, student.id, draftPassword);
-      setDraftPassword('');
-      setActiveStudent(null);
-      setActiveAction('');
-      setError('');
-      // eslint-disable-next-line no-alert
-      alert(`Password reset for ${student.full_name}`);
-    } catch (e) {
-      setError(e.message || 'Failed to reset student password.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const openStudentAction = (student, action) => {
-    setActiveStudent(student);
-    setActiveAction(action);
-    setDraftPassword('');
-    setDraftPeriod(student.period || 'P1');
-    setDraftGroup(student.group_code || 'G1');
-  };
-
-  const handleMoveStudent = async () => {
-    if (!activeStudent) return;
-    try {
-      setBusy(true);
-      await updateStudentPlacement(workspaceId, activeStudent.id, { period: draftPeriod, groupCode: draftGroup });
-      await load();
-      setActiveStudent(null);
-      setActiveAction('');
-      setError('');
-    } catch (e) {
-      setError(e.message || 'Failed to move student.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleRemoveStudent = async () => {
-    if (!activeStudent) return;
-    try {
-      setBusy(true);
-      await removeStudent(workspaceId, activeStudent.id);
-      await load();
-      setActiveStudent(null);
-      setActiveAction('');
-      setError('');
-    } catch (e) {
-      setError(e.message || 'Failed to remove student.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  // PHG variant: student profile management actions are intentionally paused.
+  // The UI is blurred and no longer exposes controls for password reset/move/remove.
 
   return (
     <div className="space-y-6">
@@ -441,90 +378,6 @@ export default function ManageClasses({
         })}
       </div>
 
-      {activeStudent && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setActiveStudent(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h4 className="font-bold text-gray-900">
-                  {activeAction === 'password' && 'Reset Password'}
-                  {activeAction === 'move' && 'Move Student'}
-                  {activeAction === 'delete' && 'Remove Student'}
-                </h4>
-                <p className="text-xs text-gray-500 mt-1">{activeStudent.full_name} • {activeStudent.email}</p>
-              </div>
-              <button
-                onClick={() => !busy && setActiveStudent(null)}
-                className="p-1.5 rounded-lg hover:bg-gray-100"
-              >
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
-            <div className="p-5">
-              {activeAction === 'password' && (
-                <div className="space-y-3">
-                  <input
-                    type="password"
-                    value={draftPassword}
-                    onChange={(e) => setDraftPassword(e.target.value)}
-                    placeholder="New password (8+ chars)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  />
-                  <button
-                    disabled={busy || draftPassword.length < 8}
-                    onClick={() => handleResetPassword(activeStudent)}
-                      className="px-3 py-1.5 rounded text-sm bg-amber-50 text-amber-700 hover:bg-amber-100"
-                    >
-                    Apply Password
-                  </button>
-                </div>
-              )}
-              {activeAction === 'move' && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <select
-                      value={draftPeriod}
-                      onChange={(e) => setDraftPeriod(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    >
-                      {Array.from({ length: periodCount || 1 }, (_, i) => `P${i + 1}`).map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                    <select
-                      value={draftGroup}
-                      onChange={(e) => setDraftGroup(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    >
-                      {Array.from({ length: groupCount || 4 }, (_, i) => `G${i + 1}`).map((g) => <option key={g} value={g}>{g}</option>)}
-                    </select>
-                  </div>
-                  <button
-                    disabled={busy}
-                    onClick={handleMoveStudent}
-                    className="px-3 py-1.5 rounded text-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
-                  >
-                    Move Student
-                  </button>
-                </div>
-              )}
-              {activeAction === 'delete' && (
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-700">
-                    Remove this student from the class roster?
-                  </p>
-                  <button
-                    disabled={busy}
-                    onClick={handleRemoveStudent}
-                    className="px-3 py-1.5 rounded text-sm bg-red-50 text-red-700 hover:bg-red-100"
-                  >
-                    Remove Student
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
         <div className="flex items-center gap-3 mb-3">
           <div className={`w-10 h-10 ${theme.bg} rounded-lg flex items-center justify-center`}>
@@ -535,7 +388,6 @@ export default function ManageClasses({
         <ul className="text-sm text-gray-700 space-y-2">
           <li>Create and share join codes with students for signup.</li>
           <li>Click a group card to jump directly into that group&apos;s Raw Data.</li>
-          <li>Reset student passwords when needed (teacher support flow).</li>
           <li>Use period/group selections here to drive Raw Data and Analysis comparisons.</li>
         </ul>
       </div>
