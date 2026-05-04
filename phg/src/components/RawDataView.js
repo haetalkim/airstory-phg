@@ -776,23 +776,6 @@ const RawDataView = ({
                 setDateFilter('all');
                 setLocationFilter('all');
                 setSessionFilter('all');
-                if (isPhgStudent) {
-                  const ctx = getStudentContext();
-                  const g = ctx?.group || '';
-                  const school = ctx?.school || PHG_SCHOOL_CODE;
-                  setSelectedSchool(school);
-                  setSelectedInstructor('');
-                  setSelectedPeriod('');
-                  setSelectedGroup(g);
-                  setFilters((prev) => ({
-                    ...prev,
-                    school,
-                    instructor: '',
-                    period: '',
-                    group: g,
-                  }));
-                  return;
-                }
                 setSelectedSchool('');
                 setSelectedInstructor('');
                 setSelectedPeriod('');
@@ -1126,8 +1109,8 @@ const RawDataView = ({
                       const detailedData = isExpanded ? generateDetailedData(row) : [];
                       return (
                         <React.Fragment key={row.id}>
-                    <tr className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                      <td className="px-4 py-3">
+                    <tr className={`hover:bg-blue-50 transition-colors border-l-4 border-blue-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                      <td className="px-4 py-3 pl-6">
                         <button
                           onClick={() => toggleRowExpansion(row.id)}
                           className="p-1 hover:bg-gray-200 rounded transition-colors"

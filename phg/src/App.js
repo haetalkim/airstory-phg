@@ -470,7 +470,10 @@ export default function App() {
       });
       setFilters((prev) => ({
         ...prev,
-        school: PHG_SCHOOL_CODE,
+        // Don't force school/instructor/period for students: uploaded rows may
+        // carry a human-readable school name, and we'd accidentally filter out
+        // everything after returning to the site.
+        school: "",
         instructor: "",
         period: "",
         group,
