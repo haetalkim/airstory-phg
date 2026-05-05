@@ -440,6 +440,12 @@ const RawDataView = ({
   };
 
   const handleClearImportedData = async () => {
+    const ok = window.confirm(
+      "WARNING: This will permanently DELETE ALL data for this workspace.\n\n" +
+        "This includes all sessions and measurements currently stored.\n\n" +
+        "Click OK to delete everything."
+    );
+    if (!ok) return;
     try {
       // Cancel any in-flight backend load/import so UI doesn't "reappear" later.
       importGenerationRef.current += 1;
@@ -613,9 +619,9 @@ const RawDataView = ({
             <>
               <button
                 onClick={handleClearImportedData}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
+                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 border border-red-700 rounded-lg transition-all"
               >
-                Delete all
+                DELETE ALL
               </button>
             </>
           )}
