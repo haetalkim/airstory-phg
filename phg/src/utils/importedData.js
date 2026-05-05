@@ -82,6 +82,7 @@ export function uniqueHierarchyFromImportedRows(rows) {
  * - Else: per session_id
  */
 export function collapseGroupKeyForRow(row) {
+  if (row?.collapseGroupKey) return String(row.collapseGroupKey);
   if (row?.importBatchId) return String(row.importBatchId);
   const metaParts = [
     String(row?.sessionName ?? "").trim().toLowerCase(),

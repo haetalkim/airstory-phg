@@ -64,6 +64,34 @@ router.post(
   }
 );
 
+router.delete(
+  "/workspaces/:workspaceId/sessions/:sessionId",
+  requireWorkspaceRole(["owner", "teacher"]),
+  async (req, res, next) => {
+    const client = await pool.connect();
+    try {
+      const { workspaceId, sessionId } = req.params;
+      await client.query("BEGIN");
+      const result = await client.query(
+        `DELETE FROM sessions
+         WHERE workspace_id = $1 AND id = $2
+         RETURNING id`,
+        [workspaceId, sessionId]
+      );
+      await client.query("COMMIT");
+      if (!result.rowCount) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      return res.status(204).send();
+    } catch (err) {
+      await client.query("ROLLBACK");
+      return next(err);
+    } finally {
+      client.release();
+    }
+  }
+);
+
 router.get(
   "/workspaces/:workspaceId/measurements",
   requireWorkspaceRole(["owner", "teacher", "student"]),
