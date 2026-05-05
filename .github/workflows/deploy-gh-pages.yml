@@ -4,16 +4,14 @@ name: Deploy GitHub Pages (Air Quality Tracker)
 # Settings → Pages → Source = **GitHub Actions** (not “Deploy from branch”).
 # If you prefer updating only the `gh-pages` branch, use `npm run deploy` locally instead.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "public/**"
-      - "package.json"
-      - "package-lock.json"
-      - "tailwind.config.js"
-      - "postcss.config.js"
-      - ".github/workflows/**"
+  # IMPORTANT:
+  # This repo contains two GitHub Pages deploy workflows:
+  # - deploy-gh-pages.yml (root app in `src/`)
+  # - deploy-gh-pages-phg.yml (PHG variant in `phg/`)
+  #
+  # GitHub Pages serves ONE site per repo, so whichever workflow deploys last
+  # overwrites the site. We keep the PHG workflow as the default auto-deploy
+  # and disable this root workflow on push to prevent accidental overwrites.
   workflow_dispatch: {}
 
 permissions:
