@@ -184,7 +184,9 @@ const ComparisonModal = ({
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Currently viewing: {currentFilters.school} - Your group is G{currentFilters.group.replace('G', '')}</p>
+                <p className="text-sm text-gray-600 mt-2">
+                  Currently viewing: {currentFilters.school} - Your group is G{currentFilters.group.replace('G', '')}
+                </p>
               </div>
             )}
 
@@ -206,7 +208,7 @@ const ComparisonModal = ({
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Your school: {currentFilters.school}</p>
+                <p className="text-sm text-gray-600 mt-2">Your school: {currentFilters.school}</p>
               </div>
             )}
 
@@ -228,7 +230,7 @@ const ComparisonModal = ({
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-sm text-gray-600 mt-2">
                   Curves use the same illustrative Philadelphia reference series as Analysis (not random mock values).
                 </p>
               </div>
@@ -1282,7 +1284,7 @@ const AnalysisView = ({
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900 mb-1">Your measurements over time</h2>
           <div className="flex items-center justify-between gap-3 mb-4">
-            <p className="text-xs text-gray-500">
+            <p className="text-sm text-gray-600">
               {seriesMode === 'daily'
                 ? 'Daily average for the selected metric (all days in your current filter).'
                 : 'Session points (downsampled) — all measurements in your current filter.'}
@@ -1298,7 +1300,7 @@ const AnalysisView = ({
           </div>
           {seriesMode === 'points' ? (
             pointSeries.length >= 2 ? (
-              <div className="h-56 sm:h-[300px]">
+              <div className="h-56 md:h-[260px] lg:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={pointSeries} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
@@ -1356,7 +1358,7 @@ const AnalysisView = ({
               <p className="text-sm text-gray-500 py-8 text-center">Not enough points yet for a session chart.</p>
             )
           ) : monthData.length >= 2 ? (
-            <div className="h-56 sm:h-[300px]">
+            <div className="h-56 md:h-[260px] lg:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
