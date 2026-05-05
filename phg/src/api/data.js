@@ -30,3 +30,9 @@ export function clearWorkspaceMeasurements(workspaceId) {
     method: "DELETE",
   });
 }
+
+export function deleteSession(workspaceId, sessionId) {
+  return apiRequest(`/workspaces/${workspaceId}/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+}
