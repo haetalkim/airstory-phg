@@ -38,4 +38,6 @@ npm start
 
 GitHub Actions workflow at `.github/workflows/deploy-gh-pages-phg.yml`. Runs on
 push to `phg/**` and uploads the build as a Pages artifact under the
+
+<!-- noop change to trigger PHG Pages deploy -->
 `github-pages-phg` environment. See that file for the path / domain caveats.
