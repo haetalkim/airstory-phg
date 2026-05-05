@@ -548,8 +548,22 @@ const RawDataView = ({
       }
       map.get(gkey).rows.push(row);
     });
+
+    const rowSortTs = (r) => {
+      if (r?.capturedAt) {
+        const t = new Date(r.capturedAt).getTime();
+        if (!Number.isNaN(t)) return t;
+      }
+      const d = String(r?.date || '1970-01-01');
+      const tm = String(r?.time || '00:00');
+      const t = new Date(`${d}T${tm}`).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+
     return order.map((gkey) => {
       const g = map.get(gkey);
+      // Use the earliest timestamp row as the representative "first value".
+      g.rows.sort((a, b) => rowSortTs(a) - rowSortTs(b));
       const sample = g.rows[0];
       g.school = sample.school;
       g.instructor = sample.instructor;
@@ -605,6 +619,21 @@ const RawDataView = ({
             Import CSV
             <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportCsv} />
           </label>
+          <button 
+            onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          {!isPhgStudent && (
+            <button
+              onClick={handleClearImportedData}
+              className="px-4 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-all"
+            >
+              Delete ALL
+            </button>
+          )}
           <button
             type="button"
             onClick={handleRefresh}
@@ -615,23 +644,6 @@ const RawDataView = ({
             <RotateCw className="w-4 h-4" />
             Refresh
           </button>
-          {!isPhgStudent && (
-            <>
-              <button
-                onClick={handleClearImportedData}
-                className="px-4 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-all"
-              >
-                Delete ALL
-              </button>
-            </>
-          )}
-        <button 
-          onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all"
-        >
-          <Download className="w-4 h-4" />
-          Export CSV
-        </button>
         </div>
       </div>
 
