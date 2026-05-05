@@ -568,15 +568,7 @@ const RawDataView = ({
     currentPage * itemsPerPage
   );
 
-  const selectedSessionGroup = React.useMemo(() => {
-    if (!selectedSessionGroupKey) return null;
-    return sessionGroups.find((g) => g.groupKey === selectedSessionGroupKey) || null;
-  }, [sessionGroups, selectedSessionGroupKey]);
-
-  const selectedSessionDetails = React.useMemo(() => {
-    if (!selectedSessionGroup) return [];
-    return buildMergedSessionDetails(selectedSessionGroup.rows || []);
-  }, [buildMergedSessionDetails, selectedSessionGroup]);
+  // Inline session details are rendered directly under the selected row.
 
   return (
     <div className="space-y-6">
@@ -995,6 +987,9 @@ const RawDataView = ({
                 const rep = session.rows[0];
                 const n = session.totalReadings;
                 const mapsUrl = googleMapsSearchUrl(rep.latitude, rep.longitude);
+                const inlineDetails = sessionExpanded
+                  ? buildMergedSessionDetails(session.rows || [])
+                  : [];
                 return (
                   <React.Fragment key={`grp-${gk}`}>
                     <tr
@@ -1110,71 +1105,75 @@ const RawDataView = ({
                         )}
                       </td>
                     </tr>
+
+                    {sessionExpanded && (
+                      <tr className="bg-gray-50">
+                        <td colSpan={19} className="px-3 py-3">
+                          <div className="border border-gray-200 rounded-2xl p-4 bg-white">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 truncate">
+                                  Detailed Second-by-Second Data
+                                </div>
+                                <div className="text-xs text-gray-600 mt-0.5 truncate">
+                                  {rep?.sessionName || "Session"} • {rep?.date || ""} {rep?.time || ""}
+                                  <span className="mx-2 text-gray-300">•</span>
+                                  {inlineDetails.length} readings
+                                </div>
+                              </div>
+                              {canDeleteSessions && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteSession(
+                                      rep.sessionId,
+                                      `${rep.sessionName || 'Session'} • ${rep.date || ''} ${rep.time || ''} • ${rep.period || ''} ${rep.group || ''}`
+                                    );
+                                  }}
+                                  className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"
+                                  title="Delete this session"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="mt-3 overflow-x-auto max-h-56 overflow-y-auto bg-white rounded-xl border border-gray-200">
+                              <table className="w-full text-xs">
+                                <thead className="bg-gray-100 sticky top-0">
+                                  <tr>
+                                    <th className="px-2 py-2 text-left font-semibold">Time</th>
+                                    <th className="px-2 py-2 text-left font-semibold">PM 2.5</th>
+                                    <th className="px-2 py-2 text-left font-semibold">CO</th>
+                                    <th className="px-2 py-2 text-left font-semibold">Temperature (°C)</th>
+                                    <th className="px-2 py-2 text-left font-semibold">Humidity</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                  {inlineDetails.map((detail, dIdx) => (
+                                    <tr key={`${detail.id}-${dIdx}`} className="hover:bg-gray-50">
+                                      <td className="px-2 py-1 font-mono">{detail.time}</td>
+                                      <td className="px-2 py-1">{detail.pm25}</td>
+                                      <td className="px-2 py-1">{detail.co}</td>
+                                      <td className="px-2 py-1">{detail.temp}</td>
+                                      <td className="px-2 py-1">{detail.humidity}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </React.Fragment>
                 );
               })}
             </tbody>
           </table>
         </div>
-
-        {selectedSessionGroup && (
-          <div className="mt-4 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-gray-900 truncate">
-                  Detailed Second-by-Second Data
-                </div>
-                <div className="text-xs text-gray-600 mt-0.5 truncate">
-                  {selectedSessionGroup?.rows?.[0]?.sessionName || "Session"} • {selectedSessionGroup?.rows?.[0]?.date || ""} {selectedSessionGroup?.rows?.[0]?.time || ""}
-                  <span className="mx-2 text-gray-300">•</span>
-                  {selectedSessionDetails.length} readings
-                </div>
-              </div>
-              {canDeleteSessions && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const rep = selectedSessionGroup?.rows?.[0] || {};
-                    handleDeleteSession(
-                      rep.sessionId,
-                      `${rep.sessionName || 'Session'} • ${rep.date || ''} ${rep.time || ''} • ${rep.period || ''} ${rep.group || ''}`
-                    );
-                  }}
-                  className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"
-                  title="Delete this session"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-              )}
-            </div>
-
-            <div className="mt-3 overflow-x-auto max-h-56 overflow-y-auto bg-white rounded-xl border border-gray-200">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-100 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-2 text-left font-semibold">Time</th>
-                    <th className="px-2 py-2 text-left font-semibold">PM 2.5</th>
-                    <th className="px-2 py-2 text-left font-semibold">CO</th>
-                    <th className="px-2 py-2 text-left font-semibold">Temperature (°C)</th>
-                    <th className="px-2 py-2 text-left font-semibold">Humidity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {selectedSessionDetails.map((detail, dIdx) => (
-                    <tr key={`${detail.id}-${dIdx}`} className="hover:bg-gray-50">
-                      <td className="px-2 py-1 font-mono">{detail.time}</td>
-                      <td className="px-2 py-1">{detail.pm25}</td>
-                      <td className="px-2 py-1">{detail.co}</td>
-                      <td className="px-2 py-1">{detail.temp}</td>
-                      <td className="px-2 py-1">{detail.humidity}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
         {/* Pagination */}
         <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
