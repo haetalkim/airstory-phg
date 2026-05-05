@@ -117,7 +117,8 @@ const RawDataView = ({
     }
   }, [workspaceId, onImportedDataChanged]);
 
-  const canDeleteSessions = Boolean(workspaceId) && !isPhgStudent && !viewerProfile?.studentId;
+  const canDeleteSessions = Boolean(workspaceId) && !isPhgStudent;
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const handleDeleteSession = async (sessionId, label) => {
     if (!workspaceId || !sessionId) return;
@@ -451,6 +452,7 @@ const RawDataView = ({
       setImportedMeasurements([]);
       setRawData([]);
       setSelectedSessionGroupKey(null);
+      setIsEditMode(false);
       setEditedCells({});
       setEditingNotes(null);
       setEditingCell({ rowId: null, field: null });
@@ -671,12 +673,26 @@ const RawDataView = ({
             <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportCsv} />
           </label>
           {!isPhgStudent && (
-            <button
-              onClick={handleClearImportedData}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
-            >
-              Clear Data
-            </button>
+            <>
+              <button
+                onClick={handleClearImportedData}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
+              >
+                Clear Data
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditMode((prev) => !prev)}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg border transition-all ${
+                  isEditMode
+                    ? 'text-white bg-slate-800 border-slate-800 hover:bg-slate-900'
+                    : 'text-slate-700 bg-white border-slate-300 hover:bg-slate-50'
+                }`}
+                title="Toggle session edit controls"
+              >
+                Edit
+              </button>
+            </>
           )}
           <button
             onClick={() => setShowHelpModal(true)}
@@ -1181,7 +1197,7 @@ const RawDataView = ({
                   {selectedSessionDetails.length} readings
                 </div>
               </div>
-              {canDeleteSessions && (
+              {canDeleteSessions && isEditMode && (
                 <button
                   type="button"
                   onClick={() => {

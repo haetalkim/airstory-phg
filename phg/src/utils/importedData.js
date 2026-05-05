@@ -82,21 +82,10 @@ export function uniqueHierarchyFromImportedRows(rows) {
  * - Else: per session_id
  */
 export function collapseGroupKeyForRow(row) {
-  if (row?.collapseGroupKey) return String(row.collapseGroupKey);
   if (row?.importBatchId) return String(row.importBatchId);
-  const metaParts = [
-    String(row?.sessionName ?? "").trim().toLowerCase(),
-    String(row?.school ?? "").trim().toLowerCase(),
-    String(row?.instructor ?? "").trim().toLowerCase(),
-    normalizePeriodToken(row?.period ?? "").toLowerCase(),
-    normalizeGroupToken(row?.group ?? "").toLowerCase(),
-    String(row?.date ?? "").trim(),
-  ];
-  if (metaParts.some(Boolean)) {
-    return `bundle:${metaParts.join("\u0001")}`;
-  }
   const sid = String(row?.sessionId ?? "").trim();
   if (sid) return `sess:${sid}`;
+  if (row?.collapseGroupKey) return String(row.collapseGroupKey);
   return `row:${row?.id ?? "unknown"}`;
 }
 
