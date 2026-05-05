@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, X, Upload, Trash2 } from 'lucide-react';
-import { addMeasurementEdit, clearWorkspaceMeasurements, deleteSession, getMeasurements, importCsvMeasurements } from '../api/data';
+import { clearWorkspaceMeasurements, deleteSession, getMeasurements, importCsvMeasurements } from '../api/data';
 import { getRoster, getClassStructure } from '../api/auth';
 import {
   clearImportedMeasurements,
@@ -29,8 +29,6 @@ import {
 } from '../constants/sensorCsv';
 
 const CSV_UPLOAD_CHUNK_SIZE = 2500;
-
-const INDOOR_OUTDOOR_OPTIONS = ['INDOOR', 'OUTDOOR'];
 
 const RawDataView = ({
   workspaceId,
@@ -61,9 +59,6 @@ const RawDataView = ({
   const [selectedGroup, setSelectedGroup] = useState(filters.group || '');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingNotes, setEditingNotes] = useState(null);
-  const [editingCell, setEditingCell] = useState({ rowId: null, field: null });
-  const [editedCells, setEditedCells] = useState({});
   /** PHG: keep table flat; show details in a bottom panel for the selected session. */
   const [selectedSessionGroupKey, setSelectedSessionGroupKey] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -453,37 +448,11 @@ const RawDataView = ({
       setRawData([]);
       setSelectedSessionGroupKey(null);
       setIsEditMode(false);
-      setEditedCells({});
-      setEditingNotes(null);
-      setEditingCell({ rowId: null, field: null });
       onImportedDataChanged?.();
       setImportError('');
     } catch (error) {
       setImportError(error.message || 'Failed to clear data.');
     }
-  };
-
-  const markEdited = (rowIds, field) => {
-    setEditedCells(prev => {
-      const updated = { ...prev };
-      rowIds.forEach(id => {
-        updated[id] = {
-          ...(updated[id] || {}),
-          [field]: true
-        };
-      });
-      return updated;
-    });
-  };
-
-  const handleSessionNotesEdit = (rowId, newNotes) => {
-    setRawData(prev => prev.map(row => 
-      row.id === rowId 
-        ? { ...row, sessionNotes: newNotes }
-        : row
-    ));
-    markEdited([rowId], 'sessionNotes');
-    setEditingNotes(null);
   };
 
   const SortIcon = ({ columnKey }) => {
@@ -492,42 +461,6 @@ const RawDataView = ({
       <TrendingUp className="w-4 h-4" /> : 
       <TrendingDown className="w-4 h-4" />;
   };
-
-  const FIELD_FORMATTERS = {
-    pm25: (value) => Math.max(0, parseInt(value || 0, 10)),
-    temp: (value) => Math.round(value || 0),
-    humidity: (value) => Math.min(100, Math.max(0, Math.round(value || 0))),
-    co: (value) => parseFloat(value || 0).toFixed(2),
-    indoorOutdoor: (value) => value
-  };
-
-  const handleFieldEdit = (rowId, field, value) => {
-    const formatter = FIELD_FORMATTERS[field] || ((v) => v);
-    const formattedValue = formatter(value);
-
-    setRawData(prev =>
-      prev.map(row =>
-        row.id === rowId
-          ? { ...row, [field]: formattedValue }
-          : row
-      )
-    );
-
-    markEdited([rowId], field);
-    if (workspaceId && ['pm25', 'co', 'temp', 'humidity'].includes(field)) {
-      addMeasurementEdit(workspaceId, rowId, {
-        fieldName: field,
-        editedValue: Number(formattedValue),
-        editNote: 'Dashboard manual correction',
-      }).catch(() => {
-        // Keep UI responsive even if backend edit write fails.
-      });
-    }
-
-    setEditingCell({ rowId: null, field: null });
-  };
-
-  const isEdited = (rowId, field) => editedCells[rowId]?.[field];
 
   // Generate detailed second-by-second data for a row
   const generateDetailedData = (row) => {
@@ -563,7 +496,7 @@ const RawDataView = ({
   };
 
   /** Merge all chunk/row detail points for a session group, chronological order. */
-  const buildMergedSessionDetails = (rows) => {
+  const buildMergedSessionDetails = useCallback((rows) => {
     const decorated = rows.flatMap((row) => {
       const details = generateDetailedData(row);
       return details.map((d) => {
@@ -574,7 +507,7 @@ const RawDataView = ({
     });
     decorated.sort((a, b) => a.sortVal - b.sortVal || String(a.d.time).localeCompare(String(b.d.time)));
     return decorated.map(({ d }) => d);
-  };
+  }, []);
 
   const toggleSessionExpansion = (groupKey) => {
     setSelectedSessionGroupKey((prev) => (prev === groupKey ? null : groupKey));
@@ -641,7 +574,7 @@ const RawDataView = ({
   const selectedSessionDetails = React.useMemo(() => {
     if (!selectedSessionGroup) return [];
     return buildMergedSessionDetails(selectedSessionGroup.rows || []);
-  }, [selectedSessionGroup]);
+  }, [buildMergedSessionDetails, selectedSessionGroup]);
 
   return (
     <div className="space-y-6">

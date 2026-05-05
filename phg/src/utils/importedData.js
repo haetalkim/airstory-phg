@@ -1,5 +1,3 @@
-import { normalizeGroupToken, normalizePeriodToken } from "./hierarchyTokens";
-
 const IMPORTED_MEASUREMENTS_KEY = "air_imported_measurements_v1";
 
 function normalizeHeader(value) {
