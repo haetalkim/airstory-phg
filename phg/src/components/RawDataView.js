@@ -619,19 +619,12 @@ const RawDataView = ({
             <>
               <button
                 onClick={handleClearImportedData}
-                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 border border-red-700 rounded-lg transition-all"
+                className="px-4 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-all"
               >
-                DELETE ALL
+                delete ALL
               </button>
             </>
           )}
-          <button
-            onClick={() => setShowHelpModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-          >
-            <Info className="w-4 h-4" />
-            How to Use Raw Data
-          </button>
         <button 
           onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all"
@@ -1203,6 +1196,17 @@ const RawDataView = ({
                 Next
               </button>
             </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setShowHelpModal(true)}
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              <Info className="w-4 h-4" />
+              How to Use Raw Data
+            </button>
+            <div />
           </div>
         </div>
       </div>
