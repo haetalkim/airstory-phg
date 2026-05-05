@@ -22,6 +22,7 @@ import {
   SENSOR_CSV_EXPORT_HEADERS,
   csvEscapeCell,
   formatSensorTimestamp,
+  googleMapsSearchUrl,
 } from '../constants/sensorCsv';
 
 const CSV_UPLOAD_CHUNK_SIZE = 2500;
@@ -996,6 +997,7 @@ const RawDataView = ({
               {paginatedData.map((row, idx) => {
                 const isExpanded = expandedRows[row.id];
                 const detailedData = isExpanded ? generateDetailedData(row) : [];
+                const mapsUrl = googleMapsSearchUrl(row.latitude, row.longitude);
                 return (
                   <React.Fragment key={row.id}>
                     <tr className={`hover:bg-gray-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
@@ -1032,12 +1034,24 @@ const RawDataView = ({
                     <span className="font-medium text-gray-900">{row.group}</span>
                   </td>
                   <td className="px-4 py-3 text-sm max-w-[220px]">
-                    <span className="truncate block" title={String(row.location ?? '')}>{row.location || '—'}</span>
+                    {mapsUrl && String(row.location || '').trim() ? (
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate block text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                        title="Open in Google Maps"
+                      >
+                        {row.location}
+                      </a>
+                    ) : (
+                      <span className="truncate block" title={String(row.location ?? '')}>{row.location || '—'}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm font-mono">
-                    {row.latitude != null && row.longitude != null && Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude)) ? (
+                    {mapsUrl ? (
                       <a
-                        href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                        href={mapsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 hover:underline"
@@ -1050,9 +1064,9 @@ const RawDataView = ({
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm font-mono">
-                    {row.latitude != null && row.longitude != null && Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude)) ? (
+                    {mapsUrl ? (
                       <a
-                        href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                        href={mapsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 hover:underline"
