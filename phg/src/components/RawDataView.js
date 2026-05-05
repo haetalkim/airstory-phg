@@ -814,11 +814,11 @@ const RawDataView = ({
           <table className="w-full">
             <thead className="bg-gray-50 border-b-2 border-gray-200">
               <tr>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-12">
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-10">
                 </th>
                 <th
                   onClick={() => handleSort('capturedAt')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center gap-2">
                     Timestamp
@@ -827,7 +827,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('date')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     Date
@@ -836,7 +836,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('time')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     Time
@@ -845,7 +845,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('sessionId')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     Session ID
@@ -854,7 +854,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('sessionName')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     Session Name
@@ -863,7 +863,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('school')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     School
@@ -872,7 +872,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('instructor')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     Class (Instructor)
@@ -881,7 +881,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('period')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     Period
@@ -890,7 +890,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('group')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     Group
@@ -899,7 +899,7 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('location')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     Location
@@ -908,36 +908,36 @@ const RawDataView = ({
                 </th>
                 <th 
                   onClick={() => handleSort('latitude')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    Latitude
+                    Lat
                     <SortIcon columnKey="latitude" />
                   </div>
                 </th>
                 <th 
                   onClick={() => handleSort('longitude')}
-                  className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    Longitude
+                    Lng
                     <SortIcon columnKey="longitude" />
                   </div>
                 </th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  INDOOR/OUTDOOR
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  IN/OUT
                 </th>
                 <th 
                   onClick={() => {
                     setSelectedMetric('pm25');
                     handleSort('pm25');
                   }}
-                  className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
+                  className={`px-3 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
                     selectedMetric === 'pm25' ? `${theme.bg} text-white hover:opacity-90` : 'text-gray-700'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    PM 2.5
+                    PM2.5
                     <SortIcon columnKey="pm25" />
                   </div>
                 </th>
@@ -946,7 +946,7 @@ const RawDataView = ({
                     setSelectedMetric('co');
                     handleSort('co');
                   }}
-                  className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
+                  className={`px-3 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
                     selectedMetric === 'co' ? `${theme.bg} text-white hover:opacity-90` : 'text-gray-700'
                   }`}
                 >
@@ -960,12 +960,12 @@ const RawDataView = ({
                     setSelectedMetric('temp');
                     handleSort('temp');
                   }}
-                  className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
+                  className={`px-3 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
                     selectedMetric === 'temp' ? `${theme.bg} text-white hover:opacity-90` : 'text-gray-700'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    Temperature (°C)
+                    Temp
                     <SortIcon columnKey="temp" />
                   </div>
                 </th>
@@ -974,16 +974,16 @@ const RawDataView = ({
                     setSelectedMetric('humidity');
                     handleSort('humidity');
                   }}
-                  className={`px-4 py-4 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
+                  className={`px-3 py-3 text-left text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${
                     selectedMetric === 'humidity' ? `${theme.bg} text-white hover:opacity-90` : 'text-gray-700'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    Humidity
+                    Hum
                     <SortIcon columnKey="humidity" />
                   </div>
                 </th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Notes
                 </th>
               </tr>
@@ -1001,39 +1001,39 @@ const RawDataView = ({
                       onClick={() => toggleSessionExpansion(gk)}
                       className="bg-blue-50 hover:bg-blue-100 cursor-pointer border-y border-blue-200"
                     >
-                      <td className="px-4 py-3 align-middle">
+                      <td className="px-3 py-2 align-middle">
                         <ChevronRight
-                          className={`w-4 h-4 text-blue-700 transition-transform inline-block ${sessionExpanded ? 'rotate-90' : ''}`}
+                          className={`w-3.5 h-3.5 text-blue-700 transition-transform inline-block ${sessionExpanded ? 'rotate-90' : ''}`}
                           aria-hidden
                         />
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap font-mono text-xs align-middle">
+                      <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap font-mono text-[11px] align-middle">
                         {formatSensorTimestamp(rep.capturedAt)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 font-medium align-middle">{rep.date}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 align-middle">{rep.time}</td>
-                      <td className="px-4 py-3 text-sm font-mono text-xs text-gray-800 max-w-[180px] truncate align-middle" title={String(rep.sessionId ?? '')}>
+                      <td className="px-3 py-2 text-sm text-gray-900 font-medium align-middle">{rep.date}</td>
+                      <td className="px-3 py-2 text-sm text-gray-600 align-middle">{rep.time}</td>
+                      <td className="px-3 py-2 text-sm font-mono text-[11px] text-gray-800 max-w-[160px] truncate align-middle" title={String(rep.sessionId ?? '')}>
                         {rep.sessionId}
                       </td>
-                      <td className="px-4 py-3 text-sm align-middle">
+                      <td className="px-3 py-2 text-sm align-middle">
                         <span className="font-medium text-gray-900">{rep.sessionName}</span>
                         {n > 1 && (
                           <span className="ml-2 text-xs font-semibold text-blue-700">+{n - 1}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm align-middle">
+                      <td className="px-3 py-2 text-sm align-middle">
                         <span className="font-medium text-gray-900">{rep.school}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm align-middle">
+                      <td className="px-3 py-2 text-sm align-middle">
                         <span className="font-medium text-gray-900">{rep.instructor}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm align-middle">
+                      <td className="px-3 py-2 text-sm align-middle">
                         <span className="font-medium text-gray-900">{rep.period}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm align-middle">
+                      <td className="px-3 py-2 text-sm align-middle">
                         <span className="font-medium text-gray-900">{rep.group}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm max-w-[220px] align-middle">
+                      <td className="px-3 py-2 text-sm max-w-[220px] align-middle">
                         {mapsUrl && String(rep.location || '').trim() ? (
                           <a
                             href={mapsUrl}
@@ -1051,7 +1051,7 @@ const RawDataView = ({
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono align-middle">
+                      <td className="px-3 py-2 text-sm font-mono align-middle">
                         {mapsUrl ? (
                           <a
                             href={mapsUrl}
@@ -1067,7 +1067,7 @@ const RawDataView = ({
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono align-middle">
+                      <td className="px-3 py-2 text-sm font-mono align-middle">
                         {mapsUrl ? (
                           <a
                             href={mapsUrl}
@@ -1083,26 +1083,26 @@ const RawDataView = ({
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm align-middle">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      <td className="px-3 py-2 text-sm align-middle">
+                        <span className={`px-2 py-0.5 text-[11px] font-semibold rounded-full ${
                           rep.indoorOutdoor === 'INDOOR' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
                         }`}>
                           {rep.indoorOutdoor}
                         </span>
                       </td>
-                      <td className={`px-4 py-3 text-sm font-semibold align-middle ${selectedMetric === 'pm25' ? 'bg-blue-100/80' : ''}`}>
+                      <td className={`px-3 py-2 text-sm font-semibold align-middle ${selectedMetric === 'pm25' ? 'bg-blue-100/80' : ''}`}>
                         {rep.pm25}
                       </td>
-                      <td className={`px-4 py-3 text-sm font-semibold align-middle ${selectedMetric === 'co' ? 'bg-purple-100/80' : ''}`}>
+                      <td className={`px-3 py-2 text-sm font-semibold align-middle ${selectedMetric === 'co' ? 'bg-purple-100/80' : ''}`}>
                         {rep.co}
                       </td>
-                      <td className={`px-4 py-3 text-sm font-semibold align-middle ${selectedMetric === 'temp' ? 'bg-orange-100/80' : ''}`}>
+                      <td className={`px-3 py-2 text-sm font-semibold align-middle ${selectedMetric === 'temp' ? 'bg-orange-100/80' : ''}`}>
                         {rep.temp}
                       </td>
-                      <td className={`px-4 py-3 text-sm font-semibold align-middle ${selectedMetric === 'humidity' ? 'bg-cyan-100/80' : ''}`}>
+                      <td className={`px-3 py-2 text-sm font-semibold align-middle ${selectedMetric === 'humidity' ? 'bg-cyan-100/80' : ''}`}>
                         {rep.humidity}
                       </td>
-                      <td className="px-4 py-3 text-sm max-w-xs align-middle text-gray-600">
+                      <td className="px-3 py-2 text-sm max-w-xs align-middle text-gray-600">
                         {rep.sessionNotes ? (
                           <span className="truncate block" title={rep.sessionNotes}>{rep.sessionNotes}</span>
                         ) : (
