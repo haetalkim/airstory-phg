@@ -984,7 +984,6 @@ const RawDataView = ({
                 const gk = session.groupKey;
                 const sessionExpanded = selectedSessionGroupKey === gk;
                 const rep = session.rows[0];
-                const n = session.totalReadings;
                 const mapsUrl = googleMapsSearchUrl(rep.latitude, rep.longitude);
                 const inlineDetails = sessionExpanded
                   ? buildMergedSessionDetails(session.rows || [])
@@ -1011,9 +1010,6 @@ const RawDataView = ({
                       </td>
                       <td className="px-3 py-2 text-sm align-middle">
                         <span className="font-medium text-gray-900">{rep.sessionName}</span>
-                        {n > 1 && (
-                          <span className="ml-2 text-xs font-semibold text-blue-700">+{n - 1}</span>
-                        )}
                       </td>
                       <td className="px-3 py-2 text-sm align-middle">
                         <span className="font-medium text-gray-900">{rep.school}</span>
@@ -1109,10 +1105,29 @@ const RawDataView = ({
                       <tr className="bg-gray-50">
                         <td colSpan={19} className="px-3 py-3">
                           <div className="border border-gray-200 rounded-2xl p-4 bg-white">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-gray-900 truncate">
-                                  Detailed Second-by-Second Data
+                            <div className="flex items-start gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="text-sm font-semibold text-gray-900 truncate">
+                                    Detailed Second-by-Second Data
+                                  </div>
+                                  {canDeleteSessions && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteSession(
+                                          rep.sessionId,
+                                          `${rep.sessionName || 'Session'} • ${rep.date || ''} ${rep.time || ''} • ${rep.period || ''} ${rep.group || ''}`
+                                        );
+                                      }}
+                                      className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"
+                                      title="Delete this session"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                      Delete
+                                    </button>
+                                  )}
                                 </div>
                                 <div className="text-xs text-gray-600 mt-0.5 truncate">
                                   {rep?.sessionName || "Session"} • {rep?.date || ""} {rep?.time || ""}
@@ -1120,23 +1135,6 @@ const RawDataView = ({
                                   {inlineDetails.length} readings
                                 </div>
                               </div>
-                              {canDeleteSessions && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteSession(
-                                      rep.sessionId,
-                                      `${rep.sessionName || 'Session'} • ${rep.date || ''} ${rep.time || ''} • ${rep.period || ''} ${rep.group || ''}`
-                                    );
-                                  }}
-                                  className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"
-                                  title="Delete this session"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Delete
-                                </button>
-                              )}
                             </div>
 
                             <div className="mt-3 overflow-x-auto max-h-56 overflow-y-auto bg-white rounded-xl border border-gray-200">
