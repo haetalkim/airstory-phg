@@ -967,6 +967,29 @@ const AnalysisView = ({
     isCo,
   ]);
 
+  const groupClassCitySeries = useMemo(() => {
+    const groups = multiGroupWeekChart.groups || [];
+    const raw = multiGroupWeekChart.chartData || [];
+    const groupKey = filters.group ? normalizeGroupToken(filters.group) : "";
+    if (!raw.length) return { groupKey, rows: [] };
+
+    const rows = raw.map((pt) => {
+      const values = groups
+        .map((g) => Number(pt?.[g]))
+        .filter((v) => Number.isFinite(v));
+      const classAvg = values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
+      const groupVal = groupKey ? pt?.[groupKey] ?? null : null;
+      const cityVal = pt?.reference ?? null;
+      return {
+        label: pt?.label ?? "",
+        group: groupVal == null ? null : Number(groupVal),
+        classAvg: classAvg == null ? null : Number(classAvg),
+        city: cityVal == null ? null : Number(cityVal),
+      };
+    });
+    return { groupKey, rows };
+  }, [filters.group, multiGroupWeekChart.chartData, multiGroupWeekChart.groups]);
+
   const pointSeries = useMemo(() => {
     if (!scopedData.length) return [];
     const points = scopedData
@@ -1579,58 +1602,103 @@ const AnalysisView = ({
 
           {/* Replace duplicate week chart with a focused class vs city comparison. */}
           <div className="rounded-2xl p-6 shadow-lg border-2 border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-teal-50/20">
-            <h3 className="text-xl font-bold text-gray-900 tracking-tight">Class vs city comparison</h3>
-            <p className="text-sm text-gray-600 mt-1 max-w-2xl leading-relaxed">
-              Quick context for your group: compare the <strong>class average</strong> (same period) to the <strong>city reference</strong>.
-            </p>
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl p-5 border border-purple-200 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-bold text-gray-900">Class average</h4>
-                  <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm font-semibold rounded-full">Same period</span>
-                </div>
-                <div className="mt-3">
-                  <div className="text-4xl font-bold text-purple-700">
-                    {classAverage == null ? '—' : fmt(classAverage)}
-                  </div>
-                  <div className="text-sm text-gray-600 mt-1">{metricThemes[selectedMetric].unit}</div>
-                </div>
-                <div className="mt-3 text-sm text-gray-700">
-                  vs your group:{" "}
-                  <span className="font-semibold">
-                    {classAverage == null
-                      ? '—'
-                      : avgValue <= classAverage
-                        ? `${fmt(Math.abs(avgValue - classAverage))} lower`
-                        : `${fmt(Math.abs(avgValue - classAverage))} higher`}
-                  </span>
-                </div>
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Group vs class vs city (chart)</h3>
+                <p className="text-sm text-gray-600 mt-1 max-w-2xl leading-relaxed">
+                  Lines show your <strong>group</strong>, the <strong>class average</strong> (same period), and the dashed <strong>city reference</strong>.
+                </p>
               </div>
-
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-bold text-gray-900">City reference</h4>
-                  <span className="px-3 py-1 bg-slate-100 text-slate-700 text-sm font-semibold rounded-full">OpenAQ / simulated</span>
-                </div>
-                <div className="mt-3">
-                  <div className="text-4xl font-bold text-slate-700">
-                    {cityAverage == null ? '—' : fmt(cityAverage)}
-                  </div>
-                  <div className="text-sm text-gray-600 mt-1">{metricThemes[selectedMetric].unit}</div>
-                </div>
-                <div className="mt-3 text-sm text-gray-700">
-                  vs class:{" "}
-                  <span className="font-semibold">
-                    {cityAverage == null || classAverage == null
-                      ? '—'
-                      : classAverage <= cityAverage
-                        ? `${fmt(Math.abs(classAverage - cityAverage))} higher`
-                        : `${fmt(Math.abs(classAverage - cityAverage))} lower`}
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <MapPin className="w-4 h-4 text-gray-500" />
+                <select
+                  value={referenceLocation}
+                  onChange={(e) => setReferenceLocation(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm max-w-[220px]"
+                >
+                  {REFERENCE_LOCATIONS.map((loc) => (
+                    <option key={loc.name} value={loc.name}>
+                      {loc.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+
+            {groupClassCitySeries.rows.length >= 2 ? (
+              <div className="rounded-xl bg-white/95 border border-gray-100 p-2 sm:p-3">
+                <ResponsiveContainer width="100%" height={340}>
+                  <LineChart data={groupClassCitySeries.rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      stroke="#9CA3AF"
+                      style={{ fontSize: '11px' }}
+                      tickLine={false}
+                      axisLine={false}
+                      minTickGap={28}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      stroke="#9CA3AF"
+                      style={{ fontSize: '12px' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => chartYTickFmt(v)}
+                      label={{
+                        value: metricThemes[selectedMetric].unit,
+                        angle: -90,
+                        position: 'insideLeft',
+                        style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '11px' },
+                      }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                        padding: '12px',
+                      }}
+                      formatter={(value, name) => [value == null ? '—' : fmt(value), name]}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: 8 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="group"
+                      name={groupClassCitySeries.groupKey ? `${groupClassCitySeries.groupKey} (group)` : "Group"}
+                      stroke={theme.primary}
+                      strokeWidth={3}
+                      dot={false}
+                      connectNulls={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="classAvg"
+                      name="Class avg"
+                      stroke="#7c3aed"
+                      strokeWidth={2.5}
+                      dot={false}
+                      connectNulls={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="city"
+                      name="City ref"
+                      stroke="#64748b"
+                      strokeWidth={2.5}
+                      strokeDasharray="6 4"
+                      dot={false}
+                      connectNulls
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 py-10 text-center">
+                Not enough timestamped measurements yet to draw a comparison chart.
+              </p>
+            )}
           </div>
 
           {/* Insights */}
