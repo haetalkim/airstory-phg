@@ -1298,8 +1298,10 @@ const AnalysisView = ({
           </div>
           {seriesMode === 'points' ? (
             pointSeries.length >= 2 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={pointSeries}>
+              <div className="h-56 sm:h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={pointSeries} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                   <XAxis dataKey="label" stroke="#9CA3AF" style={{ fontSize: '12px' }} tickLine={false} axisLine={false} minTickGap={24} />
                   <YAxis
                     stroke="#9CA3AF"
@@ -1307,6 +1309,20 @@ const AnalysisView = ({
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={chartYTickFmt}
+                    domain={[
+                      (dataMin) => {
+                        const n = Number(dataMin);
+                        if (!Number.isFinite(n)) return dataMin;
+                        const pad = Math.max(1, Math.round(Math.abs(n) * 0.05));
+                        return n - pad;
+                      },
+                      (dataMax) => {
+                        const n = Number(dataMax);
+                        if (!Number.isFinite(n)) return dataMax;
+                        const pad = Math.max(1, Math.round(Math.abs(n) * 0.05));
+                        return n + pad;
+                      },
+                    ]}
                     label={{
                       value: metricThemes[selectedMetric].unit,
                       angle: -90,
@@ -1325,15 +1341,25 @@ const AnalysisView = ({
                     formatter={(value) => fmt(value)}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="value" name="Session points" stroke={theme.primary} strokeWidth={2} dot={{ r: 2 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name={`${metricThemes[selectedMetric].label} readings`}
+                    stroke={theme.primary}
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
+              </div>
             ) : (
               <p className="text-sm text-gray-500 py-8 text-center">Not enough points yet for a session chart.</p>
             )
           ) : monthData.length >= 2 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthData}>
+            <div className="h-56 sm:h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                 <XAxis
                   dataKey="date"
                   stroke="#9CA3AF"
@@ -1348,6 +1374,20 @@ const AnalysisView = ({
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={chartYTickFmt}
+                  domain={[
+                    (dataMin) => {
+                      const n = Number(dataMin);
+                      if (!Number.isFinite(n)) return dataMin;
+                      const pad = Math.max(1, Math.round(Math.abs(n) * 0.05));
+                      return n - pad;
+                    },
+                    (dataMax) => {
+                      const n = Number(dataMax);
+                      if (!Number.isFinite(n)) return dataMax;
+                      const pad = Math.max(1, Math.round(Math.abs(n) * 0.05));
+                      return n + pad;
+                    },
+                  ]}
                   label={{
                     value: metricThemes[selectedMetric].unit,
                     angle: -90,
@@ -1368,13 +1408,14 @@ const AnalysisView = ({
                 <Line
                   type="monotone"
                   dataKey="value"
-                  name="Your data"
+                  name={`${metricThemes[selectedMetric].label} daily avg`}
                   stroke={theme.primary}
                   strokeWidth={2}
                   dot={{ fill: theme.primary, r: 3 }}
                 />
               </LineChart>
             </ResponsiveContainer>
+            </div>
           ) : (
             <p className="text-sm text-gray-500 py-12 text-center">
               Add more days of data (or relax filters) to see a time series.
