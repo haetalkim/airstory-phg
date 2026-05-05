@@ -621,7 +621,7 @@ const RawDataView = ({
                 onClick={handleClearImportedData}
                 className="px-4 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-all"
               >
-                delete ALL
+                Delete ALL
               </button>
             </>
           )}
