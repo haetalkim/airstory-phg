@@ -1577,81 +1577,59 @@ const AnalysisView = ({
             </div>
           </div>
 
-          {/* All groups week comparison — same session chart as Overview */}
-          <div className="rounded-2xl p-6 shadow-lg border-2 border-slate-200/80 bg-gradient-to-br from-violet-50/40 via-white to-teal-50/40">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-3">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Your recent week comparison</h3>
-                <p className="text-xs text-gray-600 mt-1 max-w-2xl leading-relaxed">
-                  Default view: <strong>every group at once</strong> on a shared timeline (session-style points), plus each
-                  team&apos;s <strong>average</strong> chips and the dashed <strong>city reference</strong> line (OpenAQ when
-                  available, else simulated — not your classroom readings).
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <MapPin className="w-4 h-4 text-gray-500" />
-                <select
-                  value={referenceLocation}
-                  onChange={(e) => setReferenceLocation(e.target.value)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm max-w-[220px]"
-                >
-                  {REFERENCE_LOCATIONS.map((loc) => (
-                    <option key={loc.name} value={loc.name}>
-                      {loc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {multiGroupWeekChart.groups.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {multiGroupWeekChart.groups.map((g, idx) => {
-                  const avg = multiGroupWeekChart.groupAverages[g];
-                  const isYou = filters.group && normalizeGroupToken(filters.group) === g;
-                  const color = COMPARISON_PALETTE[idx % COMPARISON_PALETTE.length];
-                  return (
-                    <div
-                      key={g}
-                      className={`inline-flex items-baseline gap-2 rounded-xl px-3 py-2 text-xs font-semibold border shadow-sm ${
-                        isYou ? 'border-2' : 'border'
-                      }`}
-                      style={{
-                        borderColor: color,
-                        background: isYou ? `${color}18` : 'white',
-                      }}
-                    >
-                      <span className="uppercase tracking-wide text-gray-500">{g}</span>
-                      <span style={{ color }}>{avg == null ? '—' : fmt(avg)}</span>
-                      <span className="text-gray-400 font-medium">{metricThemes[selectedMetric].unit}</span>
-                    </div>
-                  );
-                })}
-                {cityAverage != null && (
-                  <div className="inline-flex items-baseline gap-2 rounded-xl px-3 py-2 text-xs font-semibold border border-slate-300 bg-slate-50 text-slate-700 shadow-sm">
-                    <span className="uppercase tracking-wide text-slate-500">City ref</span>
-                    <span>{fmt(cityAverage)}</span>
-                    <span className="text-gray-400 font-medium">{metricThemes[selectedMetric].unit}</span>
+          {/* Replace duplicate week chart with a focused class vs city comparison. */}
+          <div className="rounded-2xl p-6 shadow-lg border-2 border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-teal-50/20">
+            <h3 className="text-xl font-bold text-gray-900 tracking-tight">Class vs city comparison</h3>
+            <p className="text-sm text-gray-600 mt-1 max-w-2xl leading-relaxed">
+              Quick context for your group: compare the <strong>class average</strong> (same period) to the <strong>city reference</strong>.
+            </p>
+
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-2xl p-5 border border-purple-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-bold text-gray-900">Class average</h4>
+                  <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm font-semibold rounded-full">Same period</span>
+                </div>
+                <div className="mt-3">
+                  <div className="text-4xl font-bold text-purple-700">
+                    {classAverage == null ? '—' : fmt(classAverage)}
                   </div>
-                )}
+                  <div className="text-sm text-gray-600 mt-1">{metricThemes[selectedMetric].unit}</div>
+                </div>
+                <div className="mt-3 text-sm text-gray-700">
+                  vs your group:{" "}
+                  <span className="font-semibold">
+                    {classAverage == null
+                      ? '—'
+                      : avgValue <= classAverage
+                        ? `${fmt(Math.abs(avgValue - classAverage))} lower`
+                        : `${fmt(Math.abs(avgValue - classAverage))} higher`}
+                  </span>
+                </div>
               </div>
-            )}
-            <div className="rounded-xl bg-white/95 border border-gray-100 p-2 sm:p-3">
-              {multiGroupWeekChart.hasAnyLine ? (
-                <MultiGroupSessionCompareChart
-                  chartData={multiGroupWeekChart.chartData}
-                  groups={multiGroupWeekChart.groups}
-                  theme={theme}
-                  metricUnit={metricThemes[selectedMetric].unit}
-                  accentGroup={filters.group}
-                  fmt={fmt}
-                  isCo={isCo}
-                  height={360}
-                />
-              ) : (
-                <p className="text-sm text-gray-500 py-12 text-center">
-                  Add timestamped measurements for more than one group this week to see a full comparison chart.
-                </p>
-              )}
+
+              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-bold text-gray-900">City reference</h4>
+                  <span className="px-3 py-1 bg-slate-100 text-slate-700 text-sm font-semibold rounded-full">OpenAQ / simulated</span>
+                </div>
+                <div className="mt-3">
+                  <div className="text-4xl font-bold text-slate-700">
+                    {cityAverage == null ? '—' : fmt(cityAverage)}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">{metricThemes[selectedMetric].unit}</div>
+                </div>
+                <div className="mt-3 text-sm text-gray-700">
+                  vs class:{" "}
+                  <span className="font-semibold">
+                    {cityAverage == null || classAverage == null
+                      ? '—'
+                      : classAverage <= cityAverage
+                        ? `${fmt(Math.abs(classAverage - cityAverage))} higher`
+                        : `${fmt(Math.abs(classAverage - cityAverage))} lower`}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
