@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -1426,45 +1424,6 @@ const AnalysisView = ({
         </div>
       </div>
 
-      {/* Distribution Analysis */}
-      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">Value Distribution</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={[
-            { range: '0-10', count: allValues.filter(v => v >= 0 && v <= 10).length },
-            { range: '11-15', count: allValues.filter(v => v > 10 && v <= 15).length },
-            { range: '16-20', count: allValues.filter(v => v > 15 && v <= 20).length },
-            { range: '21-25', count: allValues.filter(v => v > 20 && v <= 25).length },
-            { range: '26+', count: allValues.filter(v => v > 25).length }
-          ]}>
-            <XAxis 
-              dataKey="range" 
-              stroke="#9CA3AF" 
-              style={{ fontSize: '13px' }} 
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis 
-              stroke="#9CA3AF" 
-              style={{ fontSize: '13px' }} 
-              tickLine={false}
-              axisLine={false}
-              label={{ value: metricThemes[selectedMetric].unit, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' } }}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                background: 'white', 
-                border: 'none', 
-                borderRadius: '12px', 
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                padding: '12px'
-              }} 
-            />
-            <Bar dataKey="count" fill={theme.primary} radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
       {/* Summary Insights */}
       <div 
         className="rounded-2xl p-8 shadow-lg border-2"
@@ -1740,22 +1699,7 @@ const AnalysisView = ({
             </div>
           </div>
 
-          {/* CTA for Full Comparison */}
-          <div className={`bg-gradient-to-r ${theme.bg} ${theme.hover} rounded-2xl p-6 text-white shadow-lg`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold mb-2">Want to explore more comparisons?</h3>
-                <p className="text-sm opacity-90">Compare with other schools, locations, and time periods</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCompareModal(true)}
-                className="px-6 py-3 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 transition-all shadow-md"
-              >
-                Reference locations tool
-              </button>
-            </div>
-          </div>
+          {/* Reference tool CTA removed (not needed for PHG flow). */}
         </div>
       )}
 
