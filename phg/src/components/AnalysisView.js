@@ -1,18 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  Legend,
-  CartesianGrid,
-} from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, X, MapPin } from 'lucide-react';
 import {
   getImportedMeasurements,
@@ -24,7 +11,7 @@ import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import { groupsForPeriodFromStructure, periodsFromClassStructure } from '../utils/classStructure';
 import { REFERENCE_LOCATIONS, getReferenceWeekSeries } from '../utils/referenceTrends';
 import { apiRequest } from '../api/http';
-import { groupsMatch, normalizeGroupToken, periodsMatch, schoolsMatch } from '../utils/hierarchyTokens';
+import { groupsMatch, periodsMatch, schoolsMatch } from '../utils/hierarchyTokens';
 
 /** Metrics we try to load from OpenAQ near the reference pin (when a sensor exists). */
 const OPENAQ_REFERENCE_METRICS = ['pm25', 'co', 'temp', 'humidity'];
@@ -415,102 +402,6 @@ const ComparisonModal = ({
   );
 };
 
-/** Shared “all groups + reference” session-style week chart for Overview and Quick Compare. */
-function MultiGroupSessionCompareChart({
-  chartData,
-  groups,
-  theme,
-  metricUnit,
-  accentGroup,
-  fmt,
-  isCo,
-  height = 320,
-}) {
-  const yTickFmt = (v) => {
-    const n = Number(v);
-    if (!Number.isFinite(n)) return '';
-    return isCo ? n.toFixed(2) : String(Math.round(n));
-  };
-
-  if (!chartData.length || !groups.length) {
-    return (
-      <p className="text-sm text-gray-500 py-10 text-center">
-        Not enough timed measurements across groups for this week window yet.
-      </p>
-    );
-  }
-
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-        {height >= 300 && (
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-        )}
-        <XAxis
-          dataKey="label"
-          stroke="#9CA3AF"
-          style={{ fontSize: '11px' }}
-          tickLine={false}
-          axisLine={false}
-          minTickGap={28}
-          interval="preserveStartEnd"
-        />
-        <YAxis
-          stroke="#9CA3AF"
-          style={{ fontSize: '12px' }}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={yTickFmt}
-          label={{
-            value: metricUnit,
-            angle: -90,
-            position: 'insideLeft',
-            style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '11px' },
-          }}
-        />
-        <Tooltip
-          contentStyle={{
-            background: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            padding: '12px',
-          }}
-          formatter={(value, name) => [value == null ? '—' : fmt(value), name]}
-        />
-        <Legend wrapperStyle={{ paddingTop: 8 }} />
-        {groups.map((g, idx) => {
-          const isAccent = accentGroup && normalizeGroupToken(accentGroup) === g;
-          const color = COMPARISON_PALETTE[idx % COMPARISON_PALETTE.length];
-          return (
-            <Line
-              key={g}
-              type="monotone"
-              dataKey={g}
-              name={`${g} (session)`}
-              stroke={color}
-              strokeWidth={isAccent ? 3.5 : 2}
-              dot={false}
-              connectNulls={false}
-              opacity={isAccent ? 1 : 0.88}
-            />
-          );
-        })}
-        <Line
-          type="monotone"
-          dataKey="reference"
-          name="City reference (OpenAQ / simulated)"
-          stroke="#64748b"
-          strokeWidth={2.5}
-          strokeDasharray="6 4"
-          dot={false}
-          connectNulls
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-}
-
 const TrendModal = ({ isOpen, onClose, selectedMetric, theme, metricThemes, dailyData }) => {
   if (!isOpen) return null;
 
@@ -628,8 +519,10 @@ const AnalysisView = ({
   const [showTrendModal, setShowTrendModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'compare'
+  const [compareMode, setCompareMode] = useState('group'); // group | class | city
+  const [compareGroup, setCompareGroup] = useState('');
   const [referenceLocation, setReferenceLocation] = useState(REFERENCE_LOCATIONS[0]?.name || 'Center City');
-  const [seriesMode, setSeriesMode] = useState('points'); // daily | points — default session points
+  const [seriesMode, setSeriesMode] = useState('daily'); // daily | points
   const [openaqPoints, setOpenaqPoints] = useState(null);
   const [openaqMeta, setOpenaqMeta] = useState({ status: 'idle', message: '' });
 
@@ -799,173 +692,11 @@ const AnalysisView = ({
       }
       return {
         label: row.day,
-        date: row.date,
         yours: row.value,
         reference,
       };
     });
   }, [weekData, referenceLocation, selectedMetric, openaqByDate]);
-
-  const rowTimestampMs = (row) => {
-    if (row.capturedAt) return new Date(row.capturedAt).getTime();
-    return new Date(`${row.date || '1970-01-01'}T${row.time || '00:00'}`).getTime();
-  };
-
-  /** Overview + Quick Compare: all groups on one timeline vs reference (time-aligned session comparison). */
-  const multiGroupWeekChart = useMemo(() => {
-    const pool = classScopeData;
-    if (!pool.length) {
-      return { chartData: [], groups: [], groupAverages: {}, hasAnyLine: false };
-    }
-
-    const times = pool.map(rowTimestampMs).filter((t) => Number.isFinite(t));
-    if (!times.length) {
-      return { chartData: [], groups: [], groupAverages: {}, hasAnyLine: false };
-    }
-
-    let minTs = Math.min(...times);
-    let maxTs = Math.max(...times);
-    if (weekData.length) {
-      const d0 = new Date(`${weekData[0].date}T00:00:00`).getTime();
-      const d1 = new Date(`${weekData[weekData.length - 1].date}T23:59:59`).getTime();
-      const clampedMin = Math.max(minTs, d0);
-      const clampedMax = Math.min(maxTs, d1);
-      if (clampedMin <= clampedMax) {
-        minTs = clampedMin;
-        maxTs = clampedMax;
-      }
-    }
-
-    const period = filters.period || periodsFromClassStructure(classStructure)[0];
-    let groups = groupsForPeriodFromStructure(classStructure, period);
-    if (!groups.length) groups = ['G1', 'G2', 'G3', 'G4'];
-    const fromData = [...new Set(pool.map((r) => normalizeGroupToken(r.group)).filter(Boolean))];
-    groups = [...new Set([...groups, ...fromData])].sort((a, b) => {
-      const na = Number(String(a).replace(/\D/g, '')) || 0;
-      const nb = Number(String(b).replace(/\D/g, '')) || 0;
-      return na - nb;
-    });
-
-    const byGroup = new Map();
-    for (const g of groups) byGroup.set(g, []);
-    for (const row of pool) {
-      const g = normalizeGroupToken(row.group);
-      if (!g || !groups.includes(g)) continue;
-      const ts = rowTimestampMs(row);
-      if (ts < minTs || ts > maxTs) continue;
-      const value = Number(row[selectedMetric] ?? 0);
-      if (!Number.isFinite(value)) continue;
-      byGroup.get(g).push({ ts, value });
-    }
-    for (const g of groups) {
-      byGroup.get(g).sort((a, b) => a.ts - b.ts);
-    }
-
-    const groupAverages = {};
-    for (const g of groups) {
-      const pts = byGroup.get(g);
-      if (!pts.length) {
-        groupAverages[g] = null;
-        continue;
-      }
-      const raw = pts.reduce((s, p) => s + p.value, 0) / pts.length;
-      groupAverages[g] = isCo ? Number(raw.toFixed(CO_DECIMALS)) : Math.round(raw);
-    }
-
-    const span = maxTs - minTs;
-    const STEPS = span <= 0 ? 1 : Math.min(180, Math.max(48, Math.ceil(span / (45 * 60 * 1000))));
-    const WINDOW_MS = 50 * 60 * 1000;
-
-    const nearestInSorted = (pts, t) => {
-      if (!pts.length) return null;
-      let lo = 0;
-      let hi = pts.length - 1;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (pts[mid].ts < t) lo = mid + 1;
-        else hi = mid;
-      }
-      let best = lo;
-      let bestD = Math.abs(pts[lo].ts - t);
-      if (lo > 0) {
-        const d = Math.abs(pts[lo - 1].ts - t);
-        if (d < bestD) {
-          best = lo - 1;
-          bestD = d;
-        }
-      }
-      if (lo < pts.length - 1) {
-        const d = Math.abs(pts[lo + 1].ts - t);
-        if (d < bestD) best = lo + 1;
-      }
-      if (Math.abs(pts[best].ts - t) > WINDOW_MS) return null;
-      return pts[best].value;
-    };
-
-    const simRef = getReferenceWeekSeries(referenceLocation, selectedMetric);
-    const refForLocalYmd = (ymd) => {
-      if (
-        OPENAQ_REFERENCE_METRICS.includes(selectedMetric) &&
-        openaqByDate &&
-        openaqByDate[ymd] != null
-      ) {
-        return openaqByDate[ymd];
-      }
-      if (weekData.length) {
-        let bestI = 0;
-        let bestAbs = Infinity;
-        weekData.forEach((w, wi) => {
-          const diff = Math.abs(new Date(`${w.date}T12:00:00`).getTime() - new Date(`${ymd}T12:00:00`).getTime());
-          if (diff < bestAbs) {
-            bestAbs = diff;
-            bestI = wi;
-          }
-        });
-        return simRef[bestI % simRef.length]?.value ?? simRef[simRef.length - 1]?.value;
-      }
-      return simRef[0]?.value ?? 0;
-    };
-
-    const chartData = [];
-    for (let i = 0; i < STEPS; i++) {
-      const t = STEPS <= 1 ? minTs : minTs + (span * i) / (STEPS - 1);
-      const d = new Date(t);
-      const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const row = {
-        label: d.toLocaleString('en-US', {
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        ts: t,
-        reference: refForLocalYmd(ymd),
-      };
-      let any = false;
-      for (const g of groups) {
-        const v = nearestInSorted(byGroup.get(g), t);
-        row[g] = v;
-        if (v != null) any = true;
-      }
-      if (row.reference != null) any = true;
-      if (any) chartData.push(row);
-    }
-
-    const hasAnyLine =
-      chartData.some((r) => groups.some((g) => r[g] != null)) ||
-      chartData.some((r) => r.reference != null);
-
-    return { chartData, groups, groupAverages, hasAnyLine };
-  }, [
-    classScopeData,
-    weekData,
-    selectedMetric,
-    referenceLocation,
-    openaqByDate,
-    filters.period,
-    classStructure,
-    isCo,
-  ]);
 
   const pointSeries = useMemo(() => {
     if (!scopedData.length) return [];
@@ -1028,6 +759,14 @@ const AnalysisView = ({
     return isCo ? Number(rawAvg.toFixed(CO_DECIMALS)) : Math.round(rawAvg);
   }, [weekCompareData, isCo]);
 
+  const availableCompareGroups = useMemo(() => {
+    const fromData = [...new Set(classScopeData.map((r) => r.group).filter(Boolean))];
+    const period = filters.period || periodsFromClassStructure(classStructure)[0];
+    const fromWorkspace = groupsForPeriodFromStructure(classStructure, period);
+    const merged = [...new Set([...fromWorkspace, ...fromData])].sort();
+    return merged.filter((g) => g !== filters.group);
+  }, [classScopeData, filters.group, filters.period, classStructure]);
+
   const workspaceGroupsForCompare = useMemo(() => {
     const p = filters.period || periodsFromClassStructure(classStructure)[0];
     const g = groupsForPeriodFromStructure(classStructure, p);
@@ -1041,6 +780,56 @@ const AnalysisView = ({
     return merged.sort();
   }, [imported, filters.school]);
 
+  useEffect(() => {
+    if (!availableCompareGroups.length) {
+      setCompareGroup('');
+      return;
+    }
+    if (!compareGroup || !availableCompareGroups.includes(compareGroup)) {
+      setCompareGroup(availableCompareGroups[0]);
+    }
+  }, [availableCompareGroups, compareGroup]);
+
+  const compareChartData = useMemo(() => {
+    if (!weekData.length) return [];
+    const makeDailySeries = (rows) => {
+      const byDate = {};
+      rows.forEach((row) => {
+        const key = row.date;
+        const value = Number(row[selectedMetric] ?? 0);
+        if (!byDate[key]) byDate[key] = { sum: 0, count: 0 };
+        byDate[key].sum += value;
+        byDate[key].count += 1;
+      });
+      return Object.entries(byDate)
+        .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+        .map(([date, agg]) => ({ date, value: Number((agg.sum / agg.count).toFixed(2)) }));
+    };
+
+    if (compareMode === 'city') {
+      return weekCompareData.map((d) => ({ day: d.label, yours: d.yours, comparison: d.reference }));
+    }
+
+    const dayKeys = weekData.map((d) => d.date);
+    let comparisonSeries = [];
+    if (compareMode === 'group' && compareGroup) {
+      comparisonSeries = makeDailySeries(
+        classScopeData.filter((r) => groupsMatch(compareGroup, r.group))
+      );
+    } else if (compareMode === 'class') {
+      comparisonSeries = makeDailySeries(classScopeData);
+    }
+    const comparisonByDate = Object.fromEntries(comparisonSeries.map((d) => [d.date, d.value]));
+
+    return weekData
+      .filter((d) => dayKeys.includes(d.date))
+      .map((d) => ({
+        day: d.day,
+        yours: d.value,
+        comparison: comparisonByDate[d.date] ?? null,
+      }));
+  }, [weekData, weekCompareData, compareMode, compareGroup, classScopeData, selectedMetric]);
+
   const avgValue = stats?.avgValue ?? 0;
   const minValue = stats?.minValue ?? 0;
   const maxValue = stats?.maxValue ?? 0;
@@ -1052,12 +841,6 @@ const AnalysisView = ({
     const n = Number(v);
     if (!Number.isFinite(n)) return '—';
     return isCo ? n.toFixed(CO_DECIMALS) : Math.round(n);
-  };
-
-  const chartYTickFmt = (v) => {
-    const n = Number(v);
-    if (!Number.isFinite(n)) return '';
-    return isCo ? n.toFixed(2) : String(Math.round(n));
   };
 
   return (
@@ -1189,14 +972,14 @@ const AnalysisView = ({
 
       {/* Charts Grid — your recent week vs reference; your full series */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl p-6 shadow-lg border-2 border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-teal-50/50 ring-1 ring-black/5">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
+        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 tracking-tight">All groups · this week vs city reference</h2>
-              <p className="text-xs text-gray-600 mt-1.5 max-w-xl leading-relaxed">
-                Colored lines = each team&apos;s <strong>session measurements</strong> (time-aligned). Thicker line = your
-                current group filter. Gray dashed = <strong>Philadelphia reference</strong> (OpenAQ daily when available, else
-                simulated) — not classroom data.
+              <h2 className="text-lg font-semibold text-gray-900">Your recent week vs reference location</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                <strong>Your data</strong> = filtered measurements. For <strong>PM2.5, CO, temperature, and humidity</strong>,
+                the gray line uses <strong>OpenAQ</strong> daily averages near the pin when a matching sensor exists (API key
+                on server). If OpenAQ has no sensor for that metric/area, you see a <strong>simulated</strong> regional curve.
               </p>
               {OPENAQ_REFERENCE_METRICS.includes(selectedMetric) && openaqMeta.status === 'loading' && (
                 <p className="text-xs text-blue-600 mt-1">Loading OpenAQ reference…</p>
@@ -1213,7 +996,7 @@ const AnalysisView = ({
               <select
                 value={referenceLocation}
                 onChange={(e) => setReferenceLocation(e.target.value)}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white max-w-[220px] shadow-sm"
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white max-w-[220px]"
               >
                 {REFERENCE_LOCATIONS.map((loc) => (
                   <option key={loc.name} value={loc.name}>
@@ -1223,60 +1006,53 @@ const AnalysisView = ({
               </select>
             </div>
           </div>
-          {multiGroupWeekChart.groups.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {multiGroupWeekChart.groups.map((g, idx) => {
-                const avg = multiGroupWeekChart.groupAverages[g];
-                const isYou = filters.group && normalizeGroupToken(filters.group) === g;
-                const color = COMPARISON_PALETTE[idx % COMPARISON_PALETTE.length];
-                return (
-                  <div
-                    key={g}
-                    className={`inline-flex items-baseline gap-2 rounded-xl px-3 py-2 text-xs font-semibold border shadow-sm ${
-                      isYou ? 'border-2' : 'border'
-                    }`}
-                    style={{
-                      borderColor: color,
-                      background: isYou ? `${color}18` : 'white',
-                    }}
-                  >
-                    <span className="uppercase tracking-wide text-gray-500">{g}</span>
-                    <span style={{ color }}>{avg == null ? '—' : fmt(avg)}</span>
-                    <span className="text-gray-400 font-medium">{metricThemes[selectedMetric].unit}</span>
-                    <span className="text-[10px] text-gray-400 font-normal">avg</span>
-                  </div>
-                );
-              })}
-              {cityAverage != null && (
-                <div className="inline-flex items-baseline gap-2 rounded-xl px-3 py-2 text-xs font-semibold border border-slate-300 bg-slate-50 text-slate-700 shadow-sm">
-                  <span className="uppercase tracking-wide text-slate-500">City ref</span>
-                  <span>{fmt(cityAverage)}</span>
-                  <span className="text-gray-400 font-medium">{metricThemes[selectedMetric].unit}</span>
-                </div>
-              )}
-            </div>
+          {weekCompareData.length ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={weekCompareData}>
+                <XAxis dataKey="label" stroke="#9CA3AF" style={{ fontSize: '13px' }} tickLine={false} axisLine={false} />
+                <YAxis
+                  stroke="#9CA3AF"
+                  style={{ fontSize: '13px' }}
+                  tickLine={false}
+                  axisLine={false}
+                  label={{
+                    value: metricThemes[selectedMetric].unit,
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' },
+                  }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    padding: '12px',
+                  }}
+                />
+                <Legend />
+                <Line type="monotone" dataKey="yours" name="Your data" stroke={theme.primary} strokeWidth={3} dot={{ r: 4 }} />
+                <Line
+                  type="monotone"
+                  dataKey="reference"
+                  name={
+                    OPENAQ_REFERENCE_METRICS.includes(selectedMetric) &&
+                    openaqMeta.status === 'ok' &&
+                    openaqPoints?.length
+                      ? 'Reference (OpenAQ)'
+                      : 'Reference (simulated)'
+                  }
+                  stroke="#94a3b8"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={{ r: 3 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-sm text-gray-500 py-8 text-center">Not enough dated points in this filter for a week chart.</p>
           )}
-          <div className="rounded-xl bg-white/90 border border-gray-100 p-2 sm:p-3">
-            {multiGroupWeekChart.hasAnyLine ? (
-              <MultiGroupSessionCompareChart
-                chartData={multiGroupWeekChart.chartData}
-                groups={multiGroupWeekChart.groups}
-                theme={theme}
-                metricUnit={metricThemes[selectedMetric].unit}
-                accentGroup={filters.group}
-                fmt={fmt}
-                isCo={isCo}
-                height={340}
-              />
-            ) : weekCompareData.length ? (
-              <p className="text-sm text-gray-500 py-8 text-center">
-                Week window is set, but there aren&apos;t enough timestamped points per group yet. Import CSV with time, or
-                widen filters.
-              </p>
-            ) : (
-              <p className="text-sm text-gray-500 py-8 text-center">Not enough dated points in this filter for a week chart.</p>
-            )}
-          </div>
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
@@ -1301,19 +1077,7 @@ const AnalysisView = ({
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={pointSeries}>
                   <XAxis dataKey="label" stroke="#9CA3AF" style={{ fontSize: '12px' }} tickLine={false} axisLine={false} minTickGap={24} />
-                  <YAxis
-                    stroke="#9CA3AF"
-                    style={{ fontSize: '13px' }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={chartYTickFmt}
-                    label={{
-                      value: metricThemes[selectedMetric].unit,
-                      angle: -90,
-                      position: 'insideLeft',
-                      style: { textAnchor: 'middle', fill: '#6B7280', fontSize: '12px' },
-                    }}
-                  />
+                  <YAxis stroke="#9CA3AF" style={{ fontSize: '13px' }} tickLine={false} axisLine={false} />
                   <Tooltip
                     contentStyle={{
                       background: 'white',
@@ -1347,7 +1111,6 @@ const AnalysisView = ({
                   style={{ fontSize: '13px' }}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={chartYTickFmt}
                   label={{
                     value: metricThemes[selectedMetric].unit,
                     angle: -90,
@@ -1363,7 +1126,6 @@ const AnalysisView = ({
                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                     padding: '12px',
                   }}
-                  formatter={(value) => fmt(value)}
                 />
                 <Line
                   type="monotone"
@@ -1437,21 +1199,11 @@ const AnalysisView = ({
             <ul className="space-y-2 text-sm text-gray-600">
               <li className="flex items-start gap-2">
                 <span style={{ color: theme.primary }}>•</span>
-                <span>
-                  Average {metricThemes[selectedMetric].label} is{' '}
-                  <strong>
-                    {fmt(avgValue)} {metricThemes[selectedMetric].unit}
-                  </strong>
-                </span>
+                <span>Average {metricThemes[selectedMetric].label} is <strong>{avgValue} {metricThemes[selectedMetric].unit}</strong></span>
               </li>
               <li className="flex items-start gap-2">
                 <span style={{ color: theme.primary }}>•</span>
-                <span>
-                  Values range from <strong>{fmt(minValue)}</strong> to{' '}
-                  <strong>
-                    {fmt(maxValue)} {metricThemes[selectedMetric].unit}
-                  </strong>
-                </span>
+                <span>Values range from <strong>{Math.round(minValue)}</strong> to <strong>{Math.round(maxValue)} {metricThemes[selectedMetric].unit}</strong></span>
               </li>
               <li className="flex items-start gap-2">
                 <span style={{ color: theme.primary }}>•</span>
@@ -1468,7 +1220,7 @@ const AnalysisView = ({
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-600">✓</span>
-                <span>Median value of {fmt(medianValue)} shows central tendency</span>
+                <span>Median value of {Math.round(medianValue)} shows central tendency</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-600">✓</span>
@@ -1575,82 +1327,90 @@ const AnalysisView = ({
             </div>
           </div>
 
-          {/* All groups week comparison — same session chart as Overview */}
-          <div className="rounded-2xl p-6 shadow-lg border-2 border-slate-200/80 bg-gradient-to-br from-violet-50/40 via-white to-teal-50/40">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-3">
+          {/* Comparison Chart */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <div>
-                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Your recent week comparison</h3>
-                <p className="text-xs text-gray-600 mt-1 max-w-2xl leading-relaxed">
-                  Default view: <strong>every group at once</strong> on a shared timeline (session-style points), plus each
-                  team&apos;s <strong>average</strong> chips and the dashed <strong>city reference</strong> line (OpenAQ when
-                  available, else simulated — not your classroom readings).
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Your recent week comparison</h3>
+                <p className="text-xs text-gray-500">
+                  Compare your data with another group, class average, or <strong>city reference</strong> (OpenAQ-based, not your measurements).
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <MapPin className="w-4 h-4 text-gray-500" />
+              <div className="flex flex-wrap items-center gap-2">
                 <select
-                  value={referenceLocation}
-                  onChange={(e) => setReferenceLocation(e.target.value)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm max-w-[220px]"
+                  value={compareMode}
+                  onChange={(e) => setCompareMode(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
                 >
-                  {REFERENCE_LOCATIONS.map((loc) => (
-                    <option key={loc.name} value={loc.name}>
-                      {loc.name}
-                    </option>
-                  ))}
+                  <option value="group">vs another group</option>
+                  <option value="class">vs class average</option>
+                  <option value="city">vs city reference</option>
                 </select>
-              </div>
-            </div>
-            {multiGroupWeekChart.groups.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {multiGroupWeekChart.groups.map((g, idx) => {
-                  const avg = multiGroupWeekChart.groupAverages[g];
-                  const isYou = filters.group && normalizeGroupToken(filters.group) === g;
-                  const color = COMPARISON_PALETTE[idx % COMPARISON_PALETTE.length];
-                  return (
-                    <div
-                      key={g}
-                      className={`inline-flex items-baseline gap-2 rounded-xl px-3 py-2 text-xs font-semibold border shadow-sm ${
-                        isYou ? 'border-2' : 'border'
-                      }`}
-                      style={{
-                        borderColor: color,
-                        background: isYou ? `${color}18` : 'white',
-                      }}
-                    >
-                      <span className="uppercase tracking-wide text-gray-500">{g}</span>
-                      <span style={{ color }}>{avg == null ? '—' : fmt(avg)}</span>
-                      <span className="text-gray-400 font-medium">{metricThemes[selectedMetric].unit}</span>
-                    </div>
-                  );
-                })}
-                {cityAverage != null && (
-                  <div className="inline-flex items-baseline gap-2 rounded-xl px-3 py-2 text-xs font-semibold border border-slate-300 bg-slate-50 text-slate-700 shadow-sm">
-                    <span className="uppercase tracking-wide text-slate-500">City ref</span>
-                    <span>{fmt(cityAverage)}</span>
-                    <span className="text-gray-400 font-medium">{metricThemes[selectedMetric].unit}</span>
-                  </div>
+                {compareMode === 'group' && (
+                  <select
+                    value={compareGroup}
+                    onChange={(e) => setCompareGroup(e.target.value)}
+                    className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                  >
+                    {availableCompareGroups.length ? (
+                      availableCompareGroups.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">NO DATA</option>
+                    )}
+                  </select>
                 )}
               </div>
-            )}
-            <div className="rounded-xl bg-white/95 border border-gray-100 p-2 sm:p-3">
-              {multiGroupWeekChart.hasAnyLine ? (
-                <MultiGroupSessionCompareChart
-                  chartData={multiGroupWeekChart.chartData}
-                  groups={multiGroupWeekChart.groups}
-                  theme={theme}
-                  metricUnit={metricThemes[selectedMetric].unit}
-                  accentGroup={filters.group}
-                  fmt={fmt}
-                  isCo={isCo}
-                  height={360}
-                />
-              ) : (
-                <p className="text-sm text-gray-500 py-12 text-center">
-                  Add timestamped measurements for more than one group this week to see a full comparison chart.
-                </p>
-              )}
             </div>
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={compareChartData}>
+                <XAxis
+                  dataKey="day"
+                  stroke="#9CA3AF"
+                  style={{ fontSize: '13px' }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis stroke="#9CA3AF" style={{ fontSize: '13px' }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    padding: '12px',
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="yours"
+                  name="Your data"
+                  stroke={theme.primary}
+                  strokeWidth={3}
+                  dot={{ fill: theme.primary, r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="comparison"
+                  name={
+                    compareMode === 'group'
+                        ? `Group ${compareGroup || ''}`
+                        : compareMode === 'class'
+                          ? 'Class average'
+                          : 'City reference'
+                  }
+                  stroke="#64748b"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={{ fill: '#64748b', r: 4 }}
+                  connectNulls={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Insights */}
@@ -1661,15 +1421,14 @@ const AnalysisView = ({
                 <li className="flex items-start gap-2">
                   <span className="text-green-600 mt-0.5">•</span>
                   <span>
-                    <strong>Your group</strong> average for this metric: {fmt(avgValue)}{' '}
-                    {metricThemes[selectedMetric].unit}.
+                    <strong>Your group</strong> average for this metric: {avgValue} {metricThemes[selectedMetric].unit}.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-green-600 mt-0.5">•</span>
                   <span>
                     {classAverage != null
-                      ? `Class-wide (same period) average is ${fmt(classAverage)} ${metricThemes[selectedMetric].unit}.`
+                      ? `Class-wide (same period) average is ${classAverage} ${metricThemes[selectedMetric].unit}.`
                       : 'Class average needs more imported rows (other groups in the same period).'}
                   </span>
                 </li>
@@ -1682,16 +1441,13 @@ const AnalysisView = ({
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600 mt-0.5">•</span>
                   <span>
-                    On <strong>Overview</strong>, the left card <strong>All groups · this week vs city reference</strong>{' '}
-                    shows the same multi-team session view with Philadelphia reference context.
+                    On <strong>Overview</strong>, use <strong>Your recent week vs reference location</strong> to contrast
+                    classroom data with a Philadelphia-area reference baseline.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600 mt-0.5">•</span>
-                  <span>
-                    The large chart above always overlays <strong>every group</strong> (thicker stroke = your current group
-                    filter) plus the dashed city reference line.
-                  </span>
+                  <span>Use the compare selector above to switch between other groups, class average, and city reference.</span>
                 </li>
               </ul>
             </div>
@@ -1705,11 +1461,10 @@ const AnalysisView = ({
                 <p className="text-sm opacity-90">Compare with other schools, locations, and time periods</p>
               </div>
               <button
-                type="button"
-                onClick={() => setShowCompareModal(true)}
+                onClick={() => setActiveTab('compare')}
                 className="px-6 py-3 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 transition-all shadow-md"
               >
-                Reference locations tool
+                Open Compare View
               </button>
             </div>
           </div>

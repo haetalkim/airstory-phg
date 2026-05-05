@@ -37,11 +37,3 @@ export function formatSensorTimestamp(isoString) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
-
-/** Google Maps search URL for a coordinate pair, or null if invalid. */
-export function googleMapsSearchUrl(lat, lng) {
-  const la = Number(lat);
-  const ln = Number(lng);
-  if (!Number.isFinite(la) || !Number.isFinite(ln)) return null;
-  return `https://www.google.com/maps?q=${la},${ln}`;
-}
