@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, X, Upload, Trash2 } from 'lucide-react';
-import { addMeasurementEdit, clearWorkspaceMeasurements, deleteSession, getMeasurements, importCsvMeasurements } from '../api/data';
+import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, X, Upload } from 'lucide-react';
+import { addMeasurementEdit, clearWorkspaceMeasurements, getMeasurements, importCsvMeasurements } from '../api/data';
 import { getRoster, getClassStructure } from '../api/auth';
 import {
   clearImportedMeasurements,
@@ -25,7 +25,6 @@ import {
   SENSOR_CSV_EXPORT_HEADERS,
   csvEscapeCell,
   formatSensorTimestamp,
-  googleMapsSearchUrl,
 } from '../constants/sensorCsv';
 
 const CSV_UPLOAD_CHUNK_SIZE = 2500;
@@ -64,8 +63,9 @@ const RawDataView = ({
   const [editingNotes, setEditingNotes] = useState(null);
   const [editingCell, setEditingCell] = useState({ rowId: null, field: null });
   const [editedCells, setEditedCells] = useState({});
-  /** PHG: keep table flat; show details in a bottom panel for the selected session. */
-  const [selectedSessionGroupKey, setSelectedSessionGroupKey] = useState(null);
+  const [expandedRows, setExpandedRows] = useState({});
+  /** PHG variant: each CSV import collapses to one row keyed by sessionId; expand to reveal underlying minute-bucket rows. */
+  const [expandedSessions, setExpandedSessions] = useState({});
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [rosterRows, setRosterRows] = useState([]);
   /** When App has not loaded workspace grid yet (or /class-structure failed once), fetch here so period/group match Manage Classes. */
@@ -116,23 +116,6 @@ const RawDataView = ({
       }
     }
   }, [workspaceId, onImportedDataChanged]);
-
-  const canDeleteSessions = Boolean(workspaceId) && !isPhgStudent && !viewerProfile?.studentId;
-
-  const handleDeleteSession = async (sessionId, label) => {
-    if (!workspaceId || !sessionId) return;
-    const ok = window.confirm(`Delete this session?\n\n${label}\n\nThis will remove the session and its measurements.`);
-    if (!ok) return;
-    setLoadingBackend(true);
-    try {
-      await deleteSession(workspaceId, sessionId);
-      await loadFromBackend();
-    } catch (e) {
-      setImportError(e?.message || 'Failed to delete session.');
-    } finally {
-      setLoadingBackend(false);
-    }
-  };
 
   useEffect(() => {
     loadFromBackend();
@@ -450,7 +433,8 @@ const RawDataView = ({
       clearImportedMeasurements();
       setImportedMeasurements([]);
       setRawData([]);
-      setSelectedSessionGroupKey(null);
+      setExpandedRows({});
+      setExpandedSessions({});
       setEditedCells({});
       setEditingNotes(null);
       setEditingCell({ rowId: null, field: null });
@@ -560,22 +544,18 @@ const RawDataView = ({
     return detailed;
   };
 
-  /** Merge all chunk/row detail points for a session group, chronological order. */
-  const buildMergedSessionDetails = (rows) => {
-    const decorated = rows.flatMap((row) => {
-      const details = generateDetailedData(row);
-      return details.map((d) => {
-        const ts = new Date(`${row.date}T${d.time}`);
-        const sortVal = Number.isNaN(ts.getTime()) ? 0 : ts.getTime();
-        return { d, sortVal };
-      });
-    });
-    decorated.sort((a, b) => a.sortVal - b.sortVal || String(a.d.time).localeCompare(String(b.d.time)));
-    return decorated.map(({ d }) => d);
+  const toggleRowExpansion = (rowId) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [rowId]: !prev[rowId]
+    }));
   };
 
   const toggleSessionExpansion = (groupKey) => {
-    setSelectedSessionGroupKey((prev) => (prev === groupKey ? null : groupKey));
+    setExpandedSessions((prev) => ({
+      ...prev,
+      [groupKey]: !prev[groupKey],
+    }));
   };
 
   /**
@@ -630,16 +610,6 @@ const RawDataView = ({
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const selectedSessionGroup = React.useMemo(() => {
-    if (!selectedSessionGroupKey) return null;
-    return sessionGroups.find((g) => g.groupKey === selectedSessionGroupKey) || null;
-  }, [sessionGroups, selectedSessionGroupKey]);
-
-  const selectedSessionDetails = React.useMemo(() => {
-    if (!selectedSessionGroup) return [];
-    return buildMergedSessionDetails(selectedSessionGroup.rows || []);
-  }, [selectedSessionGroup]);
 
   return (
     <div className="space-y-6">
@@ -1042,10 +1012,9 @@ const RawDataView = ({
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedSessionGroups.map((session) => {
                 const gk = session.groupKey;
-                const sessionExpanded = selectedSessionGroupKey === gk;
+                const sessionExpanded = !!expandedSessions[gk];
                 const rep = session.rows[0];
                 const n = session.totalReadings;
-                const mapsUrl = googleMapsSearchUrl(rep.latitude, rep.longitude);
                 return (
                   <React.Fragment key={`grp-${gk}`}>
                     <tr
@@ -1085,31 +1054,15 @@ const RawDataView = ({
                         <span className="font-medium text-gray-900">{rep.group}</span>
                       </td>
                       <td className="px-4 py-3 text-sm max-w-[220px] align-middle">
-                        {mapsUrl && String(rep.location || '').trim() ? (
-                          <a
-                            href={mapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="truncate block text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                            title="Open in Google Maps"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {rep.location}
-                          </a>
-                        ) : (
-                          <span className="truncate block" title={String(rep.location ?? '')}>
-                            {rep.location || '—'}
-                          </span>
-                        )}
+                        <span className="truncate block" title={String(rep.location ?? '')}>{rep.location || '—'}</span>
                       </td>
                       <td className="px-4 py-3 text-sm font-mono align-middle">
-                        {mapsUrl ? (
+                        {rep.latitude != null && rep.longitude != null && Number.isFinite(Number(rep.latitude)) && Number.isFinite(Number(rep.longitude)) ? (
                           <a
-                            href={mapsUrl}
+                            href={`https://www.google.com/maps?q=${rep.latitude},${rep.longitude}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 hover:underline"
-                            title="Open in Google Maps"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {Number(rep.latitude).toFixed(4)}
@@ -1119,13 +1072,12 @@ const RawDataView = ({
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm font-mono align-middle">
-                        {mapsUrl ? (
+                        {rep.latitude != null && rep.longitude != null && Number.isFinite(Number(rep.latitude)) && Number.isFinite(Number(rep.longitude)) ? (
                           <a
-                            href={mapsUrl}
+                            href={`https://www.google.com/maps?q=${rep.latitude},${rep.longitude}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 hover:underline"
-                            title="Open in Google Maps"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {Number(rep.longitude).toFixed(4)}
@@ -1157,75 +1109,314 @@ const RawDataView = ({
                         {rep.sessionNotes ? (
                           <span className="truncate block" title={rep.sessionNotes}>{rep.sessionNotes}</span>
                         ) : (
-                          <span className="text-gray-400">{n > 1 ? 'Expand for second-by-second data' : '—'}</span>
+                          <span className="text-gray-400">{n > 1 ? `Expand for ${n} rows` : '—'}</span>
                         )}
                       </td>
                     </tr>
+                    {sessionExpanded && session.rows.map((row, idx) => {
+                      const isExpanded = expandedRows[row.id];
+                      const detailedData = isExpanded ? generateDetailedData(row) : [];
+                      return (
+                        <React.Fragment key={row.id}>
+                    <tr className={`hover:bg-blue-50 transition-colors border-l-4 border-blue-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                      <td className="px-4 py-3 pl-6">
+                        <button
+                          onClick={() => toggleRowExpansion(row.id)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          title={isExpanded ? "Collapse" : "Expand to see detailed data"}
+                        >
+                          <ChevronRight className={`w-4 h-4 text-gray-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap font-mono text-xs">
+                        {formatSensorTimestamp(row.capturedAt)}
+                      </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.date}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{row.time}</td>
+                  <td className="px-4 py-3 text-sm font-mono text-xs text-gray-800 max-w-[180px] truncate" title={String(row.sessionId ?? '')}>
+                    {row.sessionId}
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.sessionName}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.school}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.instructor}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.period}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="font-medium text-gray-900">{row.group}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm max-w-[220px]">
+                    <span className="truncate block" title={String(row.location ?? '')}>{row.location || '—'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-mono">
+                    {row.latitude != null && row.longitude != null && Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude)) ? (
+                      <a
+                        href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        title="Open in Google Maps"
+                      >
+                        {Number(row.latitude).toFixed(4)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-mono">
+                    {row.latitude != null && row.longitude != null && Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude)) ? (
+                      <a
+                        href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        title="Open in Google Maps"
+                      >
+                        {Number(row.longitude).toFixed(4)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
+
+                  {/* INDOOR/OUTDOOR */}
+                  <td className="px-4 py-3 text-sm">
+                    {editingCell.rowId === row.id && editingCell.field === 'indoorOutdoor' ? (
+                      <select
+                        defaultValue={row.indoorOutdoor}
+                        autoFocus
+                        onChange={(e) => handleFieldEdit(row.id, 'indoorOutdoor', e.target.value)}
+                        onBlur={(e) => handleFieldEdit(row.id, 'indoorOutdoor', e.target.value)}
+                        className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        {INDOOR_OUTDOOR_OPTIONS.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <button
+                        onClick={() => setEditingCell({ rowId: row.id, field: 'indoorOutdoor' })}
+                        className="flex items-center gap-2"
+                        title="Click to edit INDOOR/OUTDOOR"
+                      >
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          row.indoorOutdoor === 'INDOOR' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {row.indoorOutdoor}
+                        </span>
+                        {isEdited(row.id, 'indoorOutdoor') && (
+                          <span className="text-xs text-orange-600 font-semibold">*</span>
+                        )}
+                      </button>
+                    )}
+                  </td>
+
+                  {/* PM 2.5 */}
+                  <td className={`px-4 py-3 text-sm font-semibold ${selectedMetric === 'pm25' ? 'bg-blue-50' : ''}`}>
+                    {editingCell.rowId === row.id && editingCell.field === 'pm25' ? (
+                      <input
+                        type="number"
+                        defaultValue={row.pm25}
+                        autoFocus
+                        min="0"
+                        onBlur={(e) => handleFieldEdit(row.id, 'pm25', e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleFieldEdit(row.id, 'pm25', e.target.value);
+                          if (e.key === 'Escape') setEditingCell({ rowId: null, field: null });
+                        }}
+                        className="w-20 px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingCell({ rowId: row.id, field: 'pm25' })}
+                        className="flex items-center gap-1 text-left w-full"
+                        title="Click to edit PM 2.5"
+                      >
+                        <span>{row.pm25}</span>
+                        {isEdited(row.id, 'pm25') && (
+                          <span className="text-xs text-orange-600 font-semibold">*</span>
+                        )}
+                      </button>
+                    )}
+                  </td>
+
+                  {/* CO */}
+                  <td className={`px-4 py-3 text-sm font-semibold ${selectedMetric === 'co' ? 'bg-purple-50' : ''}`}>
+                    {editingCell.rowId === row.id && editingCell.field === 'co' ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        defaultValue={row.co}
+                        autoFocus
+                        min="0"
+                        onBlur={(e) => handleFieldEdit(row.id, 'co', e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleFieldEdit(row.id, 'co', e.target.value);
+                          if (e.key === 'Escape') setEditingCell({ rowId: null, field: null });
+                        }}
+                        className="w-20 px-2 py-1 text-sm border border-purple-500 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingCell({ rowId: row.id, field: 'co' })}
+                        className="flex items-center gap-1 text-left w-full"
+                        title="Click to edit CO"
+                      >
+                        <span>{row.co}</span>
+                        {isEdited(row.id, 'co') && (
+                          <span className="text-xs text-orange-600 font-semibold">*</span>
+                        )}
+                      </button>
+                    )}
+                  </td>
+
+                  {/* Temperature */}
+                  <td className={`px-4 py-3 text-sm font-semibold ${selectedMetric === 'temp' ? 'bg-red-50' : ''}`}>
+                    {editingCell.rowId === row.id && editingCell.field === 'temp' ? (
+                      <input
+                        type="number"
+                        defaultValue={row.temp}
+                        autoFocus
+                        onBlur={(e) => handleFieldEdit(row.id, 'temp', e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleFieldEdit(row.id, 'temp', e.target.value);
+                          if (e.key === 'Escape') setEditingCell({ rowId: null, field: null });
+                        }}
+                        className="w-20 px-2 py-1 text-sm border border-red-500 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingCell({ rowId: row.id, field: 'temp' })}
+                        className="flex items-center gap-1 text-left w-full"
+                        title="Click to edit temperature"
+                      >
+                        <span>{row.temp}</span>
+                        {isEdited(row.id, 'temp') && (
+                          <span className="text-xs text-orange-600 font-semibold">*</span>
+                        )}
+                      </button>
+                    )}
+                  </td>
+
+                  {/* Humidity */}
+                  <td className={`px-4 py-3 text-sm font-semibold ${selectedMetric === 'humidity' ? 'bg-green-50' : ''}`}>
+                    {editingCell.rowId === row.id && editingCell.field === 'humidity' ? (
+                      <input
+                        type="number"
+                        defaultValue={row.humidity}
+                        autoFocus
+                        min="0"
+                        max="100"
+                        onBlur={(e) => handleFieldEdit(row.id, 'humidity', e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleFieldEdit(row.id, 'humidity', e.target.value);
+                          if (e.key === 'Escape') setEditingCell({ rowId: null, field: null });
+                        }}
+                        className="w-20 px-2 py-1 text-sm border border-green-500 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingCell({ rowId: row.id, field: 'humidity' })}
+                        className="flex items-center gap-1 text-left w-full"
+                        title="Click to edit humidity"
+                      >
+                        <span>{row.humidity}</span>
+                        {isEdited(row.id, 'humidity') && (
+                          <span className="text-xs text-orange-600 font-semibold">*</span>
+                        )}
+                      </button>
+                    )}
+                  </td>
+
+                  {/* Notes */}
+                  <td className="px-4 py-3 text-sm max-w-xs">
+                    {editingNotes === row.id ? (
+                      <textarea
+                        defaultValue={row.sessionNotes}
+                        autoFocus
+                        rows="2"
+                        onBlur={(e) => handleSessionNotesEdit(row.id, e.target.value)}
+                        placeholder="Add notes about this measurement..."
+                        className="w-full px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingNotes(row.id)}
+                        className="text-left w-full text-gray-600 hover:text-blue-600 transition-colors group"
+                        title="Click to add/edit notes"
+                      >
+                        {row.sessionNotes ? (
+                          <span className="flex items-center gap-2">
+                            <span className="truncate">
+                              {row.sessionNotes}
+                            </span>
+                            <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>
+                            {isEdited(row.id, 'sessionNotes') && (
+                              <span className="text-xs text-orange-600 font-semibold">*</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic opacity-0 group-hover:opacity-100 transition-opacity">
+                            Add notes...
+                          </span>
+                        )}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan="19" className="px-4 py-4 bg-gray-50 border-t-2 border-gray-300">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold text-gray-900">Detailed Second-by-Second Data</h4>
+                          <span className="text-xs text-gray-500">{detailedData.length} readings</span>
+                        </div>
+                        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                          <table className="w-full text-xs">
+                            <thead className="bg-gray-100 sticky top-0">
+                              <tr>
+                                <th className="px-2 py-2 text-left font-semibold">Time</th>
+                                <th className="px-2 py-2 text-left font-semibold">PM 2.5</th>
+                                <th className="px-2 py-2 text-left font-semibold">CO</th>
+                                <th className="px-2 py-2 text-left font-semibold">Temperature (°C)</th>
+                                <th className="px-2 py-2 text-left font-semibold">Humidity</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {detailedData.map((detail) => (
+                                <tr key={detail.id} className="hover:bg-gray-50">
+                                  <td className="px-2 py-1 font-mono">{detail.time}</td>
+                                  <td className="px-2 py-1">{detail.pm25}</td>
+                                  <td className="px-2 py-1">{detail.co}</td>
+                                  <td className="px-2 py-1">{detail.temp}</td>
+                                  <td className="px-2 py-1">{detail.humidity}</td>
+                </tr>
+              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                        </React.Fragment>
+                      );
+                    })}
                   </React.Fragment>
                 );
               })}
             </tbody>
           </table>
         </div>
-
-        {selectedSessionGroup && (
-          <div className="mt-4 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-gray-900 truncate">
-                  Detailed Second-by-Second Data
-                </div>
-                <div className="text-xs text-gray-600 mt-0.5 truncate">
-                  {selectedSessionGroup?.rows?.[0]?.sessionName || "Session"} • {selectedSessionGroup?.rows?.[0]?.date || ""} {selectedSessionGroup?.rows?.[0]?.time || ""}
-                  <span className="mx-2 text-gray-300">•</span>
-                  {selectedSessionDetails.length} readings
-                </div>
-              </div>
-              {canDeleteSessions && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const rep = selectedSessionGroup?.rows?.[0] || {};
-                    handleDeleteSession(
-                      rep.sessionId,
-                      `${rep.sessionName || 'Session'} • ${rep.date || ''} ${rep.time || ''} • ${rep.period || ''} ${rep.group || ''}`
-                    );
-                  }}
-                  className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"
-                  title="Delete this session"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-              )}
-            </div>
-
-            <div className="mt-3 overflow-x-auto max-h-56 overflow-y-auto bg-white rounded-xl border border-gray-200">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-100 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-2 text-left font-semibold">Time</th>
-                    <th className="px-2 py-2 text-left font-semibold">PM 2.5</th>
-                    <th className="px-2 py-2 text-left font-semibold">CO</th>
-                    <th className="px-2 py-2 text-left font-semibold">Temperature (°C)</th>
-                    <th className="px-2 py-2 text-left font-semibold">Humidity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {selectedSessionDetails.map((detail, dIdx) => (
-                    <tr key={`${detail.id}-${dIdx}`} className="hover:bg-gray-50">
-                      <td className="px-2 py-1 font-mono">{detail.time}</td>
-                      <td className="px-2 py-1">{detail.pm25}</td>
-                      <td className="px-2 py-1">{detail.co}</td>
-                      <td className="px-2 py-1">{detail.temp}</td>
-                      <td className="px-2 py-1">{detail.humidity}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
         {/* Pagination */}
         <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
