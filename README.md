@@ -1,4 +1,4 @@
-# tamguingAIR
+# AIRSTORY (PHG)
 
 Air quality classroom platform: React dashboard + Express/Postgres API.
 
