@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, X, Upload, Trash2 } from 'lucide-react';
+import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, X, Upload, Trash2, RotateCw } from 'lucide-react';
 import { clearWorkspaceMeasurements, deleteSession, getMeasurements, importCsvMeasurements } from '../api/data';
 import { getRoster, getClassStructure } from '../api/auth';
 import {
@@ -133,6 +133,10 @@ const RawDataView = ({
   useEffect(() => {
     loadFromBackend();
   }, [loadFromBackend]);
+
+  const handleRefresh = async () => {
+    await loadFromBackend();
+  };
 
   // PHG students: don’t hide imported rows behind “today” / a single session chip.
   useEffect(() => {
@@ -612,6 +616,16 @@ const RawDataView = ({
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
               >
                 Clear Data
+              </button>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={loadingBackend}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-60"
+                title="Refresh from backend"
+              >
+                <RotateCw className="w-4 h-4" />
+                Refresh
               </button>
               <button
                 type="button"

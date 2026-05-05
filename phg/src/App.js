@@ -95,7 +95,25 @@ export default function App() {
     isPhgStudentEmail(storedAuth?.user?.email) || Boolean(initialStudentContext);
 
   const [isLoggedIn, setIsLoggedIn] = useState(Boolean(storedAuth?.accessToken));
-  const [activeSection, setActiveSection] = useState("heatmap");
+  const ACTIVE_SECTION_KEY = "phg.activeSection.v1";
+  const readSavedSection = () => {
+    try {
+      const raw = localStorage.getItem(ACTIVE_SECTION_KEY);
+      return raw ? String(raw) : "";
+    } catch {
+      return "";
+    }
+  };
+  const writeSavedSection = (section) => {
+    try {
+      if (!section) return;
+      localStorage.setItem(ACTIVE_SECTION_KEY, String(section));
+    } catch {
+      /* ignore storage issues */
+    }
+  };
+
+  const [activeSection, setActiveSectionState] = useState(() => readSavedSection() || "heatmap");
   const [selectedMetric, setSelectedMetric] = useState("pm25");
   const [isPublicMode] = useState(false); // Public mode is off when we have a landing/login
   const [workspaceId, setWorkspaceId] = useState(storedAuth?.user?.workspaceId || "");
@@ -126,6 +144,21 @@ export default function App() {
   });
   /** Workspace class grid from API (Manage Classes); drives period/group dropdowns app-wide. */
   const [classStructure, setClassStructure] = useState(null);
+
+  const setActiveSection = useCallback((next) => {
+    setActiveSectionState(next);
+    writeSavedSection(next);
+  }, []);
+
+  // On refresh: once logged in, restore the last tab (e.g. Raw Data) instead of
+  // always forcing Heat Map.
+  const restoredSectionRef = useRef(false);
+  useEffect(() => {
+    if (!isLoggedIn || restoredSectionRef.current) return;
+    const saved = readSavedSection();
+    if (saved) setActiveSection(saved);
+    restoredSectionRef.current = true;
+  }, [isLoggedIn, setActiveSection]);
 
   const refreshClassStructure = useCallback(async (workspaceIdOverride) => {
     const wid = workspaceIdOverride ?? workspaceId;
