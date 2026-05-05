@@ -609,6 +609,16 @@ const RawDataView = ({
             Import CSV
             <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportCsv} />
           </label>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loadingBackend || !workspaceId}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-60"
+            title={workspaceId ? "Refresh from backend" : "Join a group first to refresh"}
+          >
+            <RotateCw className="w-4 h-4" />
+            Refresh
+          </button>
           {!isPhgStudent && (
             <>
               <button
@@ -616,16 +626,6 @@ const RawDataView = ({
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
               >
                 Clear Data
-              </button>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={loadingBackend}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-60"
-                title="Refresh from backend"
-              >
-                <RotateCw className="w-4 h-4" />
-                Refresh
               </button>
               <button
                 type="button"
@@ -1120,7 +1120,7 @@ const RawDataView = ({
                         {rep.sessionNotes ? (
                           <span className="truncate block" title={rep.sessionNotes}>{rep.sessionNotes}</span>
                         ) : (
-                          <span className="text-gray-400">{n > 1 ? 'Expand for second-by-second data' : '—'}</span>
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
                     </tr>
