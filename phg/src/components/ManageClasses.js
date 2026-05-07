@@ -3,6 +3,7 @@ import { KeyRound, GraduationCap } from 'lucide-react';
 import { getClassStructure, getRoster, updateClassStructure } from '../api/auth';
 import { getMeasurements } from '../api/data';
 import { normalizeGroupToken, normalizePeriodToken } from '../utils/hierarchyTokens';
+import { PHG_PERIOD_LABELS } from '../utils/studentContext';
 
 export default function ManageClasses({
   workspaceId,
@@ -38,7 +39,11 @@ export default function ManageClasses({
   }, [workspaceId]);
 
   const groups = useMemo(() => {
-    const periods = Array.from({ length: periodCount || 1 }, (_, i) => `P${i + 1}`);
+    // Pilot: hardcode period labels to match classroom schedule.
+    const periods =
+      Number(periodCount) === PHG_PERIOD_LABELS.length
+        ? [...PHG_PERIOD_LABELS]
+        : Array.from({ length: periodCount || 1 }, (_, i) => `P${i + 1}`);
     const groupsForPeriod = Array.from({ length: groupCount || 4 }, (_, i) => `G${i + 1}`);
     const map = {};
     periods.forEach((period) => {

@@ -475,11 +475,12 @@ export default function App() {
    * account so JWT-protected reads/writes still work, then routes to Heat Map
    * with the group already applied as a filter.
    */
-  const handleGroupSelect = async ({ group }) => {
+  const handleGroupSelect = async ({ period, group }) => {
     if (!PHG_GROUP_CODES.includes(group)) return;
+    const periodLabel = String(period || "").trim();
     setAuthError("");
     setAuthLoading(true);
-    setStudentContext({ group, school: PHG_SCHOOL_CODE });
+    setStudentContext({ group, period: periodLabel, school: PHG_SCHOOL_CODE });
     try {
       setStoredAuth(null);
       const session = await loginPhgOpenSession();
@@ -498,7 +499,7 @@ export default function App() {
         displayName: me?.user?.full_name || "PHG Students",
         school: PHG_SCHOOL_CODE,
         instructor: "",
-        period: "",
+        period: periodLabel,
         group,
         studentId: "",
       });
@@ -509,7 +510,7 @@ export default function App() {
         // everything after returning to the site.
         school: "",
         instructor: "",
-        period: "",
+        period: periodLabel,
         group,
         studentId: "",
       }));

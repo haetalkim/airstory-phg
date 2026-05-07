@@ -12,7 +12,7 @@ import {
   Activity,
 } from 'lucide-react';
 import AirStoryLogo from './AirStoryLogo';
-import { PHG_GROUP_CODES } from '../utils/studentContext';
+import { PHG_GROUP_CODES, PHG_PERIOD_LABELS } from '../utils/studentContext';
 
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
   const variants = {
@@ -69,6 +69,7 @@ const LandingPage = ({
   const [showVerification, setShowVerification] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [formError, setFormError] = useState('');
+  const [selectedPeriod, setSelectedPeriod] = useState('');
   const randomAirFact = useMemo(
     () => AIR_FACTS[Math.floor(Math.random() * AIR_FACTS.length)],
     []
@@ -85,6 +86,7 @@ const LandingPage = ({
       setEmail('');
     }
     setPassword('');
+    setSelectedPeriod('');
   };
 
   const handleTeacherSubmit = () => {
@@ -115,7 +117,11 @@ const LandingPage = ({
   const handleGroupClick = (group) => {
     setFormError('');
     if (typeof onGroupSelect === 'function') {
-      onGroupSelect({ group });
+      if (!selectedPeriod) {
+        setFormError('Pick your period first (3 or 5).');
+        return;
+      }
+      onGroupSelect({ period: selectedPeriod, group });
     }
   };
 
@@ -254,29 +260,64 @@ const LandingPage = ({
                   <div className="mx-auto w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 text-blue-600 transform -rotate-6 group hover:rotate-0 transition-transform">
                     <GraduationCap size={40} />
                   </div>
-                  <h3 className="text-2xl font-black text-gray-900">Pick Your Group</h3>
+                  <h3 className="text-2xl font-black text-gray-900">Pick your period</h3>
                   <p className="text-gray-500 font-medium mt-1">
-                    No login needed — choose your lab group to begin.
+                    First choose your period, then your lab group.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {PHG_GROUP_CODES.map((g, idx) => (
+                  {PHG_PERIOD_LABELS.map((p) => (
                     <button
-                      key={g}
+                      key={p}
                       type="button"
-                      onClick={() => handleGroupClick(g)}
+                      onClick={() => { setFormError(''); setSelectedPeriod(p); }}
                       disabled={authLoading}
-                      className="group relative flex flex-col items-center justify-center gap-1 py-6 rounded-2xl border-2 border-gray-100 bg-gray-50 hover:bg-white hover:border-blue-500 hover:shadow-lg transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className={`group relative flex flex-col items-center justify-center gap-1 py-6 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        selectedPeriod === p
+                          ? 'border-blue-500 bg-white shadow-lg'
+                          : 'border-gray-100 bg-gray-50 hover:bg-white hover:border-blue-500 hover:shadow-lg'
+                      }`}
                     >
                       <span className="text-xs font-bold uppercase tracking-widest text-gray-400 group-hover:text-blue-500">
-                        Group
+                        Period
                       </span>
                       <span className="text-4xl font-black text-gray-900 group-hover:text-blue-600">
-                        {idx + 1}
+                        {p}
                       </span>
                     </button>
                   ))}
+                </div>
+
+                <div className="pt-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-black text-gray-900">Pick your group</h4>
+                    {selectedPeriod ? (
+                      <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded-lg">
+                        Period {selectedPeriod}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-gray-400">Select period first</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    {PHG_GROUP_CODES.map((g, idx) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => handleGroupClick(g)}
+                        disabled={authLoading || !selectedPeriod}
+                        className="group relative flex flex-col items-center justify-center gap-1 py-6 rounded-2xl border-2 border-gray-100 bg-gray-50 hover:bg-white hover:border-blue-500 hover:shadow-lg transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <span className="text-xs font-bold uppercase tracking-widest text-gray-400 group-hover:text-blue-500">
+                          Group
+                        </span>
+                        <span className="text-4xl font-black text-gray-900 group-hover:text-blue-600">
+                          {idx + 1}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {authError && (
@@ -284,6 +325,9 @@ const LandingPage = ({
                 )}
                 {authLoading && (
                   <p className="text-sm text-gray-500 text-center font-medium">Joining group…</p>
+                )}
+                {formError && (
+                  <p className="text-sm text-red-600 text-center font-medium">{formError}</p>
                 )}
 
                 <div className="flex items-center justify-center gap-2 pt-2 opacity-50">

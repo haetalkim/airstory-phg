@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Download, Filter, Search, Calendar, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, X, Upload, Trash2, RotateCw } from 'lucide-react';
+import { Download, Filter, Search, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, X, Upload, Trash2, RotateCw } from 'lucide-react';
 import { clearWorkspaceMeasurements, deleteSession, getMeasurements, importCsvMeasurements } from '../api/data';
 import { getRoster, getClassStructure } from '../api/auth';
 import {
@@ -365,7 +365,7 @@ const RawDataView = ({
       const importContext = {
         school: filters.school || studentCtx?.school || PHG_SCHOOL_CODE,
         instructor: filters.instructor || '',
-        period: filters.period || (isPhgStudent ? 'P1' : ''),
+        period: filters.period || studentCtx?.period || (isPhgStudent ? '3' : ''),
         group: filters.group || studentCtx?.group || '',
       };
       const withContext = (row) => ({
@@ -647,10 +647,7 @@ const RawDataView = ({
         </div>
       </div>
 
-      {/* Filters and Search — PHG variant collapses the standalone "Select
-          Team Data" picker into a single inline row: Search | Group | Section
-          | Date Range | Location. Group is pre-populated from the student's
-          chosen group (or the teacher's currently-selected group). */}
+      {/* Filters and Search — PHG pilot: Search | Period | Group | Session | Location. */}
       <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {/* Search */}
@@ -665,6 +662,29 @@ const RawDataView = ({
                 placeholder="Search by location, session, date, school, or group..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+          </div>
+
+          {/* Period Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Period</label>
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <select
+                value={selectedPeriod}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSelectedPeriod(v);
+                  setFilters((prev) => ({ ...prev, period: v }));
+                }}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+              >
+                <option value="">All Periods</option>
+                {["3", "5"].map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
@@ -712,25 +732,6 @@ const RawDataView = ({
             </div>
           </div>
 
-          {/* Date Filter */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Date Range</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">Last 7 Days</option>
-                <option value="month">Last 30 Days</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-
           {/* Location Filter */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
@@ -760,11 +761,10 @@ const RawDataView = ({
             <span className="font-semibold text-gray-900">{sessionGroups.length}</span> total) ·{' '}
             <span className="font-semibold text-gray-900">{filteredData.length}</span> data rows
           </p>
-          {(searchTerm || dateFilter !== 'all' || locationFilter !== 'all' || sessionFilter !== 'all' || selectedSchool || selectedInstructor || selectedPeriod || selectedGroup) && (
+          {(searchTerm || locationFilter !== 'all' || sessionFilter !== 'all' || selectedSchool || selectedInstructor || selectedPeriod || selectedGroup) && (
             <button
               onClick={() => {
                 setSearchTerm('');
-                setDateFilter('all');
                 setLocationFilter('all');
                 setSessionFilter('all');
                 setSelectedSchool('');

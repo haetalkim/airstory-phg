@@ -36,6 +36,9 @@ export const PHG_STUDENT_PASSWORD =
 /** Allowed group codes shown on the landing page. */
 export const PHG_GROUP_CODES = Object.freeze(["G1", "G2", "G3", "G4"]);
 
+/** Allowed period labels for the PHG pilot. */
+export const PHG_PERIOD_LABELS = Object.freeze(["3", "5"]);
+
 export function getStudentContext() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -43,21 +46,25 @@ export function getStudentContext() {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return null;
     if (!PHG_GROUP_CODES.includes(parsed.group)) return null;
+    if (parsed.period && !PHG_PERIOD_LABELS.includes(String(parsed.period))) return null;
     return {
       group: parsed.group,
       school: parsed.school || PHG_SCHOOL_CODE,
+      period: parsed.period ? String(parsed.period) : "",
     };
   } catch {
     return null;
   }
 }
 
-export function setStudentContext({ group, school = PHG_SCHOOL_CODE } = {}) {
+export function setStudentContext({ group, period = "", school = PHG_SCHOOL_CODE } = {}) {
   if (!PHG_GROUP_CODES.includes(group)) return;
+  const p = period ? String(period) : "";
+  if (p && !PHG_PERIOD_LABELS.includes(p)) return;
   try {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ group, school })
+      JSON.stringify({ group, period: p, school })
     );
   } catch {
     // localStorage may be disabled (private browsing); the rest of the app
