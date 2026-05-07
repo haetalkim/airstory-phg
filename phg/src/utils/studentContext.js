@@ -34,7 +34,10 @@ export const PHG_STUDENT_PASSWORD =
   "phg-students-2026";
 
 /** Allowed group codes shown on the landing page. */
-export const PHG_GROUP_CODES = Object.freeze(["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"]);
+export const PHG_GROUP_CODES = Object.freeze(["G1", "G2", "G3", "G4"]);
+
+/** Analysis/teacher-side can still reference a larger set. */
+export const PHG_ANALYSIS_GROUP_CODES = Object.freeze(["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"]);
 
 /** Allowed period labels for the PHG pilot. */
 export const PHG_PERIOD_LABELS = Object.freeze(["3", "5"]);

@@ -690,7 +690,7 @@ const RawDataView = ({
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white disabled:opacity-60 disabled:bg-gray-50"
               >
                 <option value="">
-                  {selectedPeriod ? 'All Groups' : 'Select period first'}
+                  All Groups
                 </option>
                 {effectiveGroups.map((g) => (
                   <option key={g} value={g}>
