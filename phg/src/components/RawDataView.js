@@ -167,6 +167,14 @@ const RawDataView = ({
     setSelectedGroup(filters.group || '');
   }, [filters.school, filters.instructor, filters.period, filters.group]);
 
+  // If no period is selected, keep group at "All Groups" to avoid misleading P?-G? labels.
+  useEffect(() => {
+    if (!selectedPeriod && selectedGroup) {
+      setSelectedGroup('');
+      setFilters((prev) => ({ ...prev, group: '' }));
+    }
+  }, [selectedPeriod, selectedGroup, setFilters]);
+
   // Get unique locations, sessions, groups, and schools
   const locations = [...new Set(rawData.map(d => d.location))];
   const sessions = [...new Set(rawData.map(d => d.sessionId))].map(id => {
@@ -578,26 +586,28 @@ const RawDataView = ({
           {loadingBackend && <p className="text-xs text-gray-500 mt-1">Loading backend data...</p>}
           {importError && <p className="text-xs text-red-600 mt-1">{importError}</p>}
           {rawData.length > 0 && filteredData.length === 0 && (
-            <p className="text-sm text-amber-900 mt-2 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 leading-relaxed">
-              <span className="font-semibold">
+            <div className="text-sm text-amber-900 mt-2 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 leading-relaxed">
+              <div className="font-semibold">
                 Nothing registered for this group in this view yet
                 {selectedGroup ? ` (${selectedGroup})` : ''}.
-              </span>{' '}
-              {isPhgStudent
-                ? 'Import a CSV above, or switch to another group in the filter bar — your pick!'
-                : 'Try importing data, or adjust the group and other filters so they match what’s in your file.'}
-            </p>
+              </div>
+              <div className="mt-1">
+                {isPhgStudent
+                  ? 'Import a CSV above, or switch to another group in the filter bar — your pick!'
+                  : 'Try importing data, or adjust the group and other filters so they match what’s in your file.'}
+              </div>
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all cursor-pointer">
+        <div className="flex items-center gap-3 flex-wrap justify-end">
+          <label className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all cursor-pointer whitespace-nowrap">
             <Upload className="w-4 h-4" />
             Import CSV
             <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportCsv} />
           </label>
           <button 
             onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all whitespace-nowrap"
           >
             <Download className="w-4 h-4" />
             Export CSV
@@ -614,7 +624,7 @@ const RawDataView = ({
             type="button"
             onClick={handleRefresh}
             disabled={loadingBackend || !workspaceId}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-60 whitespace-nowrap"
             title={workspaceId ? "Refresh from backend" : "Join a group first to refresh"}
           >
             <RotateCw className="w-4 h-4" />
@@ -676,9 +686,12 @@ const RawDataView = ({
                   setSelectedGroup(v);
                   setFilters((prev) => ({ ...prev, group: v }));
                 }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                disabled={!selectedPeriod}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white disabled:opacity-60 disabled:bg-gray-50"
               >
-                <option value="">All Groups</option>
+                <option value="">
+                  {selectedPeriod ? 'All Groups' : 'Select period first'}
+                </option>
                 {effectiveGroups.map((g) => (
                   <option key={g} value={g}>
                     {(() => {
