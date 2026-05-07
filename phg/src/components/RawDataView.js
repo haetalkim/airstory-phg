@@ -681,7 +681,14 @@ const RawDataView = ({
                 <option value="">All Groups</option>
                 {effectiveGroups.map((g) => (
                   <option key={g} value={g}>
-                    {g === viewerProfile?.group ? `${g} (My Team)` : g}
+                    {(() => {
+                      const p = String(selectedPeriod || filters.period || viewerProfile?.period || '').trim();
+                      const gNum = Number(String(g).replace(/\D/g, '')) || null;
+                      const pNum = Number(String(p).replace(/\D/g, '')) || null;
+                      if (pNum && gNum) return `P${pNum}-${gNum}`;
+                      if (gNum) return `G${gNum}`;
+                      return g;
+                    })()}
                   </option>
                 ))}
               </select>

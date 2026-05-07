@@ -46,12 +46,12 @@ const ComparisonModal = ({
   const groupButtonList =
     workspaceGroups?.length > 0
       ? workspaceGroups
-      : ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];
+      : ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
   const [comparisonType, setComparisonType] = useState('location'); // 'group', 'school', 'location', 'time'
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [selectedSchools, setSelectedSchools] = useState([]);
   const [selectedLocations, setSelectedLocations] = useState(() =>
-    REFERENCE_LOCATIONS.slice(0, 3).map((l) => l.name)
+    REFERENCE_LOCATIONS.slice(0, 1).map((l) => l.name)
   );
   const [timeRange, setTimeRange] = useState('week');
 
@@ -838,7 +838,7 @@ const AnalysisView = ({
 
     const period = filters.period || periodsFromClassStructure(classStructure)[0];
     let groups = groupsForPeriodFromStructure(classStructure, period);
-    if (!groups.length) groups = ['G1', 'G2', 'G3', 'G4'];
+    if (!groups.length) groups = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
     const fromData = [...new Set(pool.map((r) => normalizeGroupToken(r.group)).filter(Boolean))];
     groups = [...new Set([...groups, ...fromData])].sort((a, b) => {
       const na = Number(String(a).replace(/\D/g, '')) || 0;
@@ -1055,7 +1055,7 @@ const AnalysisView = ({
     const p = filters.period || periodsFromClassStructure(classStructure)[0];
     const g = groupsForPeriodFromStructure(classStructure, p);
     if (g.length) return g;
-    return ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];
+    return ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
   }, [classStructure, filters.period]);
 
   const comparisonSchoolCodes = useMemo(() => {
