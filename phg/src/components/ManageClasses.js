@@ -214,10 +214,16 @@ export default function ManageClasses({
           const periodLabel = normalizePeriodToken(bucket.period);
           const periodBadgeClass =
             String(bucket.period) === '3'
-              ? 'text-blue-700 bg-blue-50 border-blue-100'
+              ? 'text-emerald-700 bg-emerald-50 border-emerald-100'
               : String(bucket.period) === '5'
                 ? 'text-purple-700 bg-purple-50 border-purple-100'
                 : 'text-slate-700 bg-slate-50 border-slate-100';
+          const openBtnClass =
+            String(bucket.period) === '3'
+              ? 'bg-emerald-600 hover:bg-emerald-700'
+              : String(bucket.period) === '5'
+                ? 'bg-purple-600 hover:bg-purple-700'
+                : `${theme.bg} ${theme.hover}`;
           return (
             <div
               key={`${bucket.period}-${bucket.group}`}
@@ -242,7 +248,7 @@ export default function ManageClasses({
                   <button
                     type="button"
                     onClick={() => onGroupSelect?.({ period: bucket.period, group: bucket.group })}
-                    className={`text-sm px-4 py-2 rounded-lg text-white ${theme.bg} ${theme.hover}`}
+                    className={`text-sm px-4 py-2 rounded-lg text-white ${openBtnClass}`}
                   >
                     Open Raw Data
                   </button>
