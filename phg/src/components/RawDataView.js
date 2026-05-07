@@ -48,7 +48,6 @@ const RawDataView = ({
   const [importError, setImportError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
-  const [dateFilter, setDateFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
   const [sessionFilter, setSessionFilter] = useState('all');
   
@@ -140,7 +139,6 @@ const RawDataView = ({
   // PHG students: don’t hide imported rows behind “today” / a single session chip.
   useEffect(() => {
     if (!isPhgStudent) return;
-    setDateFilter('all');
     setLocationFilter('all');
     setSessionFilter('all');
   }, [isPhgStudent]);
@@ -249,28 +247,7 @@ const RawDataView = ({
       !selectedPeriod || periodsMatch(selectedPeriod, row.period);
     const matchesGroup = !selectedGroup || groupsMatch(selectedGroup, row.group);
     
-    const matchesDate = () => {
-      if (dateFilter === 'all') return true;
-      const rowDate = new Date(row.date);
-      const today = new Date();
-      
-      switch(dateFilter) {
-        case 'today':
-          return rowDate.toDateString() === today.toDateString();
-        case 'week':
-          const weekAgo = new Date(today);
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          return rowDate >= weekAgo;
-        case 'month':
-          const monthAgo = new Date(today);
-          monthAgo.setMonth(monthAgo.getMonth() - 1);
-          return rowDate >= monthAgo;
-        default:
-          return true;
-      }
-    };
-    
-    return matchesSearch && matchesLocation && matchesSession && matchesDate() && 
+    return matchesSearch && matchesLocation && matchesSession && 
            matchesSchool && matchesInstructor && matchesPeriod && matchesGroup;
   });
 
@@ -384,7 +361,6 @@ const RawDataView = ({
       onImportedDataChanged?.();
       setImportError('');
       // Historical CSVs are often hidden by "today" or session chips; widen filters after import.
-      setDateFilter('all');
       setLocationFilter('all');
       setSessionFilter('all');
       setSearchTerm('');

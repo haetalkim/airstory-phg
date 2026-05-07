@@ -40,10 +40,7 @@ export default function ManageClasses({
 
   const groups = useMemo(() => {
     // Pilot: hardcode period labels to match classroom schedule.
-    const periods =
-      Number(periodCount) === PHG_PERIOD_LABELS.length
-        ? [...PHG_PERIOD_LABELS]
-        : Array.from({ length: periodCount || 1 }, (_, i) => `P${i + 1}`);
+    const periods = [...PHG_PERIOD_LABELS];
     const groupsForPeriod = Array.from({ length: groupCount || 4 }, (_, i) => `G${i + 1}`);
     const map = {};
     periods.forEach((period) => {
@@ -66,7 +63,7 @@ export default function ManageClasses({
         map[key].students.push(m);
       });
     return Object.values(map).sort((a, b) => `${a.period}${a.group}`.localeCompare(`${b.period}${b.group}`));
-  }, [members, periodCount, groupCount]);
+  }, [members, groupCount]);
 
   /** Count distinct sessions per (period, group_code) for the session-count
    *  badge on each group card. Pulls from the workspace measurements pull
