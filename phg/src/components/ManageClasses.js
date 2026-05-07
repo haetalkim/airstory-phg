@@ -82,7 +82,12 @@ export default function ManageClasses({
         if (cancelled) return;
         const seen = {};
         (result?.measurements || []).forEach((m) => {
-          const period = normalizePeriodToken(m.period || 'P1');
+          // Pilot alignment: buckets use raw labels "3"/"5"; normalizePeriodToken("3") => "P3".
+          // Convert back to the raw label so sessionCounts keys match `${bucket.period} ${bucket.group}`.
+          const normalized = normalizePeriodToken(m.period || '');
+          const period = String(normalized).toUpperCase().startsWith('P')
+            ? String(normalized).slice(1)
+            : String(m.period || '');
           const group = normalizeGroupToken(m.group_code || m.group || '');
           const sid = m.session_id || m.session_code || '';
           if (!sid) return;
@@ -206,13 +211,25 @@ export default function ManageClasses({
         {groups.map((bucket) => {
           const bucketKey = `${bucket.period} ${bucket.group}`;
           const sessionCount = sessionCounts[bucketKey] ?? null;
+          const periodLabel = normalizePeriodToken(bucket.period);
+          const periodBadgeClass =
+            String(bucket.period) === '3'
+              ? 'text-blue-700 bg-blue-50 border-blue-100'
+              : String(bucket.period) === '5'
+                ? 'text-purple-700 bg-purple-50 border-purple-100'
+                : 'text-slate-700 bg-slate-50 border-slate-100';
           return (
             <div
               key={`${bucket.period}-${bucket.group}`}
               className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200"
             >
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <h3 className="text-xl font-bold text-gray-900">{bucket.period} {bucket.group}</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-xs font-extrabold uppercase tracking-wider px-2 py-1 rounded-md border ${periodBadgeClass}`}>
+                    {periodLabel}
+                  </span>
+                  <h3 className="text-xl font-bold text-gray-900">{periodLabel}-{bucket.group}</h3>
+                </div>
                 <div className="flex items-center gap-2">
                   <span
                     className="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-1 rounded-md"
