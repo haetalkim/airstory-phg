@@ -663,9 +663,16 @@ export default function App() {
                   <div className="flex items-center gap-3 flex-wrap justify-end">
                     <span className="text-sm text-gray-600">
                       <span className="font-bold text-gray-900">
-                        {viewerProfile.group || filters.group || "—"}
+                        {(() => {
+                          const p = String(viewerProfile.period || filters.period || '').trim();
+                          const g = String(viewerProfile.group || filters.group || '').trim();
+                          const pNum = Number(p.replace(/\D/g, '')) || null;
+                          const gNum = Number(g.replace(/\D/g, '')) || null;
+                          if (pNum && gNum) return `P${pNum}-${gNum}`;
+                          if (gNum) return `G${gNum}`;
+                          return '—';
+                        })()}
                       </span>
-                      <span className="text-gray-500 ml-1.5 hidden sm:inline">· your team</span>
                     </span>
                     <button
                       type="button"
