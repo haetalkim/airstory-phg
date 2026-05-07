@@ -1043,6 +1043,22 @@ const AnalysisView = ({
     return isCo ? Number(rawAvg.toFixed(CO_DECIMALS)) : Math.round(rawAvg);
   }, [classScopeData, selectedMetric, isCo]);
 
+  const allPeriodClassAverage = useMemo(() => {
+    const rows = imported.filter((row) => {
+      if (filters.school && !schoolsMatch(filters.school, row.school)) return false;
+      if (
+        filters.instructor &&
+        !isBlankHierarchyField(row.instructor) &&
+        row.instructor !== filters.instructor
+      )
+        return false;
+      return true;
+    });
+    if (!rows.length) return null;
+    const rawAvg = rows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / rows.length;
+    return isCo ? Number(rawAvg.toFixed(CO_DECIMALS)) : Math.round(rawAvg);
+  }, [imported, filters.school, filters.instructor, selectedMetric, isCo]);
+
   // City/reference average: uses the same OpenAQ/simulated reference line shown in Overview.
   const cityAverage = useMemo(() => {
     const refs = weekCompareData.map((d) => Number(d.reference)).filter((n) => Number.isFinite(n));
@@ -1508,13 +1524,21 @@ const AnalysisView = ({
         /* Quick Compare View */
         <div className="space-y-6">
           {/* Quick Comparison Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* Group Average */}
             <div className={`bg-white rounded-2xl p-6 shadow-lg border-2`} style={{ borderColor: theme.primary }}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900">Group Average</h3>
                 <span className={`px-3 py-1 ${theme.bg} text-white text-sm font-semibold rounded-full`}>
-                  G{filters.group.replace('G', '')}
+                  {(() => {
+                    const p = String(filters.period || '').trim();
+                    const g = String(filters.group || '').trim();
+                    const pNum = Number(p.replace(/\D/g, '')) || null;
+                    const gNum = Number(g.replace(/\D/g, '')) || null;
+                    if (pNum && gNum) return `P${pNum}-${gNum}`;
+                    if (gNum) return `G${gNum}`;
+                    return 'Group';
+                  })()}
                 </span>
               </div>
               <div className="mb-4">
@@ -1537,12 +1561,12 @@ const AnalysisView = ({
               </div>
             </div>
 
-            {/* Class Average */}
+            {/* Period Average */}
             <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-purple-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Class Average</h3>
+                <h3 className="text-lg font-bold text-gray-900">Period Average</h3>
                 <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm font-semibold rounded-full">
-                  All Groups
+                  {filters.period ? `P${String(filters.period).replace(/\D/g, '') || filters.period}` : 'All periods'}
                 </span>
               </div>
               <div className="mb-4">
@@ -1553,7 +1577,7 @@ const AnalysisView = ({
               </div>
               <div className="space-y-2 text-sm">
                 <p className="text-xs text-gray-500">
-                  Average across all groups in your class period (same school + period in imported data).
+                  Average across all groups in this period (same school + period in imported data).
                 </p>
                 <div className="flex justify-between">
                   <span className="text-gray-600">vs your group</span>
@@ -1565,6 +1589,27 @@ const AnalysisView = ({
                       : 'NO DATA'}
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Class Average (all periods) */}
+            <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-indigo-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Class Average</h3>
+                <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-sm font-semibold rounded-full">
+                  All periods
+                </span>
+              </div>
+              <div className="mb-4">
+                <p className="text-4xl font-bold text-indigo-700 mb-1">{allPeriodClassAverage == null ? 'NO DATA' : fmt(allPeriodClassAverage)}</p>
+                {allPeriodClassAverage != null && (
+                  <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
+                )}
+              </div>
+              <div className="space-y-2 text-sm">
+                <p className="text-xs text-gray-500">
+                  Average across all groups and all periods in this class (same school in imported data).
+                </p>
               </div>
             </div>
 
