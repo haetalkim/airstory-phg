@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -422,6 +422,7 @@ function MultiGroupSessionCompareChart({
   theme,
   metricUnit,
   accentGroup,
+  periodLabel,
   fmt,
   isCo,
   height = 320,
@@ -482,12 +483,15 @@ function MultiGroupSessionCompareChart({
         {groups.map((g, idx) => {
           const isAccent = accentGroup && normalizeGroupToken(accentGroup) === g;
           const color = COMPARISON_PALETTE[idx % COMPARISON_PALETTE.length];
+          const gNum = Number(String(g).replace(/\D/g, '')) || null;
+          const pNum = Number(String(periodLabel || '').replace(/\D/g, '')) || null;
+          const displayName = pNum && gNum ? `P${pNum}-${gNum}` : gNum ? `G${gNum}` : String(g);
           return (
             <Line
               key={g}
               type="monotone"
               dataKey={g}
-              name={`${g} (session)`}
+              name={`${displayName} (session)`}
               stroke={color}
               strokeWidth={isAccent ? 3.5 : 2}
               dot={false}
@@ -1043,7 +1047,7 @@ const AnalysisView = ({
     return isCo ? Number(rawAvg.toFixed(CO_DECIMALS)) : Math.round(rawAvg);
   }, [classScopeData, selectedMetric, isCo]);
 
-  const allPeriodClassAverage = useMemo(() => {
+  const classAverageAllPeriods = useMemo(() => {
     const rows = imported.filter((row) => {
       if (filters.school && !schoolsMatch(filters.school, row.school)) return false;
       if (
@@ -1058,6 +1062,26 @@ const AnalysisView = ({
     const rawAvg = rows.reduce((sum, row) => sum + Number(row[selectedMetric] || 0), 0) / rows.length;
     return isCo ? Number(rawAvg.toFixed(CO_DECIMALS)) : Math.round(rawAvg);
   }, [imported, filters.school, filters.instructor, selectedMetric, isCo]);
+
+  const periodAverage = classAverage;
+
+  const groupLabel = useMemo(() => {
+    const p = String(filters.period || '').trim();
+    const g = String(filters.group || '').trim();
+    const pNum = Number(p.replace(/\D/g, '')) || null;
+    const gNum = Number(g.replace(/\D/g, '')) || null;
+    if (pNum && gNum) return `P${pNum}-${gNum}`;
+    if (gNum) return `G${gNum}`;
+    return 'Group';
+  }, [filters.period, filters.group]);
+
+  const groupLabelForLegend = useCallback((g) => {
+    const gNum = Number(String(g).replace(/\D/g, '')) || null;
+    const pNum = Number(String(filters.period || '').replace(/\D/g, '')) || null;
+    if (pNum && gNum) return `P${pNum}-${gNum}`;
+    if (gNum) return `G${gNum}`;
+    return String(g);
+  }, [filters.period]);
 
   // City/reference average: uses the same OpenAQ/simulated reference line shown in Overview.
   const cityAverage = useMemo(() => {
@@ -1279,7 +1303,7 @@ const AnalysisView = ({
                       background: isYou ? `${color}18` : 'white',
                     }}
                   >
-                    <span className="uppercase tracking-wide text-gray-500">{g}</span>
+                    <span className="uppercase tracking-wide text-gray-500">{groupLabelForLegend(g)}</span>
                     <span style={{ color }}>{avg == null ? '—' : fmt(avg)}</span>
                     <span className="text-gray-400 font-medium">{metricThemes[selectedMetric].unit}</span>
                     <span className="text-[10px] text-gray-400 font-normal">avg</span>
@@ -1303,6 +1327,7 @@ const AnalysisView = ({
                 theme={theme}
                 metricUnit={metricThemes[selectedMetric].unit}
                 accentGroup={filters.group}
+                periodLabel={filters.period}
                 fmt={fmt}
                 isCo={isCo}
                 height={340}
@@ -1530,15 +1555,7 @@ const AnalysisView = ({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900">Group Average</h3>
                 <span className={`px-3 py-1 ${theme.bg} text-white text-sm font-semibold rounded-full`}>
-                  {(() => {
-                    const p = String(filters.period || '').trim();
-                    const g = String(filters.group || '').trim();
-                    const pNum = Number(p.replace(/\D/g, '')) || null;
-                    const gNum = Number(g.replace(/\D/g, '')) || null;
-                    if (pNum && gNum) return `P${pNum}-${gNum}`;
-                    if (gNum) return `G${gNum}`;
-                    return 'Group';
-                  })()}
+                  {groupLabel}
                 </span>
               </div>
               <div className="mb-4">
@@ -1566,12 +1583,12 @@ const AnalysisView = ({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900">Period Average</h3>
                 <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm font-semibold rounded-full">
-                  {filters.period ? `P${String(filters.period).replace(/\D/g, '') || filters.period}` : 'All periods'}
+                  {filters.period ? `P${String(filters.period).replace(/\D/g, '') || filters.period}` : '—'}
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-purple-600 mb-1">{classAverage == null ? 'NO DATA' : fmt(classAverage)}</p>
-                {classAverage != null && (
+                <p className="text-4xl font-bold text-purple-600 mb-1">{periodAverage == null ? 'NO DATA' : fmt(periodAverage)}</p>
+                {periodAverage != null && (
                   <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
                 )}
               </div>
@@ -1582,10 +1599,10 @@ const AnalysisView = ({
                 <div className="flex justify-between">
                   <span className="text-gray-600">vs your group</span>
                   <span className="font-semibold text-gray-900">
-                    {classAverage != null
-                      ? avgValue <= classAverage
-                        ? `${fmt(Math.abs(avgValue - classAverage))} lower`
-                        : `${fmt(Math.abs(avgValue - classAverage))} higher`
+                    {periodAverage != null
+                      ? avgValue <= periodAverage
+                        ? `${fmt(Math.abs(avgValue - periodAverage))} lower`
+                        : `${fmt(Math.abs(avgValue - periodAverage))} higher`
                       : 'NO DATA'}
                   </span>
                 </div>
@@ -1601,8 +1618,8 @@ const AnalysisView = ({
                 </span>
               </div>
               <div className="mb-4">
-                <p className="text-4xl font-bold text-indigo-700 mb-1">{allPeriodClassAverage == null ? 'NO DATA' : fmt(allPeriodClassAverage)}</p>
-                {allPeriodClassAverage != null && (
+                <p className="text-4xl font-bold text-indigo-700 mb-1">{classAverageAllPeriods == null ? 'NO DATA' : fmt(classAverageAllPeriods)}</p>
+                {classAverageAllPeriods != null && (
                   <p className="text-sm text-gray-600">{metricThemes[selectedMetric].unit}</p>
                 )}
               </div>
