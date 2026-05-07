@@ -297,7 +297,7 @@ const LandingPage = ({
                         Period {selectedPeriod}
                       </span>
                     ) : (
-                      <span className="text-xs font-bold text-gray-400">Select period first</span>
+                      <span className="text-xs font-bold text-gray-400">All Groups</span>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
