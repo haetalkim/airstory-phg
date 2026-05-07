@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Download, Filter, Search, ChevronDown, TrendingUp, TrendingDown, Info, ChevronRight, X, Upload, Trash2, RotateCw } from 'lucide-react';
 import { clearWorkspaceMeasurements, deleteSession, getMeasurements, importCsvMeasurements } from '../api/data';
 import { getRoster, getClassStructure } from '../api/auth';
@@ -175,12 +175,50 @@ const RawDataView = ({
     }
   }, [selectedPeriod, selectedGroup, setFilters]);
 
-  // Get unique locations, sessions, groups, and schools
-  const locations = [...new Set(rawData.map(d => d.location))];
-  const sessions = [...new Set(rawData.map(d => d.sessionId))].map(id => {
-    const session = rawData.find(d => d.sessionId === id);
-    return { id, name: session.sessionName };
-  });
+  // Build option lists from the current hierarchy scope (period/group/etc), not from all raw data.
+  const optionPool = useMemo(() => {
+    return rawData.filter((row) => {
+      if (selectedSchool && !schoolsMatch(selectedSchool, row.school)) return false;
+      if (
+        selectedInstructor &&
+        !isBlankHierarchyField(row.instructor) &&
+        row.instructor !== selectedInstructor
+      )
+        return false;
+      if (selectedPeriod && !periodsMatch(selectedPeriod, row.period)) return false;
+      if (selectedGroup && !groupsMatch(selectedGroup, row.group)) return false;
+      return true;
+    });
+  }, [rawData, selectedSchool, selectedInstructor, selectedPeriod, selectedGroup]);
+
+  const locations = useMemo(() => {
+    return [...new Set(optionPool.map((d) => d.location).filter(Boolean))].sort();
+  }, [optionPool]);
+
+  const sessions = useMemo(() => {
+    const byId = new Map();
+    optionPool.forEach((d) => {
+      const sid = d.sessionId;
+      if (!sid) return;
+      if (!byId.has(sid)) byId.set(sid, d.sessionName || String(sid));
+    });
+    return [...byId.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [optionPool]);
+
+  // If current selection isn't available under the current hierarchy scope, reset to All.
+  useEffect(() => {
+    if (sessionFilter !== 'all' && !sessions.some((s) => s.id === sessionFilter)) {
+      setSessionFilter('all');
+    }
+  }, [sessions, sessionFilter]);
+
+  useEffect(() => {
+    if (locationFilter !== 'all' && !locations.includes(locationFilter)) {
+      setLocationFilter('all');
+    }
+  }, [locations, locationFilter]);
   
   const rosterPeriods = rosterRows.map((m) => m.period).filter(Boolean);
   const rosterGroups = rosterRows.map((m) => m.group_code).filter(Boolean);
