@@ -18,7 +18,7 @@ import {
   groupsForPeriodFromStructure,
   periodsFromClassStructure,
 } from '../utils/classStructure';
-import { getStudentContext, PHG_SCHOOL_CODE } from '../utils/studentContext';
+import { getStudentContext, PHG_SCHOOL_CODE, phgSensorDisplayLabel } from '../utils/studentContext';
 import { groupsMatch, periodsMatch, schoolsMatch } from '../utils/hierarchyTokens';
 import { workspaceMeasurementsToDisplayRows } from '../utils/measurementRows';
 import {
@@ -671,7 +671,7 @@ const RawDataView = ({
         </div>
       </div>
 
-      {/* Filters and Search — PHG pilot: Search | Period | Group | Session | Location. */}
+      {/* Filters and Search — PHG pilot: Search | Period | Sensor# | Session | Location. */}
       <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {/* Search */}
@@ -683,7 +683,7 @@ const RawDataView = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by location, session, date, school, or group..."
+                placeholder="Search by location, session, date, school, or sensor #..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -712,9 +712,9 @@ const RawDataView = ({
             </div>
           </div>
 
-          {/* Group Filter (pre-populated from logged-in group) */}
+          {/* Sensor# filter (values still backend group codes, e.g. G1) */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Group</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Sensor#</label>
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <select
@@ -728,18 +728,14 @@ const RawDataView = ({
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white disabled:opacity-60 disabled:bg-gray-50"
               >
                 <option value="">
-                  All Groups
+                  All sensors
                 </option>
                 {effectiveGroups.map((g) => (
                   <option key={g} value={g}>
-                    {(() => {
-                      const p = String(selectedPeriod || filters.period || viewerProfile?.period || '').trim();
-                      const gNum = Number(String(g).replace(/\D/g, '')) || null;
-                      const pNum = Number(String(p).replace(/\D/g, '')) || null;
-                      if (pNum && gNum) return `P${pNum}-${gNum}`;
-                      if (gNum) return `G${gNum}`;
-                      return g;
-                    })()}
+                    {phgSensorDisplayLabel(
+                      selectedPeriod || filters.period || viewerProfile?.period,
+                      g
+                    )}
                   </option>
                 ))}
               </select>
@@ -930,7 +926,7 @@ const RawDataView = ({
                   className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    Group
+                    Sensor#
                     <SortIcon columnKey="group" />
                   </div>
                 </th>

@@ -3,6 +3,7 @@ import { Info, Download, Share2 } from 'lucide-react';
 import { GoogleMap, LoadScript, HeatmapLayer, Marker, InfoWindow } from '@react-google-maps/api';
 import html2canvas from 'html2canvas';
 import { getImportedMeasurements } from '../utils/importedData';
+import { phgSensorDisplayLabel } from '../utils/studentContext';
 import { groupsMatch, periodsMatch, schoolsMatch } from '../utils/hierarchyTokens';
 import { getHeatmapPoints } from '../api/data';
 import { apiRequest } from '../api/http';
@@ -1032,7 +1033,9 @@ const HeatMapDashboard = ({
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Group Average</p>
-                <p className="text-xs text-indigo-500 font-black uppercase mt-0.5 tracking-tighter">Team {filters.group}</p>
+                <p className="text-xs text-indigo-500 font-black uppercase mt-0.5 tracking-tighter">
+                  {phgSensorDisplayLabel(filters.period, filters.group)}
+                </p>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-semibold text-indigo-600">{stats.group ?? 'NO DATA'}</span>

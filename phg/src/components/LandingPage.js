@@ -291,7 +291,7 @@ const LandingPage = ({
 
                 <div className="pt-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-black text-gray-900">Pick your group</h4>
+                    <h4 className="text-lg font-black text-gray-900">Pick your AirStory Sensor #</h4>
                     {selectedPeriod ? (
                       <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded-lg">
                         Period {selectedPeriod}
@@ -310,7 +310,7 @@ const LandingPage = ({
                         className="group relative flex flex-col items-center justify-center gap-1 py-6 rounded-2xl border-2 border-gray-100 bg-gray-50 hover:bg-white hover:border-blue-500 hover:shadow-lg transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <span className="text-xs font-bold uppercase tracking-widest text-gray-400 group-hover:text-blue-500">
-                          Group
+                          Sensor
                         </span>
                         <span className="text-4xl font-black text-gray-900 group-hover:text-blue-600">
                           {idx + 1}

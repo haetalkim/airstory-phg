@@ -82,3 +82,17 @@ export function clearStudentContext() {
     /* ignore */
   }
 }
+
+/**
+ * Human-readable sensor slot label (e.g. P3-1). API payloads and DB still use
+ * codes like G1; use this only for UI copy.
+ */
+export function phgSensorDisplayLabel(period, groupCode) {
+  const p = String(period || "").trim();
+  const g = String(groupCode || "").trim();
+  const pNum = Number(p.replace(/\D/g, "")) || null;
+  const gNum = Number(g.replace(/\D/g, "")) || null;
+  if (pNum && gNum) return `P${pNum}-${gNum}`;
+  if (gNum) return `G${gNum}`;
+  return g || "—";
+}
